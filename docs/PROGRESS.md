@@ -13,7 +13,7 @@ Notas exclusivamente locales. Diseño canónico en Contexto/Mockup/mockup_screen
 - [x] Cámara, adjuntos cifrados, voz, exportación PDF/DOCX/TXT/MD, historial y preferencias.
 - [x] Pro demostrativo, servicio de IA sustituible, gateway HTTPS preparado y Google configurable.
 - [x] 27 pruebas locales aprobadas y analizador sin hallazgos; 3 pruebas del gateway aprobadas.
-- [ ] Prueba de sistema Android completa tras corregir la barra Quill y revisión visual final.
+- [x] Prueba de sistema en Android 14/API 34: crear, editar, reabrir, papelera/restaurar y Pro. Analizador y 27 pruebas locales aprobados tras los últimos ajustes.
 - [ ] APK de release firmado, verificación e instalación.
 - [ ] GitHub Release con APK y SHA-256.
 
@@ -21,7 +21,7 @@ Notas exclusivamente locales. Diseño canónico en Contexto/Mockup/mockup_screen
 Las pruebas cubren CRUD, cifrado y manipulación detectada, relaciones, migración v1→v2, reinicio de SQLite, historial, cuotas, prompts, respuestas del servicio y exportación de imágenes con proporción conservada. La interfaz se prueba a 320/390/600/1000 px y escala de texto 1.0/1.5, incluyendo editor. PDF de muestra renderizado y revisado. Hay capturas locales en artifacts/, fuera de Git.
 
 ## Continuar desde aquí
-1. Comprobar resultados de integración Android; resolver cualquier fallo antes de publicar.
+1. Integración Android aprobada. Compilar el APK de release y validar su firma e instalación.
 2. Ejecutar la compilación de release sin otro proceso Flutter simultáneo (registro de plugins compartido).
 3. Conservar android/draftai-release.jks y android/key.properties: son privados y no se suben a Git.
 4. Ver docs/RELEASE.md para firma, pruebas e instalación.

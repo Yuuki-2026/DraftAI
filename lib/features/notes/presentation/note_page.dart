@@ -217,7 +217,12 @@ class _NotePageState extends ConsumerState<NotePage>
                             editing = false;
                             editor.readOnly = true;
                           });
-                          focus.unfocus();
+                          if (context.mounted) {
+                            FocusScope.of(context).unfocus();
+                          }
+                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                            if (mounted && scroll.hasClients) scroll.jumpTo(0);
+                          });
                         }
                       },
                 child: const Text('Guardar'),

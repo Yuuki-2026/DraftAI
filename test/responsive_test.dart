@@ -65,6 +65,14 @@ void main() {
         await tester.pumpAndSettle(const Duration(milliseconds: 100));
         expect(find.text('Tus carpetas'), findsOneWidget);
         expect(tester.takeException(), isNull);
+        // Inspect the profile's interactive tiles before the plan table.
+        final rootContext = tester.element(find.text('Tus carpetas'));
+        Navigator.of(rootContext)
+            .push(MaterialPageRoute<void>(builder: (_) => const ProfilePage()));
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+        Navigator.of(rootContext).pop();
+        await tester.pumpAndSettle();
         // Also inspect dense plan comparison at the same breakpoint.
         final context = tester.element(find.text('Tus carpetas'));
         Navigator.of(context)
