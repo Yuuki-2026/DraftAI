@@ -1,6 +1,6 @@
 # DraftAI 0.1.0 para Android
 
-Primera entrega instalable del proyecto DS II. APK firmado para Android 8.0 (API 26) o superior; compilado con Flutter 3.47.2 / Dart 3.13.2 y target Android API 36.
+Primera versión instalable de DraftAI, una aplicación para crear, organizar y consultar notas con texto e imágenes guardadas en el dispositivo. APK firmado para Android 8.0 (API 26) o superior; compilado con Flutter 3.47.2 / Dart 3.13.2 y target Android API 36.
 
 ## Incluye
 - Notas locales con formato enriquecido, carpetas, categorías, temas y colores.

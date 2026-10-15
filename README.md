@@ -1,7 +1,7 @@
 # DraftAI
-Aplicación Flutter de apuntes para Desarrollo de Software II. Android primero, datos locales y diseño basado en el mockup entregado.
+DraftAI es una aplicación para crear y organizar notas con texto e imágenes. Guarda tus apuntes en el dispositivo, agrúpalos en carpetas y categorías, encuentra lo que necesitas y exporta tus notas para compartirlas.
 
-[Descargar APK firmado 0.1.0](https://github.com/Yuuki-2026/DraftAI/releases/tag/v0.1.0) · [Configuración de servicios](docs/CONFIGURATION.md) · [Continuidad](docs/PROGRESS.md)
+[Descargar APK firmado 0.1.1](https://github.com/Yuuki-2026/DraftAI/releases/tag/v0.1.1) · [Configuración de servicios](docs/CONFIGURATION.md) · [Continuidad](docs/PROGRESS.md)
 
 Notas con formato, imágenes y cámara, carpetas/categorías, búsqueda y voz, historial, papelera y exportación PDF/Word/TXT/Markdown. Datos cifrados localmente. Gratis adjunta imágenes sin OCR; Pro y el OCR sin proveedor son demostrativos. Google e IA remota requieren configuración.
 

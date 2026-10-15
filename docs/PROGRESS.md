@@ -20,6 +20,13 @@ Notas exclusivamente locales. Diseño canónico en Contexto/Mockup/mockup_screen
 ## Verificación realizada
 Las pruebas cubren CRUD, cifrado y manipulación detectada, relaciones, migración v1→v2, reinicio de SQLite, historial, cuotas, prompts, respuestas del servicio y exportación de imágenes con proporción conservada. La interfaz se prueba a 320/390/600/1000 px y escala de texto 1.0/1.5, incluyendo editor. PDF de muestra renderizado y revisado. Hay capturas locales en artifacts/, fuera de Git.
 
+## Actualización 0.1.1 preparada
+Descripción general de DraftAI como aplicación para crear y organizar notas con texto e imágenes locales. Textos actualizados en README, arquitectura, términos de uso, Acerca de y notas de publicación. Nombre, diseño y funciones conservados. La descripción publicada de v0.1.0 también se actualizó.
+
+Validación de esta actualización: analizador sin hallazgos y 27 pruebas Flutter aprobadas. APK firmado con el certificado existente, versión 0.1.1+2, mínimo API 26 y target 36 verificados. Instalado como actualización en Android 14/API 34: la nota PruebaRelease se conservó y se comprobaron los textos nuevos en Acerca de y Términos de uso. No se repitió la integración funcional ni el gateway porque solo cambiaron textos y versión. APK 0.1.1 listo para publicar.
+
+La primera compilación agotó memoria del equipo; se completó con un límite local de 3 GiB para Gradle y dos workers mediante GRADLE_OPTS, sin cambiar las opciones versionadas del proyecto. Registros en artifacts/text-update-*.log.
+
 ## Continuar desde aquí
 1. La entrega Android 0.1.0 ya está publicada. La siguiente fase es configurar servicios reales cuando el propietario aporte su proyecto Firebase y proveedor/modelo de IA.
 2. Antes de modificar, leer AGENTS.md y las decisiones de arquitectura. Mantener diseño del mockup y datos exclusivamente locales.
@@ -31,4 +38,4 @@ Las pruebas cubren CRUD, cifrado y manipulación detectada, relaciones, migraci�
 Configurar Firebase/Google y el proveedor real de IA según docs/CONFIGURATION.md. No se necesitan para el modo invitado local. El gateway es de referencia; producción requiere alojamiento, cuotas compartidas y derechos de pago verificados. No hay sincronización ni pagos reales.
 
 ## Artefacto verificado
-`artifacts/DraftAI-0.1.0-android.apk` (77630478 bytes). SHA-256: `5bcc2e0fe28f27f0e7018c26c8e4948dd1c300c98e72a3c0db7fafffa409ff4a`. Sin plugin integration_test dentro de los DEX de release. Última corrección adicional: Word convierte WebP a PNG y conserva proporción; prueba de exportación aprobada.
+`artifacts/DraftAI-0.1.1-android.apk` (77630478 bytes). SHA-256: `b87a00e8e15cc986955a6ef1b0536e547a224785bcfab4e13528cb289e7b9394`. Firma conservada respecto a v0.1.0.

@@ -10,3 +10,4 @@
 - Verificar flutter analyze --fatal-infos, flutter test e integración Android tras cambios funcionales.
 - Commits y push por etapa; release final con APK firmado y SHA-256. No cambiar la clave de firma existente.
 - Registrar qué se probó, qué queda pendiente y siguiente acción en docs/PROGRESS.md.
+- Presentar DraftAI como aplicación general de notas: explicar su propósito y funcionamiento, sin vincularla a cursos ni entregas educativas.

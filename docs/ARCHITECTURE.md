@@ -14,8 +14,8 @@ Carpeta es la agrupación principal; categoría es una subdivisión opcional den
 ## Interfaz
 Referencia canónica: Contexto/Mockup/mockup_screens e interfaz compartida mockup.css. Fondo #131313, superficies #1c1b1b/#201f1f, líneas #393939, texto #f5f5f5 y acentos blancos. Se conserva densidad, orden y navegación. Se completan crear nota, validaciones y estados. Puntos de quiebre: compacto <600, medio 600–839, expandido >=840; ancho de contenido limitado en páginas de formulario. SafeArea, teclado y escalado de texto reales del sistema.
 
-## Referencias académicas
-Clean_Architecture_SIS048_Unidad2.pdf, guía Semana 10 de persistencia y Semana 11 de seguridad. Se aplican patrones al dominio de apuntes; no se trasladan los ejercicios clínicos ni los antipatrónes de laboratorio.
+## Criterios de diseño
+Clean Architecture separa las reglas de las notas, los datos y la presentación. Los principios SOLID mantienen responsabilidades y contratos definidos. La persistencia local y el almacén seguro del dispositivo permiten conservar los apuntes sin depender de una cuenta o conexión.
 
 
 ## Grafo de dependencias

@@ -589,7 +589,7 @@ class AboutPage extends StatelessWidget {
                 style: TextStyle(fontSize: 24, fontWeight: FontWeight.w600),
               ),
             ),
-            const Center(child: Meta('Versión 0.1.0 · Build 1')),
+            const Center(child: Meta('Versión 0.1.1 · Build 2')),
             const SizedBox(height: 20),
             const Surface(
               child: Wrap(
@@ -621,11 +621,11 @@ class AboutPage extends StatelessWidget {
               onTap: () => showLicensePage(
                 context: context,
                 applicationName: 'DraftAI',
-                applicationVersion: '0.1.0',
+                applicationVersion: '0.1.1',
               ),
             ),
             const SizedBox(height: 24),
-            const Center(child: Meta('HECHO PARA ESTUDIAR SIN DISTRACCIONES')),
+            const Center(child: Meta('TUS IDEAS, SIEMPRE A MANO')),
             const SizedBox(height: 24),
           ],
         ),
@@ -666,8 +666,8 @@ class InformationPage extends StatelessWidget {
         : kind == 'terms'
         ? [
             (
-              'Proyecto académico',
-              'Esta versión se entrega para uso y evaluación académica. Los planes y precios son demostrativos; no se procesan pagos.',
+              'Uso de DraftAI',
+              'DraftAI permite crear y organizar notas con texto e imágenes guardadas en el dispositivo. Puedes agruparlas en carpetas y categorías, buscar su contenido y exportarlas para compartir. Los planes y precios son demostrativos; no se procesan pagos.',
             ),
             (
               'Revisión del contenido',
