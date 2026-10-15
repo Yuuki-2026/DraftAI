@@ -28,3 +28,10 @@ La firma de esta entrega se conserva localmente en `android/draftai-release.jks`
 
 ## Copias locales
 SQLite cifra los contenidos, no las fechas ni los identificadores. Las exportaciones y copias ZIP se entregan legibles por petición explícita del usuario. El ZIP contiene library.json y attachments/; no incluye credenciales ni la clave de cifrado. Actualmente puede recuperarse fuera de la app; no hay importador de copias ZIP en esta versión.
+
+## Certificado público de la release 0.1.0
+SHA-1 para Firebase: `57:6E:26:AB:21:54:B1:E6:BF:6F:0E:B1:6E:D9:28:5E:5C:1A:26:6E`
+
+SHA-256 del certificado: `35:78:18:AA:CA:9A:DB:9F:DC:D7:85:5D:C2:92:30:75:30:95:47:FF:C6:49:B5:87:C4:D1:1F:2F:50:68:32:2D`
+
+Estos valores son públicos; no contienen la clave privada.
