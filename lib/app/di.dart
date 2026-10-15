@@ -45,6 +45,13 @@ Future<void> configureApp() async {
   sl.registerSingleton<ExportService>(DocumentExport(media, cache));
   sl.registerSingleton<SpeechService>(DeviceSpeech());
   final identity = GoogleIdentity();
+  if (identity.configured) {
+    try {
+      await identity.idToken().timeout(const Duration(seconds: 5));
+    } catch (_) {
+      /* Local notes remain usable without remote identity. */
+    }
+  }
   sl.registerSingleton<IdentityService>(identity);
   const endpoint = String.fromEnvironment('AI_BASE_URL');
   sl.registerSingleton<AiService>(

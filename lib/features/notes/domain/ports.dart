@@ -49,6 +49,7 @@ class AnalysisProposal {
 }
 
 abstract interface class AiService {
+  void cancel();
   bool get configured;
   Future<String> transform(String text, AiAction action);
   Future<AnalysisProposal> analyze(List<PickedFile> files, Library library);

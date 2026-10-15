@@ -57,7 +57,7 @@ class LocalMediaRepository implements MediaRepository {
       rethrow;
     } catch (_) {
       throw const AppFailure(
-        'No se pudo abrir la cÃ¡mara o los archivos. Revisa los permisos del dispositivo.',
+        'No se pudo abrir la cámara o los archivos. Revisa los permisos del dispositivo.',
       );
     }
   }
@@ -71,7 +71,7 @@ class LocalMediaRepository implements MediaRepository {
   };
   File _file(Attachment a) {
     if (!RegExp(r'^[a-zA-Z0-9_-]+$').hasMatch(a.id)) {
-      throw const AppFailure('Identificador de archivo no vÃ¡lido.');
+      throw const AppFailure('Identificador de archivo no válido.');
     }
     return File(p.join(directory.path, '${a.id}.bin'));
   }

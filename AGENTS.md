@@ -1,0 +1,12 @@
+# DraftAI: instrucciones para continuar
+- Leer README.md y docs/PROGRESS.md antes de modificar código.
+- No modificar ni publicar Contexto/; es referencia local del usuario.
+- Flutter 3.47.2, Dart 3.13.2, Java 17; versiones exactas y pubspec.lock versionado.
+- Android API 26 mínimo, compile/target 36. iOS 15 preparado, no declarar validación iOS sin macOS.
+- Mantener diseño del mockup canónico: Contexto/Mockup/mockup_screens + mockup.css.
+- No introducir dependencias Flutter/Drift/HTTP en domain. Presentation no importa implementaciones Data.
+- Credenciales y firma privada nunca se incluyen en Git, APK, registros o capturas.
+- No afirmar OCR/IA real en modo demo. Datos locales, no sincronización.
+- Verificar flutter analyze --fatal-infos, flutter test e integración Android tras cambios funcionales.
+- Commits y push por etapa; release final con APK firmado y SHA-256. No cambiar la clave de firma existente.
+- Registrar qué se probó, qué queda pendiente y siguiente acción en docs/PROGRESS.md.

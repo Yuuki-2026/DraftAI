@@ -81,8 +81,14 @@ class AppController extends AsyncNotifier<Settings> {
   Future<void> trash(Note n) => _actions.trash(n);
   Future<void> restore(Note n) => _actions.restore(n);
   Future<void> remove(Note n) async {
+    final revisions = await _repo.history(n.id);
+    final attachments = <String, Attachment>{
+      for (final a in n.attachments) a.id: a,
+      for (final revision in revisions)
+        for (final a in revision.note.attachments) a.id: a,
+    };
     await _repo.deletePermanently(n.id);
-    for (final a in n.attachments) {
+    for (final a in attachments.values) {
       await ref.read(mediaPort).delete(a);
     }
   }

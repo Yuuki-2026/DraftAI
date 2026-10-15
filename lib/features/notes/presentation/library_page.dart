@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/presentation/design.dart';
 import '../domain/entities.dart';
 import '../domain/use_cases.dart';
+import '../domain/ports.dart';
 import 'controller.dart';
 import 'note_page.dart';
 import '../../capture/presentation/capture_page.dart';
@@ -27,7 +28,13 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
           children: [
             Image.asset('assets/images/logo.png', width: 29, height: 29),
             const SizedBox(width: 8),
-            const Text('DraftAI'),
+            const Flexible(
+              child: Text(
+                'DraftAI',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
           ],
         ),
         actions: [
@@ -153,13 +160,13 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
             )
           else
             SizedBox(
-              height: MediaQuery.textScalerOf(context).scale(145),
+              height: MediaQuery.textScalerOf(context).scale(128),
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 itemCount: recent.length,
                 separatorBuilder: (_, _) => const SizedBox(width: 11),
                 itemBuilder: (c, i) => SizedBox(
-                  width: 148,
+                  width: 128,
                   child: InkWell(
                     onTap: () => openPage(context, NotePage(note: recent[i])),
                     child: Surface(
@@ -196,7 +203,7 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
                           const SizedBox(height: 9),
                           Text(
                             recent[i].title,
-                            maxLines: 2,
+                            maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
                               fontSize: 11,
@@ -777,11 +784,13 @@ class SearchPage extends ConsumerStatefulWidget {
 
 class _SearchPageState extends ConsumerState<SearchPage> {
   final search = TextEditingController();
+  late final SpeechService speech;
   String mode = 'Todo';
   bool listening = false;
   @override
   void initState() {
     super.initState();
+    speech = ref.read(speechPort);
     if (widget.voice) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _voice());
     }
@@ -790,11 +799,11 @@ class _SearchPageState extends ConsumerState<SearchPage> {
   Future<void> _voice() async {
     await runAction(context, () async {
       if (listening) {
-        await ref.read(speechPort).stop();
+        await speech.stop();
         if (mounted) setState(() => listening = false);
         return;
       }
-      final available = await ref.read(speechPort).listen((text) {
+      final available = await speech.listen((text) {
         if (mounted) setState(() => search.text = text);
       });
       if (!mounted) return;
@@ -810,7 +819,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
 
   @override
   void dispose() {
-    ref.read(speechPort).stop();
+    speech.stop();
     search.dispose();
     super.dispose();
   }

@@ -27,6 +27,8 @@ class _NotePageState extends ConsumerState<NotePage>
   late q.QuillController editor;
   final focus = FocusNode();
   final scroll = ScrollController();
+  final editorScroll = ScrollController();
+  late String lastSignature;
   Timer? debounce;
   bool editing = false,
       dirty = false,
@@ -48,6 +50,7 @@ class _NotePageState extends ConsumerState<NotePage>
     title.addListener(_changed);
     topic.addListener(_changed);
     editor.addListener(_changed);
+    lastSignature = _signature();
   }
 
   q.QuillController _controller(Note n) {
@@ -69,8 +72,19 @@ class _NotePageState extends ConsumerState<NotePage>
     );
   }
 
+  String _signature() => jsonEncode([
+    title.text,
+    topic.text,
+    editor.document.toDelta().toJson(),
+    note.folderId,
+    note.categoryId,
+    note.attachments.map((a) => a.id).toList(),
+  ]);
   void _changed() {
     if (!editing) return;
+    final signature = _signature();
+    if (signature == lastSignature) return;
+    lastSignature = signature;
     dirty = true;
     debounce?.cancel();
     if (mounted) setState(() => status = 'Cambios sin guardar');
@@ -78,7 +92,7 @@ class _NotePageState extends ConsumerState<NotePage>
   }
 
   Note _snapshot() => note.copyWith(
-    title: title.text.trim().isEmpty ? 'Sin tÃ­tulo' : title.text,
+    title: title.text.trim().isEmpty ? 'Sin título' : title.text,
     topic: topic.text,
     document: jsonEncode(editor.document.toDelta().toJson()),
     plainText: editor.document.toPlainText().trimRight(),
@@ -103,7 +117,7 @@ class _NotePageState extends ConsumerState<NotePage>
     if (mounted) {
       setState(() {
         saving = true;
-        status = 'Guardandoâ€¦';
+        status = 'Guardando…';
       });
     }
     try {
@@ -154,11 +168,15 @@ class _NotePageState extends ConsumerState<NotePage>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     debounce?.cancel();
+    if (dictating) {
+      ref.read(speechPort).stop();
+    }
     title.dispose();
     topic.dispose();
     editor.dispose();
     focus.dispose();
     scroll.dispose();
+    editorScroll.dispose();
     super.dispose();
   }
 
@@ -235,7 +253,7 @@ class _NotePageState extends ConsumerState<NotePage>
                     maxLength: 200,
                     style: Theme.of(context).textTheme.titleLarge,
                     decoration: const InputDecoration(
-                      labelText: 'TÃ­tulo de la sesiÃ³n',
+                      labelText: 'Título de la sesión',
                     ),
                   )
                 else
@@ -245,7 +263,7 @@ class _NotePageState extends ConsumerState<NotePage>
                   ),
                 const SizedBox(height: 10),
                 Meta(
-                  '${dateLabel(note.createdAt)} Â· ${_snapshot().words} palabras',
+                  '${dateLabel(note.createdAt)} · ${_snapshot().words} palabras',
                 ),
                 const SizedBox(height: 12),
                 if (editing)
@@ -254,7 +272,7 @@ class _NotePageState extends ConsumerState<NotePage>
                     maxLength: 120,
                     decoration: const InputDecoration(
                       labelText: 'Tema',
-                      hintText: 'Ej. GeometrÃ­a diferencial',
+                      hintText: 'Ej. Geometría diferencial',
                     ),
                   )
                 else if (topic.text.isNotEmpty)
@@ -268,50 +286,21 @@ class _NotePageState extends ConsumerState<NotePage>
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                 const SizedBox(height: 16),
-                if (editing)
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: [
-                        q.QuillSimpleToolbar(
-                          controller: editor,
-                          config: const q.QuillSimpleToolbarConfig(
-                            multiRowsDisplay: false,
-                            showFontFamily: true,
-                            showFontSize: true,
-                            showColorButton: true,
-                            showBackgroundColorButton: false,
-                            showSearchButton: false,
-                            showLink: false,
-                            showCodeBlock: false,
-                            showInlineCode: false,
-                            showQuote: true,
-                            showIndent: false,
-                            showSubscript: false,
-                            showSuperscript: false,
-                            showListCheck: true,
-                            showClearFormat: true,
-                            showAlignmentButtons: false,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
                 q.QuillEditor(
                   controller: editor,
                   focusNode: focus,
-                  scrollController: ScrollController(),
+                  scrollController: editorScroll,
                   config: q.QuillEditorConfig(
                     scrollable: false,
                     autoFocus: false,
                     padding: const EdgeInsets.symmetric(vertical: 12),
-                    placeholder: 'Escribe tus ideas aquÃ­â€¦',
+                    placeholder: 'Escribe tus ideas aquí…',
                     expands: false,
                     minHeight: 220,
                   ),
                 ),
                 if (note.attachments.isNotEmpty)
-                  const SectionTitle('ImÃ¡genes y archivos'),
+                  const SectionTitle('Imágenes y archivos'),
                 for (final a in note.attachments)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 12),
@@ -333,7 +322,7 @@ class _NotePageState extends ConsumerState<NotePage>
                   OutlinedButton.icon(
                     onPressed: () => _attach(CaptureSource.gallery),
                     icon: const Icon(Icons.add_photo_alternate_outlined),
-                    label: const Text('AÃ±adir imÃ¡genes'),
+                    label: const Text('Añadir imágenes'),
                   ),
                 if (note.summary.isNotEmpty) ...[
                   const SectionTitle('Resumen interno'),
@@ -352,7 +341,35 @@ class _NotePageState extends ConsumerState<NotePage>
                 top: BorderSide(color: Theme.of(context).dividerColor),
               ),
             ),
-            child: editing ? _editingTools() : _readingTools(),
+            child: editing
+                ? Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      q.QuillSimpleToolbar(
+                        controller: editor,
+                        config: const q.QuillSimpleToolbarConfig(
+                          multiRowsDisplay: false,
+                          showFontFamily: true,
+                          showFontSize: true,
+                          showColorButton: true,
+                          showBackgroundColorButton: false,
+                          showSearchButton: false,
+                          showLink: false,
+                          showCodeBlock: false,
+                          showInlineCode: false,
+                          showQuote: true,
+                          showIndent: false,
+                          showSubscript: false,
+                          showSuperscript: false,
+                          showListCheck: true,
+                          showClearFormat: true,
+                          showAlignmentButtons: false,
+                        ),
+                      ),
+                      _editingTools(),
+                    ],
+                  )
+                : _readingTools(),
           ),
         ),
       ),
@@ -396,7 +413,7 @@ class _NotePageState extends ConsumerState<NotePage>
         items: [
           const DropdownMenuItem(
             value: '',
-            child: Text('Sin categorÃ­a', style: TextStyle(fontSize: 12)),
+            child: Text('Sin categoría', style: TextStyle(fontSize: 12)),
           ),
           ...lib.categories
               .where((c) => c.folderId == note.folderId)
@@ -417,7 +434,7 @@ class _NotePageState extends ConsumerState<NotePage>
           final f = lib.folders.firstWhere((f) => f.id == note.folderId);
           editCategory(context, ref, f);
         },
-        child: const Text('+ CategorÃ­a'),
+        child: const Text('+ Categoría'),
       ),
     ],
   );
@@ -465,7 +482,7 @@ class _NotePageState extends ConsumerState<NotePage>
         'Exportar',
         () => exportMenu(context, ref, [_snapshot()]),
       ),
-      _tool(Icons.more_horiz, 'MÃ¡s', _more),
+      _tool(Icons.more_horiz, 'Más', _more),
     ],
   );
   Widget _editingTools() => Row(
@@ -477,7 +494,7 @@ class _NotePageState extends ConsumerState<NotePage>
       ),
       _tool(
         Icons.camera_alt_outlined,
-        'CÃ¡mara',
+        'Cámara',
         () => _attach(CaptureSource.camera),
       ),
       _tool(Icons.auto_awesome_outlined, 'Mejorar', _improve),
@@ -528,7 +545,7 @@ class _NotePageState extends ConsumerState<NotePage>
         if (!ok) {
           message(
             context,
-            'El dictado no estÃ¡ disponible. Revisa el permiso de micrÃ³fono.',
+            'El dictado no está disponible. Revisa el permiso de micrófono.',
           );
         }
       }
@@ -553,7 +570,7 @@ class _NotePageState extends ConsumerState<NotePage>
           title: Text(
             ref.read(aiPort).configured
                 ? 'Texto mejorado'
-                : 'DemostraciÃ³n Â· limpieza de texto',
+                : 'Demostración · limpieza de texto',
           ),
           content: SingleChildScrollView(
             child: Column(
@@ -632,13 +649,13 @@ class _NotePageState extends ConsumerState<NotePage>
                 const ListTile(title: Text('Versiones anteriores')),
                 if (history.isEmpty)
                   const ListTile(
-                    title: Text('TodavÃ­a no hay versiones anteriores.'),
+                    title: Text('Todavía no hay versiones anteriores.'),
                   ),
                 ...history.map(
                   (r) => ListTile(
                     title: Text(r.note.title),
                     subtitle: Text(
-                      '${dateLabel(r.note.updatedAt)} Â· ${r.reason}',
+                      '${dateLabel(r.note.updatedAt)} · ${r.reason}',
                     ),
                     trailing: const Icon(Icons.restore),
                     onTap: () => Navigator.pop(c, r),
@@ -652,8 +669,8 @@ class _NotePageState extends ConsumerState<NotePage>
       if (chosen == null || !mounted) return;
       if (!await confirm(
         context,
-        'Restaurar versiÃ³n',
-        'La versiÃ³n actual quedarÃ¡ guardada en el historial.',
+        'Restaurar versión',
+        'La versión actual quedará guardada en el historial.',
       )) {
         return;
       }
@@ -663,7 +680,7 @@ class _NotePageState extends ConsumerState<NotePage>
       );
       await ref
           .read(controllerProvider.notifier)
-          .save(restored, reason: 'RestauraciÃ³n de historial');
+          .save(restored, reason: 'Restauración de historial');
       if (!mounted) return;
       setState(() {
         note = restored;
@@ -679,6 +696,7 @@ class _NotePageState extends ConsumerState<NotePage>
         title.addListener(_changed);
         topic.addListener(_changed);
         dirty = false;
+        lastSignature = _signature();
       });
     });
   }
@@ -828,26 +846,26 @@ Future<void> exportMenu(
           const ListTile(
             title: Text('Exportar como'),
             subtitle: Text(
-              'El archivo compartido podrÃ¡ leerse fuera de DraftAI.',
+              'El archivo compartido podrá leerse fuera de DraftAI.',
             ),
           ),
           for (final entry in [
             (
               ExportFormat.pdf,
-              'PDF Â· documento con imÃ¡genes',
+              'PDF · documento con imágenes',
               Icons.picture_as_pdf_outlined,
             ),
             (
               ExportFormat.word,
-              'Word Â· documento editable',
+              'Word · documento editable',
               Icons.description_outlined,
             ),
             (
               ExportFormat.text,
-              'Texto Â· archivo .txt',
+              'Texto · archivo .txt',
               Icons.text_snippet_outlined,
             ),
-            (ExportFormat.markdown, 'Markdown Â· archivo .md', Icons.code),
+            (ExportFormat.markdown, 'Markdown · archivo .md', Icons.code),
           ])
             ListTile(
               leading: Icon(entry.$3),

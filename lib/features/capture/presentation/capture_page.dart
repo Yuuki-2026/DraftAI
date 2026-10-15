@@ -23,11 +23,68 @@ class _CapturePageState extends ConsumerState<CapturePage> {
   bool busy = false, analyzing = false;
   String? folderId;
   final perFile = <int, String>{};
+  final savedFiles = <PickedFile>{};
+  int? listeningFile;
+  late final SpeechService speech;
   final perCategory = <int, String>{};
   @override
   void initState() {
     super.initState();
+    speech = ref.read(speechPort);
     WidgetsBinding.instance.addPostFrameCallback((_) => _pick(widget.source));
+  }
+
+  String _normalized(String s) => s
+      .toLowerCase()
+      .replaceAll('á', 'a')
+      .replaceAll('é', 'e')
+      .replaceAll('í', 'i')
+      .replaceAll('ó', 'o')
+      .replaceAll('ú', 'u');
+  Future<void> _voiceAssign(int index, Library lib) async {
+    await runAction(context, () async {
+      if (listeningFile != null) {
+        await speech.stop();
+        if (mounted) setState(() => listeningFile = null);
+        return;
+      }
+      final available = await speech.listen((words) {
+        if (!mounted) return;
+        final value = _normalized(words);
+        final category = lib.categories
+            .where((c) => value.contains(_normalized(c.name)))
+            .firstOrNull;
+        final folder = lib.folders
+            .where((f) => value.contains(_normalized(f.name)))
+            .firstOrNull;
+        if (category != null || folder != null) {
+          setState(() {
+            perFile[index] = category?.folderId ?? folder!.id;
+            if (category != null) {
+              perCategory[index] = category.id;
+            } else {
+              perCategory.remove(index);
+            }
+            listeningFile = null;
+          });
+          speech.stop();
+        }
+      });
+      if (!mounted) return;
+      setState(() => listeningFile = available ? index : null);
+      if (!available) {
+        message(
+          context,
+          'No se pudo activar el micrófono. Elige la carpeta o categoría por su nombre.',
+        );
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    if (listeningFile != null) speech.stop();
+    super.dispose();
   }
 
   Future<void> _pick(CaptureSource source) async {
@@ -57,6 +114,7 @@ class _CapturePageState extends ConsumerState<CapturePage> {
       Note? first;
       for (var i = 0; i < files.length; i++) {
         final f = files[i];
+        if (savedFiles.contains(f)) continue;
         final attachment = await ref.read(mediaPort).store(f);
         final ctrl = ref.read(controllerProvider.notifier);
         final now = DateTime.now().toUtc();
@@ -73,6 +131,7 @@ class _CapturePageState extends ConsumerState<CapturePage> {
           updatedAt: now,
         );
         await ctrl.save(note, reason: 'Importación');
+        savedFiles.add(f);
         first ??= note;
       }
       if (mounted && first != null) {
@@ -172,6 +231,11 @@ class _CapturePageState extends ConsumerState<CapturePage> {
                             ? 'Analizando archivos…'
                             : 'Preparando archivos…',
                       ),
+                      if (analyzing)
+                        TextButton(
+                          onPressed: () => ref.read(aiPort).cancel(),
+                          child: const Text('Cancelar análisis'),
+                        ),
                     ],
                   ),
                 ),
@@ -220,8 +284,24 @@ class _CapturePageState extends ConsumerState<CapturePage> {
                           ],
                         ),
                         Meta(byteLabel(files[i].bytes.length)),
+                        TextButton.icon(
+                          onPressed: busy ? null : () => _voiceAssign(i, lib),
+                          icon: Icon(
+                            listeningFile == i
+                                ? Icons.stop_circle_outlined
+                                : Icons.mic_none,
+                            size: 18,
+                          ),
+                          label: Text(
+                            listeningFile == i
+                                ? 'Escuchando · detener'
+                                : 'Asignar carpeta o categoría por voz',
+                          ),
+                        ),
+
                         if (lib.folders.isNotEmpty)
                           DropdownButtonFormField<String>(
+                            key: ValueKey('folder_${i}_${perFile[i]}'),
                             initialValue: perFile[i] ?? lib.folders.first.id,
                             decoration: const InputDecoration(
                               labelText: 'Carpeta',

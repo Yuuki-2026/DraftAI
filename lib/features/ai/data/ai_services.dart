@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
@@ -6,6 +7,8 @@ import '../../notes/domain/entities.dart';
 import '../../notes/domain/ports.dart';
 
 class DemonstrationAi implements AiService {
+  @override
+  void cancel() {}
   @override
   bool get configured => false;
   @override
@@ -49,6 +52,12 @@ class RemoteAi implements AiService {
   final Uri endpoint;
   final IdentityService identity;
   final http.Client client;
+  Completer<void>? _abort;
+  @override
+  void cancel() {
+    if (_abort != null && !_abort!.isCompleted) _abort!.complete();
+  }
+
   RemoteAi(this.endpoint, this.identity, this.client) {
     if (endpoint.scheme != 'https') {
       throw const AppFailure('El servicio de IA debe usar HTTPS.');
@@ -67,16 +76,32 @@ class RemoteAi implements AiService {
       );
     }
     try {
-      final response = await client
-          .post(
-            endpoint.resolve(path),
-            headers: {
+      if (_abort != null) {
+        throw const AppFailure('Espera a que termine la operación actual.');
+      }
+      final abort = Completer<void>();
+      _abort = abort;
+      final request =
+          http.AbortableRequest(
+              'POST',
+              endpoint.resolve(path),
+              abortTrigger: abort.future,
+            )
+            ..headers.addAll({
               'Content-Type': 'application/json',
               'Authorization': 'Bearer $token',
+            })
+            ..body = jsonEncode(body);
+      final response = await client
+          .send(request)
+          .then(http.Response.fromStream)
+          .timeout(
+            const Duration(seconds: 90),
+            onTimeout: () {
+              cancel();
+              throw TimeoutException('timeout');
             },
-            body: jsonEncode(body),
-          )
-          .timeout(const Duration(seconds: 90));
+          );
       if (response.statusCode == 429) {
         throw const AppFailure(
           'El servicio alcanzó su límite. Inténtalo más tarde.',
@@ -92,10 +117,14 @@ class RemoteAi implements AiService {
       return value;
     } on AppFailure {
       rethrow;
+    } on http.RequestAbortedException {
+      throw const AppFailure('Operación cancelada. Tus archivos se conservan.');
     } catch (_) {
       throw const AppFailure(
         'No se pudo conectar con la IA o su respuesta no es válida.',
       );
+    } finally {
+      _abort = null;
     }
   }
 

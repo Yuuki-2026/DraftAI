@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:ui' as ui;
 
 import 'package:archive/archive.dart';
 import 'package:flutter/services.dart';
@@ -36,58 +37,11 @@ class DocumentExport implements ExportService {
         ? notes.first.title.replaceAll(RegExp(r'[^\wáéíóúñÁÉÍÓÚÑ -]'), '_')
         : 'Apuntes';
     if (format == ExportFormat.pdf) {
-      final data = await rootBundle.load('assets/fonts/Inter.ttf');
-      final font = pw.Font.ttf(data);
-      final doc = pw.Document(
-        theme: pw.ThemeData.withFont(base: font, bold: font),
-      );
-      for (final note in notes) {
-        final images = <pw.Widget>[];
-        for (final a in note.attachments.where(
-          (a) => a.mime.startsWith('image/'),
-        )) {
-          images.add(
-            pw.Padding(
-              padding: const pw.EdgeInsets.only(top: 12),
-              child: pw.Image(
-                pw.MemoryImage(await media.read(a)),
-                height: 200,
-                fit: pw.BoxFit.contain,
-              ),
-            ),
-          );
-        }
-        doc.addPage(
-          pw.MultiPage(
-            pageFormat: PdfPageFormat.a4,
-            margin: const pw.EdgeInsets.all(36),
-            header: (_) => pw.Text(
-              'DraftAI · ${note.createdAt.toLocal().toIso8601String().substring(0, 10)}',
-              style: const pw.TextStyle(fontSize: 9),
-            ),
-            footer: (c) => pw.Align(
-              alignment: pw.Alignment.centerRight,
-              child: pw.Text(
-                '${c.pageNumber} / ${c.pagesCount}',
-                style: const pw.TextStyle(fontSize: 9),
-              ),
-            ),
-            build: (_) => [
-              pw.Header(level: 0, text: note.title),
-              if (note.topic.isNotEmpty) pw.Paragraph(text: note.topic),
-              ...note.plainText
-                  .split('\n')
-                  .map((s) => pw.Paragraph(text: s.isEmpty ? ' ' : s)),
-              ...images,
-            ],
-          ),
-        );
-      }
-      await _share('$name.pdf', await doc.save(), 'application/pdf');
+      await _share('$name.pdf', await buildPdf(notes), 'application/pdf');
     } else if (format == ExportFormat.word) {
       await _share(
         '$name.docx',
-        await _word(notes),
+        await buildWord(notes),
         'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
       );
     } else {
@@ -106,6 +60,66 @@ class DocumentExport implements ExportService {
     }
   }
 
+  Future<Uint8List> buildPdf(List<Note> notes) async {
+    final data = await rootBundle.load('assets/fonts/Inter.ttf');
+    final font = pw.Font.ttf(data);
+    final math = pw.Font.ttf(
+      await rootBundle.load('assets/fonts/NotoSansMath.ttf'),
+    );
+    final doc = pw.Document(
+      theme: pw.ThemeData.withFont(
+        base: font,
+        bold: font,
+        fontFallback: [math],
+      ),
+    );
+    for (final note in notes) {
+      final images = <pw.Widget>[];
+      for (final a in note.attachments.where(
+        (a) => a.mime.startsWith('image/'),
+      )) {
+        images.add(
+          pw.Padding(
+            padding: const pw.EdgeInsets.only(top: 12),
+            child: pw.Image(
+              pw.MemoryImage(await media.read(a)),
+              height: 200,
+              fit: pw.BoxFit.contain,
+            ),
+          ),
+        );
+      }
+      doc.addPage(
+        pw.MultiPage(
+          pageFormat: PdfPageFormat.a4,
+          maxPages: 200,
+          margin: const pw.EdgeInsets.all(36),
+          header: (_) => pw.Text(
+            'DraftAI · ${note.createdAt.toLocal().toIso8601String().substring(0, 10)}',
+            style: const pw.TextStyle(fontSize: 9),
+          ),
+          footer: (c) => pw.Align(
+            alignment: pw.Alignment.centerRight,
+            child: pw.Text(
+              '${c.pageNumber} / ${c.pagesCount}',
+              style: const pw.TextStyle(fontSize: 9),
+            ),
+          ),
+          build: (_) => [
+            pw.Header(level: 0, text: note.title),
+            if (note.topic.isNotEmpty) pw.Paragraph(text: note.topic),
+            ...note.plainText
+                .split('\n')
+                .map((s) => pw.Paragraph(text: s.isEmpty ? ' ' : s)),
+            ...images,
+          ],
+        ),
+      );
+    }
+
+    return doc.save();
+  }
+
   String _xml(String s) => s
       .replaceAll('&', '&amp;')
       .replaceAll('<', '&lt;')
@@ -116,7 +130,7 @@ class DocumentExport implements ExportService {
     a.addFile(ArchiveFile(name, b.length, b));
   }
 
-  Future<Uint8List> _word(List<Note> notes) async {
+  Future<Uint8List> buildWord(List<Note> notes) async {
     final zip = Archive();
     final body = StringBuffer();
     final rels = StringBuffer();
@@ -133,6 +147,12 @@ class DocumentExport implements ExportService {
         imageId++;
         final extension = a.mime == 'image/png' ? 'png' : 'jpg';
         final bytes = await media.read(a);
+        final codec = await ui.instantiateImageCodec(bytes);
+        final frame = await codec.getNextFrame();
+        final imageHeight = (4572000 * frame.image.height / frame.image.width)
+            .round();
+        frame.image.dispose();
+        codec.dispose();
         zip.addFile(
           ArchiveFile(
             'word/media/image$imageId.$extension',
@@ -144,9 +164,9 @@ class DocumentExport implements ExportService {
           '<Relationship Id="rId$imageId" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/image$imageId.$extension"/>',
         );
         body.write(
-          '<w:p><w:r><w:drawing><wp:inline><wp:extent cx="4572000" cy="3048000"/><wp:docPr id="$imageId" name="Imagen $imageId"/>'
+          '<w:p><w:r><w:drawing><wp:inline><wp:extent cx="4572000" cy="$imageHeight"/><wp:docPr id="$imageId" name="Imagen $imageId"/>'
           '<a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic><pic:nvPicPr><pic:cNvPr id="$imageId" name="Imagen"/><pic:cNvPicPr/></pic:nvPicPr>'
-          '<pic:blipFill><a:blip r:embed="rId$imageId"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="4572000" cy="3048000"/></a:xfrm>'
+          '<pic:blipFill><a:blip r:embed="rId$imageId"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="4572000" cy="$imageHeight"/></a:xfrm>'
           '<a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p>',
         );
       }

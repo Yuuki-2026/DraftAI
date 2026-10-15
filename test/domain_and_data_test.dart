@@ -5,7 +5,8 @@ import 'package:sqlite3/sqlite3.dart' as sqlite;
 import 'package:draft_ai/core/security/secure_store.dart';
 import 'package:draft_ai/features/notes/domain/entities.dart';
 import 'package:draft_ai/features/notes/domain/use_cases.dart';
-import 'package:draft_ai/features/notes/data/local/database.dart' show AppDatabase;
+import 'package:draft_ai/features/notes/data/local/database.dart'
+    show AppDatabase;
 import 'package:draft_ai/features/notes/data/local_notes_repository.dart';
 
 void main() {
@@ -220,4 +221,3 @@ void main() {
     await dir.delete(recursive: true);
   });
 }
-

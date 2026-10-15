@@ -58,3 +58,6 @@ android/key.properties
 *.keystore
 artifacts/
 coverage/
+
+node_modules/
+!server/.env.example

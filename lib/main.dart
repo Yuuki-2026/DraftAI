@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_quill/flutter_quill.dart';
@@ -20,6 +21,17 @@ Future<void> main() async {
       statusBarIconBrightness: Brightness.light,
     ),
   );
+  LicenseRegistry.addLicense(() async* {
+    for (final item in [
+      ('Inter', 'OFL-Inter.txt'),
+      ('JetBrains Mono', 'OFL-JetBrainsMono.txt'),
+      ('Noto Sans Math', 'OFL-NotoSansMath.txt'),
+    ]) {
+      yield LicenseEntryWithLineBreaks([
+        item.$1,
+      ], await rootBundle.loadString('assets/fonts/${item.$2}'));
+    }
+  });
   try {
     await configureApp();
     runApp(
