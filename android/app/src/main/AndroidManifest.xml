@@ -1,6 +1,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <application
-        android:label="draft_ai"
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+    <uses-permission android:name="android.permission.CAMERA"/>
+    <uses-feature android:name="android.hardware.camera" android:required="false"/>
+    <queries><intent><action android:name="android.speech.RecognitionService"/></intent></queries>
+    <application android:allowBackup="false" android:usesCleartextTraffic="false"
+        android:label="DraftAI"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

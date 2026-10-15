@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Draft Ai</string>
+	<string>DraftAI</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -66,5 +66,9 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+<key>NSCameraUsageDescription</key><string>Añadir fotografías a tus apuntes.</string>
+<key>NSMicrophoneUsageDescription</key><string>Buscar y dictar apuntes por voz cuando lo solicites.</string>
+<key>NSSpeechRecognitionUsageDescription</key><string>Convertir tu voz en consultas y texto.</string>
+<key>NSPhotoLibraryUsageDescription</key><string>Elegir imágenes para adjuntarlas a tus apuntes.</string>
 </dict>
 </plist>
