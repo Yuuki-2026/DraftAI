@@ -37,7 +37,7 @@ jobs:
       - run: flutter pub get --enforce-lockfile
       - run: flutter analyze --fatal-infos --no-pub
       - run: flutter test --no-pub
-      - run: flutter build apk --release --no-pub
+      - run: flutter build apk --release
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: DraftAI-android-release
