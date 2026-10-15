@@ -33,9 +33,10 @@ class DocumentExport implements ExportService {
   @override
   Future<void> export(List<Note> notes, ExportFormat format) async {
     if (notes.isEmpty) throw const AppFailure('Selecciona al menos un apunte.');
-    final name = notes.length == 1
+    final rawName = notes.length == 1
         ? notes.first.title.replaceAll(RegExp(r'[^\wáéíóúñÁÉÍÓÚÑ -]'), '_')
         : 'Apuntes';
+    final name = rawName.length > 80 ? rawName.substring(0, 80) : rawName;
     if (format == ExportFormat.pdf) {
       await _share('$name.pdf', await buildPdf(notes), 'application/pdf');
     } else if (format == ExportFormat.word) {
@@ -141,16 +142,24 @@ class DocumentExport implements ExportService {
           '<w:p><w:r><w:t xml:space="preserve">${_xml(line)}</w:t></w:r></w:p>',
         );
       }
-      for (final a in n.attachments.where(
-        (a) => a.mime == 'image/png' || a.mime == 'image/jpeg',
-      )) {
+      for (final a in n.attachments.where((a) => a.mime.startsWith('image/'))) {
         imageId++;
-        final extension = a.mime == 'image/png' ? 'png' : 'jpg';
-        final bytes = await media.read(a);
+        var extension = a.mime == 'image/png' ? 'png' : 'jpg';
+        var bytes = await media.read(a);
         final codec = await ui.instantiateImageCodec(bytes);
         final frame = await codec.getNextFrame();
         final imageHeight = (4572000 * frame.image.height / frame.image.width)
             .round();
+        if (a.mime != 'image/png' && a.mime != 'image/jpeg') {
+          final converted = await frame.image.toByteData(
+            format: ui.ImageByteFormat.png,
+          );
+          if (converted == null) {
+            throw const AppFailure('No se pudo preparar una imagen para Word.');
+          }
+          bytes = converted.buffer.asUint8List();
+          extension = 'png';
+        }
         frame.image.dispose();
         codec.dispose();
         zip.addFile(

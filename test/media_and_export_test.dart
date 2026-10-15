@@ -18,11 +18,12 @@ void main() {
     () async {
       final root = await Directory.systemTemp.createTemp('draftai_export');
       try {
+        var mediaId = 0;
         final media = LocalMediaRepository(
           Directory('${root.path}/media'),
           root,
           await VaultCipher.open(MemorySecureStore()),
-          () => 'test_image',
+          () => 'test_image_${mediaId++}',
         );
         final bytes = (await rootBundle.load('assets/images/logo.png')).buffer
             .asUint8List();
@@ -31,7 +32,7 @@ void main() {
         );
         expect(await media.read(attachment), bytes);
         expect(
-          await File('${root.path}/media/test_image.bin').readAsBytes(),
+          await File('${root.path}/media/test_image_0.bin').readAsBytes(),
           isNot(bytes),
         );
         await expectLater(
@@ -57,6 +58,26 @@ void main() {
         expect(xml, contains('Cálculo &amp; física &lt;tema&gt;'));
         expect(xml, contains('cy="4643438"'));
         expect(zip.findFile('word/media/image1.png'), isNotNull);
+        final webp = await media.store(
+          PickedFile(
+            'diagram.webp',
+            'image/webp',
+            base64Decode(
+              'UklGRiQAAABXRUJQVlA4IBgAAAAwAQCdASoQAAgAAUAmJaQAA3AA/vz0AAA=',
+            ),
+          ),
+        );
+        final withWebp = await exporter.buildWord([
+          note.copyWith(attachments: [webp]),
+        ]);
+        final convertedZip = ZipDecoder().decodeBytes(withWebp);
+        expect(convertedZip.findFile('word/media/image1.png'), isNotNull);
+        expect(
+          utf8.decode(
+            convertedZip.findFile('word/document.xml')!.content as List<int>,
+          ),
+          contains('cy="2286000"'),
+        );
         final pdf = await exporter.buildPdf([note]);
         expect(ascii.decode(pdf.take(5).toList()), '%PDF-');
         final out = Directory('artifacts/test_exports');
@@ -64,6 +85,7 @@ void main() {
         await File('${out.path}/apunte.pdf').writeAsBytes(pdf);
         await File('${out.path}/apunte.docx').writeAsBytes(word);
         await media.delete(attachment);
+        await media.delete(webp);
         expect(await media.storageBytes(), 0);
       } finally {
         await root.delete(recursive: true);
