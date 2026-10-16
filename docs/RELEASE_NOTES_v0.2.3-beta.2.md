@@ -7,4 +7,4 @@
 - Menús, exportación, encabezados, búsqueda y papelera ajustados al mockup.
 - Imagen de ejemplo para el usuario de prueba.
 
-Beta para Android 8.0 o superior. Actualiza sin desinstalar. La IA necesita el servidor; Google sigue simulado. Antes de exportar se indica qué adjuntos no se incluyen. Sin pruebas funcionales en esta entrega, por solicitud del propietario.
+Beta para Android 8.0 o superior. Actualiza sin desinstalar. La IA necesita el servidor; Google sigue simulado. Antes de exportar se indica qué adjuntos no se incluyen. Puede contener errores.
