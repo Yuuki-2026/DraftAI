@@ -4,9 +4,9 @@ Cambios solicitados en la captura del propietario: guardado explícito, aviso Gu
 
 Google en beta: botón visible con aviso explícito de no disponibilidad y elección de entrar como usuario de prueba local. No se invoca Google/Firebase ni se vincula una cuenta; preferencia local beta_user distingue el perfil. Cancelar no entra. IA: debe comprobar conexión autenticada antes de mostrar modelo conectado. Sin código/token válido no muestra conexión. La selección por fechas intersecta los apuntes y temas marcados; nunca incluye automáticamente todos los apuntes del rango. No se envían los cuerpos de temas excluidos. No se cambiaron proveedores, modelos ni límites.
 
-Validación acotada: 24 comprobaciones de fechas, edición, selección, persistencia y documentos aprobadas en unos tres segundos de ejecución. Comprobación adicional del botón Añadir tema y análisis estático registrados antes de compilar. Sin emulador, capturas ni llamadas de pago. Servidor y túnel permanecen apagados por solicitud del propietario.
+Validación acotada: 24 comprobaciones de fechas, edición, selección, persistencia y documentos aprobadas en unos tres segundos de ejecución. Comprobación adicional del botón Añadir tema y del acceso Google beta aprobada; análisis estático sin hallazgos. Total: 26 casos distintos aprobados entre los lotes acotados. Se corrigió además la disposición del campo del diálogo de tema durante su cierre, detectada por la prueba del botón. Sin emulador, capturas ni llamadas de pago. Servidor y túnel permanecen apagados por solicitud del propietario.
 
-Versión 0.2.3-beta.1+6, Android mínimo API 26/target 36. README y release breves para el público; entrega marcada Beta de pruebas. Publicación y firma se registran al finalizar.
+Versión 0.2.3-beta.1+6, Android mínimo API 26/target 36. README y release breves para el público; entrega marcada Beta de pruebas. **Publicado:** [v0.2.3-beta.1](https://github.com/Yuuki-2026/DraftAI/releases/tag/v0.2.3-beta.1) como prerelease Beta testing. APK de 80613010 bytes con el certificado existente, versión y SDK verificados; claves de proveedor ausentes del APK y auditadas en Git. SHA-256: `e5ca2dc916d4594d1f573a6799b08d95bd863bcea3542727db1cb3d5e8c02048`. Tamaño y digest comprobados en GitHub. Commit compilado: `0eaa39dd018ae62acc7578d9ae538b8cb1dbf758`.
 
 ---
 
