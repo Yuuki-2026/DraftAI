@@ -117,7 +117,7 @@ class _CaptureState extends ConsumerState<CapturePage> {
           maxWidth: 760,
           child: ListView(
             children: [
-              const SizedBox(height: 16),
+              SizedBox(height: 16),
               if (files.isNotEmpty)
                 SizedBox(
                   height: 230,
@@ -150,13 +150,15 @@ class _CaptureState extends ConsumerState<CapturePage> {
                         Positioned(
                           bottom: 0,
                           right: 0,
-                          child: Pill('${i + 1} / ${files.length}'),
+                          child: Pill(
+                            tr(context, '${i + 1} / ${files.length}'),
+                          ),
                         ),
                       ],
                     ),
                   ),
                 ),
-              const SizedBox(height: 16),
+              SizedBox(height: 16),
               DropdownButtonFormField<String>(
                 initialValue: currentFolder,
                 isExpanded: true,
@@ -176,12 +178,14 @@ class _CaptureState extends ConsumerState<CapturePage> {
                         noteId = null;
                       }),
               ),
-              const SizedBox(height: 12),
+              SizedBox(height: 12),
               DropdownButtonFormField<String>(
                 key: ValueKey('category-$currentFolder'),
                 initialValue: categoryId ?? '',
                 isExpanded: true,
-                decoration: InputDecoration(labelText: tr(context, 'Tema')),
+                decoration: InputDecoration(
+                  labelText: tr(context, 'Categoría'),
+                ),
                 items: [
                   DropdownMenuItem(
                     value: '',
@@ -198,7 +202,7 @@ class _CaptureState extends ConsumerState<CapturePage> {
                     ? null
                     : (v) => setState(() => categoryId = v == '' ? null : v),
               ),
-              const SizedBox(height: 12),
+              SizedBox(height: 12),
               DropdownButtonFormField<String>(
                 key: ValueKey('note-$currentFolder'),
                 initialValue: noteId ?? '',
@@ -226,19 +230,19 @@ class _CaptureState extends ConsumerState<CapturePage> {
                     ? null
                     : (v) => setState(() => noteId = v == '' ? null : v),
               ),
-              const SizedBox(height: 20),
+              SizedBox(height: 20),
               FilledButton.icon(
                 onPressed: busy || files.isEmpty ? null : () => _save(lib),
                 icon: const Icon(Icons.edit_note),
                 label: Text(tr(context, 'Continuar en el editor')),
               ),
-              const SizedBox(height: 10),
+              SizedBox(height: 10),
               OutlinedButton.icon(
                 onPressed: busy || files.isEmpty ? null : () => _analyze(lib),
                 icon: const Icon(Icons.auto_awesome),
                 label: Text(tr(context, 'Analizar imágenes')),
               ),
-              const SizedBox(height: 12),
+              SizedBox(height: 12),
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
@@ -260,7 +264,7 @@ class _CaptureState extends ConsumerState<CapturePage> {
                 ],
               ),
               if (busy) const LinearProgressIndicator(),
-              const SizedBox(height: 24),
+              SizedBox(height: 24),
             ],
           ),
         ),
@@ -344,7 +348,15 @@ class _ProposalPageState extends ConsumerState<ProposalPage> {
         title: title.text.trim(),
         topic: topic.text,
         plainText: text.text,
-        document: jsonEncode(NoteDocument.formatted(text.text)),
+        document: jsonEncode([
+          ...NoteDocument.formatted(text.text),
+          for (final a in attachments) ...[
+            {
+              'insert': {NoteDocument.mediaKey: a.id},
+            },
+            {'insert': '\n'},
+          ],
+        ]),
         summary: summary.text,
         attachments: attachments,
         createdAt: now,
@@ -362,20 +374,23 @@ class _ProposalPageState extends ConsumerState<ProposalPage> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Revisar clasificación')),
+    appBar: AppBar(title: Text(tr(context, 'Revisar clasificación'))),
     body: SafeArea(
       child: ResponsiveBody(
         maxWidth: 720,
         child: ListView(
           children: [
-            const SizedBox(height: 16),
+            SizedBox(height: 16),
             if (widget.proposal.demonstration)
-              const Surface(
+              Surface(
                 child: Text(
-                  'Demostración de interfaz: no se ha leído el contenido de las imágenes. Puedes editar los campos antes de guardar.',
+                  tr(
+                    context,
+                    'Demostración de interfaz: no se ha leído el contenido de las imágenes. Puedes editar los campos antes de guardar.',
+                  ),
                 ),
               ),
-            const SectionTitle('Propuesta de organización'),
+            SectionTitle('Propuesta de organización'),
             for (final field in [
               (title, 'Título'),
               (topic, 'Tema'),
@@ -394,24 +409,26 @@ class _ProposalPageState extends ConsumerState<ProposalPage> {
               controller: text,
               minLines: 5,
               maxLines: 16,
-              decoration: const InputDecoration(
-                labelText: 'Texto extraído · revisa su exactitud',
+              decoration: InputDecoration(
+                labelText: tr(context, 'Texto extraído · revisa su exactitud'),
               ),
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: 12),
             TextField(
               controller: summary,
               minLines: 3,
               maxLines: 8,
-              decoration: const InputDecoration(labelText: 'Resumen interno'),
+              decoration: InputDecoration(
+                labelText: tr(context, 'Resumen interno'),
+              ),
             ),
-            const SizedBox(height: 18),
+            SizedBox(height: 18),
             FilledButton.icon(
               onPressed: busy ? null : _save,
               icon: const Icon(Icons.done_all, size: 18),
               label: Text(busy ? 'Guardando…' : 'Aplicar cambios y guardar'),
             ),
-            const SizedBox(height: 28),
+            SizedBox(height: 28),
           ],
         ),
       ),

@@ -1,3 +1,5 @@
+import '../features/notes/data/example_library.dart';
+
 import 'dart:io';
 import 'dart:math';
 
@@ -13,7 +15,7 @@ import '../features/notes/data/local/database.dart';
 import '../features/notes/data/local_notes_repository.dart';
 import '../features/capture/data/local_media_repository.dart';
 import '../features/capture/data/device_speech.dart';
-import '../features/ai/data/ai_services.dart';
+import '../features/ai/data/gateway_ai.dart';
 import '../features/auth/data/google_identity.dart';
 import '../features/export/data/document_export.dart';
 
@@ -43,6 +45,7 @@ Future<void> configureApp() async {
   );
   sl.registerSingleton<MediaRepository>(media);
   sl.registerSingleton<ExportService>(DocumentExport(media, cache));
+  sl.registerSingleton<ExampleService>(ExampleLibrary(notes, media, newId));
   sl.registerSingleton<SpeechService>(DeviceSpeech());
   final identity = GoogleIdentity();
   if (identity.configured) {
@@ -53,14 +56,7 @@ Future<void> configureApp() async {
     }
   }
   sl.registerSingleton<IdentityService>(identity);
-  const endpoint = String.fromEnvironment('AI_BASE_URL');
-  sl.registerSingleton<AiService>(
-    endpoint.isEmpty
-        ? DemonstrationAi()
-        : RemoteAi(
-            Uri.parse(endpoint.endsWith('/') ? endpoint : '$endpoint/'),
-            identity,
-            http.Client(),
-          ),
-  );
+  final gateway = GatewayAi(SystemSecureStore(), http.Client());
+  await gateway.initialize();
+  sl.registerSingleton<AiService>(gateway);
 }

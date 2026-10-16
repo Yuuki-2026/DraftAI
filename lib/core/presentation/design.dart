@@ -1,3 +1,5 @@
+import 'strings.dart';
+
 import 'package:flutter/material.dart';
 
 abstract final class AppColors {
@@ -209,7 +211,10 @@ class SectionTitle extends StatelessWidget {
     child: Row(
       children: [
         Expanded(
-          child: Text(text, style: Theme.of(context).textTheme.titleMedium),
+          child: Text(
+            tr(context, text),
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
         ),
         ?action,
       ],
@@ -225,27 +230,29 @@ Future<void> runAction(
     await action();
   } catch (e) {
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(tr(context, '$e'))));
     }
   }
 }
 
 void message(BuildContext context, String text) =>
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(tr(context, text))));
 Future<bool> confirm(BuildContext context, String title, String text) async =>
     await showDialog<bool>(
       context: context,
       builder: (c) => AlertDialog(
-        title: Text(title),
-        content: Text(text),
+        title: Text(tr(context, title)),
+        content: Text(tr(context, text)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(c, false),
-            child: const Text('Cancelar'),
+            child: Text(tr(context, 'Cancelar')),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(c, true),
-            child: const Text('Confirmar'),
+            child: Text(tr(context, 'Confirmar')),
           ),
         ],
       ),

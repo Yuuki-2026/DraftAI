@@ -3,6 +3,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/presentation/design.dart';
+import '../../../core/presentation/strings.dart';
+import '../../notes/domain/ports.dart';
+import 'connection_dialog.dart';
 import '../../notes/domain/entities.dart';
 import '../../notes/domain/use_cases.dart';
 import '../../notes/presentation/controller.dart';
@@ -87,28 +90,64 @@ class _AiPageState extends ConsumerState<AiPage> {
 
   @override
   Widget build(BuildContext context) {
+    final service = ref.read(aiPort);
+    final connection = service is AiConnection ? service as AiConnection : null;
     final lib = ref.watch(libraryProvider).value ?? const Library([], [], []);
     return Scaffold(
-      appBar: AppBar(title: const Text('Herramientas de IA')),
+      appBar: AppBar(title: Text(tr(context, 'Herramientas de IA'))),
       body: SafeArea(
         child: ResponsiveBody(
           maxWidth: 720,
           child: ListView(
             children: [
-              const SizedBox(height: 16),
-              const Meta('MOTOR CONTEXTUAL'),
-              const SizedBox(height: 8),
+              if (connection != null)
+                ListTile(
+                  leading: Icon(
+                    service.configured ? Icons.link : Icons.link_off,
+                  ),
+                  title: Text(
+                    tr(
+                      context,
+                      service.configured
+                          ? 'IA conectada'
+                          : 'Conectar IA de prueba',
+                    ),
+                  ),
+                  subtitle: Text(
+                    service.configured
+                        ? connection.model
+                        : tr(context, 'Sin conexión a IA'),
+                  ),
+                  onTap: () async {
+                    if (await connectAiDialog(context, connection) && mounted) {
+                      setState(() {});
+                    }
+                  },
+                  trailing: service.configured
+                      ? IconButton(
+                          tooltip: tr(context, 'Desconectar'),
+                          onPressed: () async {
+                            await connection.disconnect();
+                            if (mounted) setState(() {});
+                          },
+                          icon: const Icon(Icons.close),
+                        )
+                      : const Icon(Icons.chevron_right),
+                ),
+              SizedBox(height: 16),
+              Meta(tr(context, 'MOTOR CONTEXTUAL')),
+              SizedBox(height: 8),
               Text(
                 external ? 'Enviar a una IA externa' : 'Generar resumen',
                 style: Theme.of(context).textTheme.titleLarge,
               ),
-              const SizedBox(height: 12),
+              SizedBox(height: 12),
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
                 children: [
                   ChoiceChip(
-                    label: const Text('Generar resumen'),
+                    label: Text(tr(context, 'Generar resumen')),
                     selected: !external,
                     onSelected: (_) => setState(() {
                       external = false;
@@ -116,7 +155,7 @@ class _AiPageState extends ConsumerState<AiPage> {
                     }),
                   ),
                   ChoiceChip(
-                    label: const Text('IA externa'),
+                    label: Text(tr(context, 'IA externa')),
                     selected: external,
                     onSelected: (_) => setState(() {
                       external = true;
@@ -125,12 +164,12 @@ class _AiPageState extends ConsumerState<AiPage> {
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
+              SizedBox(height: 12),
               Wrap(
                 spacing: 8,
                 children: [
                   ChoiceChip(
-                    label: const Text('Seleccionar temas'),
+                    label: Text(tr(context, 'Seleccionar temas')),
                     selected: !byDates,
                     onSelected: (_) => setState(() {
                       byDates = false;
@@ -138,7 +177,7 @@ class _AiPageState extends ConsumerState<AiPage> {
                     }),
                   ),
                   ChoiceChip(
-                    label: const Text('Seleccionar fechas'),
+                    label: Text(tr(context, 'Seleccionar fechas')),
                     selected: byDates,
                     onSelected: (_) => setState(() {
                       byDates = true;
@@ -148,7 +187,7 @@ class _AiPageState extends ConsumerState<AiPage> {
                 ],
               ),
               if (byDates) ...[
-                const SectionTitle('Ventana temporal'),
+                SectionTitle('Ventana temporal'),
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
@@ -157,14 +196,14 @@ class _AiPageState extends ConsumerState<AiPage> {
                       onPressed: () => _date(true),
                       icon: const Icon(Icons.calendar_today, size: 18),
                       label: Text(
-                        'Desde ${from == null ? 'el inicio' : dateLabel(from!)}',
+                        '${tr(context, "Desde")} ${from == null ? tr(context, "el inicio") : dateLabel(from!)}',
                       ),
                     ),
                     OutlinedButton.icon(
                       onPressed: () => _date(false),
                       icon: const Icon(Icons.event, size: 18),
                       label: Text(
-                        'Hasta ${until == null ? 'hoy' : dateLabel(until!)}',
+                        '${tr(context, "Hasta")} ${until == null ? tr(context, "hoy") : dateLabel(until!)}',
                       ),
                     ),
                     TextButton(
@@ -173,11 +212,11 @@ class _AiPageState extends ConsumerState<AiPage> {
                         until = DateTime.now();
                         result = '';
                       }),
-                      child: const Text('Últimos 7 días'),
+                      child: Text(tr(context, 'Últimos 7 días')),
                     ),
                   ],
                 ),
-                Meta('${_notes(lib).length} apuntes en el rango'),
+                Meta(tr(context, '${_notes(lib).length} apuntes en el rango')),
               ] else ...[
                 SectionTitle(
                   'Listado de temas',
@@ -190,7 +229,7 @@ class _AiPageState extends ConsumerState<AiPage> {
                       }
                       result = '';
                     }),
-                    child: const Text('Todos / ninguno'),
+                    child: Text(tr(context, 'Todos / ninguno')),
                   ),
                 ),
                 for (final n in lib.active)
@@ -198,7 +237,9 @@ class _AiPageState extends ConsumerState<AiPage> {
                     dense: true,
                     contentPadding: EdgeInsets.zero,
                     title: Text(n.title, style: const TextStyle(fontSize: 12)),
-                    subtitle: Meta('${n.topic} · ${n.words} palabras'),
+                    subtitle: Meta(
+                      tr(context, '${n.topic} · ${n.words} palabras'),
+                    ),
                     value: selected.contains(n.id),
                     onChanged: (v) => setState(() {
                       v == true ? selected.add(n.id) : selected.remove(n.id);
@@ -207,7 +248,7 @@ class _AiPageState extends ConsumerState<AiPage> {
                   ),
               ],
               if (external) ...[
-                const SectionTitle('Añadir instrucción'),
+                SectionTitle('Añadir instrucción'),
                 for (final s in [
                   'Genera un mapa mental en Markdown y Mermaid.',
                   'Genera una infografía con jerarquía y secciones.',
@@ -228,19 +269,22 @@ class _AiPageState extends ConsumerState<AiPage> {
                   ),
               ],
               if (!external && !ref.read(aiPort).configured)
-                const Padding(
+                Padding(
                   padding: EdgeInsets.symmetric(vertical: 16),
                   child: Surface(
                     child: Text(
-                      'Modo demostrativo: se extraen frases del texto local. No se consulta un modelo de IA.',
+                      tr(
+                        context,
+                        'Modo demostrativo: se extraen frases del texto local. No se consulta un modelo de IA.',
+                      ),
                     ),
                   ),
                 ),
-              const SizedBox(height: 16),
+              SizedBox(height: 16),
               FilledButton.icon(
                 onPressed: busy ? null : () => _generate(lib),
                 icon: busy
-                    ? const SizedBox(
+                    ? SizedBox(
                         width: 16,
                         height: 16,
                         child: CircularProgressIndicator(strokeWidth: 2),
@@ -259,7 +303,7 @@ class _AiPageState extends ConsumerState<AiPage> {
                   external ? 'Prompt estructurado' : 'Resumen generado',
                 ),
                 Surface(child: SelectableText(result)),
-                const SizedBox(height: 12),
+                SizedBox(height: 12),
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
@@ -272,7 +316,7 @@ class _AiPageState extends ConsumerState<AiPage> {
                         }
                       },
                       icon: const Icon(Icons.copy, size: 18),
-                      label: const Text('Copiar'),
+                      label: Text(tr(context, 'Copiar')),
                     ),
                     if (!external && widget.onInsert != null)
                       FilledButton.icon(
@@ -281,12 +325,12 @@ class _AiPageState extends ConsumerState<AiPage> {
                           if (context.mounted) Navigator.pop(context);
                         }),
                         icon: const Icon(Icons.vertical_align_bottom, size: 18),
-                        label: const Text('Insertar en apunte'),
+                        label: Text(tr(context, 'Insertar en apunte')),
                       ),
                   ],
                 ),
               ],
-              const SizedBox(height: 28),
+              SizedBox(height: 28),
             ],
           ),
         ),

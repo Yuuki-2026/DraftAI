@@ -50,4 +50,22 @@ void main() {
       'header': 1,
     });
   });
+  test(
+    'removed media in version 2 never reappears from its retained registry',
+    () {
+      final n = sample(
+        jsonEncode([
+          {'insert': 'Only text\n'},
+        ]),
+      );
+      expect(
+        NoteDocument.references(jsonEncode(NoteDocument.delta(n))),
+        isEmpty,
+      );
+      final legacy = n.copyWith(documentVersion: 1);
+      expect(NoteDocument.references(jsonEncode(NoteDocument.delta(legacy))), {
+        'a',
+      });
+    },
+  );
 }

@@ -87,6 +87,7 @@ class RemoteAi implements AiService {
               endpoint.resolve(path),
               abortTrigger: abort.future,
             )
+            ..followRedirects = false
             ..headers.addAll({
               'Content-Type': 'application/json',
               'Authorization': 'Bearer $token',
@@ -102,14 +103,24 @@ class RemoteAi implements AiService {
               throw TimeoutException('timeout');
             },
           );
-      if (response.statusCode == 429) {
-        throw const AppFailure(
-          'El servicio alcanzó su límite. Inténtalo más tarde.',
-        );
-      }
       if (response.statusCode != 200) {
-        throw const AppFailure(
-          'El servicio no pudo procesar el contenido. Tus apuntes se conservan.',
+        Map<String, dynamic> error = {};
+        try {
+          error = jsonDecode(response.body) as Map<String, dynamic>;
+        } catch (_) {}
+        const allowed = {
+          'content_blocked': 'Esta función no puede crear o mejorar instrucciones para causar daño. Puedes trabajar con apuntes educativos seguros.',
+          'daily_limit': 'Alcanzaste el límite diario. Vuelve mañana.',
+          'global_limit': 'El servidor alcanzó su límite de pruebas por hoy.',
+          'pair_required':
+              'Vuelve a conectar este dispositivo al servidor de prueba.',
+          'pro_required': 'La lectura de imágenes necesita habilitación Pro en el servidor de prueba.',
+          'rate_limit': 'Espera un minuto antes de reintentar.',
+          'invalid_file': 'El archivo no coincide con el formato permitido.',
+        };
+        throw AppFailure(
+          allowed[error['code']] ??
+              'No se pudo procesar el contenido. Tus apuntes se conservan.',
         );
       }
       final value = jsonDecode(response.body);
@@ -130,6 +141,9 @@ class RemoteAi implements AiService {
 
   @override
   Future<String> transform(String text, AiAction action) async {
+    if (text.trim().isEmpty || text.length > 12000) {
+      throw const AppFailure('Selecciona texto de hasta 12000 caracteres.');
+    }
     final j = await _post('v1/transform', {
       'text': text,
       'action': action.name,

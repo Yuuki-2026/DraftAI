@@ -39,3 +39,12 @@ Configurar Firebase/Google y el proveedor real de IA según docs/CONFIGURATION.m
 
 ## Artefacto verificado
 `artifacts/DraftAI-0.1.1-android.apk` (77630478 bytes). SHA-256: `b87a00e8e15cc986955a6ef1b0536e547a224785bcfab4e13528cb289e7b9394`. Firma conservada respecto a v0.1.0.
+
+## Integración 0.2.0 en cierre
+Rama integration/v0.2.0: feat/ui-organizacion c0dd60a integrada por merge df0cca9; nuestro bloque feat/editor-medios-ia integrado por 5a8029f. PR #1 y #2 conservan los commits. Estado de idioma unificado con AppController del colaborador; helper tr(context, texto) y catálogo local en strings.dart.
+
+Implementado: medios dentro de Delta con identificadores de adjunto; versión 2 del payload, lectura compatible v1 y separación de migración/medios retirados. Galería y PDF nativo Android, importación de lote a nota elegida, exportación ordenada, imágenes verificadas por firma/decodificador y PDF por firma/parser Android. Biblioteca opcional de 20 ejemplos y limpieza selectiva. Datos anteriores y clave/firma conservados.
+
+Servidor temporal de pruebas con claves DPAPI fuera de Git, emparejamiento sin Google, modelos exactos y presupuesto persistente. Texto real, bloqueo de petición dañina y cuota comprobados; lectura real de imagen sintética comprobada. 23 pruebas principales y 6 de servidor aprobadas. Analizador sin hallazgos antes de la compilación final. El propietario pidió revisar la entrega visual por código, sin pruebas/capturas de ese bloque; no se afirma validación visual completa.
+
+Pendiente en este punto: compilar/instalar/verificar firma del APK 0.2.0+3, auditar que no contiene claves, integrar a main y publicar release. Servidor de prueba requiere computadora/túnel activos; no confundir con servicio productivo. Google/pagos/OpenAI de Pro siguen pendientes.

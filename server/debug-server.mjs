@@ -1,3 +1,4 @@
+import {ProviderBudget} from './budget.mjs';
 import {createServer} from 'node:http';
 import {randomBytes,createHash,timingSafeEqual} from 'node:crypto';
 import {mkdirSync,readFileSync,writeFileSync,renameSync} from 'node:fs';
@@ -16,8 +17,9 @@ let pairCode=randomBytes(9).toString('hex'),pairExpires=Date.now()+24*3600000;
 writeFileSync(join(directory,'pair-code.txt'),pairCode,{mode:0o600});
 const day=()=>new Date().toISOString().slice(0,10);
 function usage(){const key=day();if(!state.usage[key]){state.usage={[key]:{provider:0,operations:{}}};persist();}return state.usage[key];}
+const budget=new ProviderBudget(directory,{initial:state.usage?.[day()]?.provider??0});
 const config={...fixedModels,key:process.env.AI_API_KEY,url:'https://api.groq.com/openai/v1/chat/completions',reserveProvider(){
- const u=usage();if(u.provider>=60)throw new ServiceError(429,'El servidor alcanzó su límite global de pruebas por hoy.','global_limit');u.provider++;persist();
+ budget.reserve();const u=usage();if(u.provider>=60)throw new ServiceError(429,'El servidor alcanzó su límite global de pruebas por hoy.','global_limit');u.provider++;persist();
 }};
 const bursts=new Map();let inflight=0;
 function burst(id,limit){const now=Date.now();const recent=(bursts.get(id)??[]).filter(t=>now-t<60000);if(recent.length>=limit)throw new ServiceError(429,'Espera un minuto antes de reintentar.','rate_limit');recent.push(now);bursts.set(id,recent);if(bursts.size>500){for(const[k,v]of bursts)if(now-v.at(-1)>60000)bursts.delete(k);}}
@@ -35,6 +37,7 @@ const server=createServer(async(req,res)=>{
    const token=randomBytes(32).toString('hex');state.devices.push({hash:hash(token),expires:Date.now()+24*3600000,pro:false});persist();
    res.end(JSON.stringify({token,...fixedModels,expires:Date.now()+24*3600000}));return;
   }
+  state.devices=JSON.parse(readFileSync(file,'utf8')).devices;
   const bearer=/^Bearer ([a-f0-9]{64})$/.exec(req.headers.authorization??'')?.[1];
   const device=bearer?state.devices.find(d=>safeEqual(d.hash,hash(bearer))&&d.expires>Date.now()):null;
   if(!device)throw new ServiceError(401,'Conecta este dispositivo para usar la IA de prueba.','pair_required');
@@ -48,8 +51,9 @@ const server=createServer(async(req,res)=>{
   if(used>=(device.pro?10:2))throw new ServiceError(429,'Límite diario alcanzado.','daily_limit');
   if(u.provider>57)throw new ServiceError(429,'El servidor alcanzó su límite global por hoy.','global_limit');
   u.operations[device.hash]=used+1;persist();inflight++;active=true;
-  const value=await executeAi(req.url,body,config);res.end(JSON.stringify(value));
- }catch(e){res.writeHead(e instanceof ServiceError?e.status:502);res.end(JSON.stringify({error:e instanceof ServiceError?e.message:'No se pudo completar la solicitud.',code:e instanceof ServiceError?e.code:'provider_unavailable'}));}
+  const abort=new AbortController();res.on('close',()=>{if(!res.writableEnded)abort.abort();});
+  const value=await executeAi(req.url,body,{...config,signal:abort.signal});if(!res.destroyed)res.end(JSON.stringify(value));
+ }catch(e){if(res.destroyed)return;res.writeHead(e instanceof ServiceError?e.status:502);res.end(JSON.stringify({error:e instanceof ServiceError?e.message:'No se pudo completar la solicitud.',code:e instanceof ServiceError?e.code:'provider_unavailable'}));}
  finally{if(active)inflight--;}
 });
 server.requestTimeout=90000;server.headersTimeout=10000;server.maxConnections=16;

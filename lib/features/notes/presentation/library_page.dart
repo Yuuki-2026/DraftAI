@@ -1,3 +1,5 @@
+import '../../../core/presentation/strings.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -47,14 +49,14 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
               children: [
                 Expanded(
                   child: Text(
-                    '$count seleccionados',
+                    tr(context, '$count seleccionados'),
                     style: const TextStyle(fontWeight: FontWeight.w600),
                   ),
                 ),
                 TextButton.icon(
                   onPressed: _clearSelection,
                   icon: const Icon(Icons.close, size: 17),
-                  label: const Text('Cancelar'),
+                  label: Text(tr(context, 'Cancelar')),
                 ),
               ],
             ),
@@ -101,6 +103,7 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
     )) {
       return;
     }
+    if (!mounted) return;
     await runAction(context, () async {
       for (final note in selected) {
         await ref.read(controllerProvider.notifier).remove(note);
@@ -109,45 +112,51 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
     });
   }
 
-  Widget _noteMenu(Note note, {required bool inTrash}) =>
-      PopupMenuButton<String>(
-        tooltip: 'Acciones del apunte',
-        onSelected: (action) async {
-          final controller = ref.read(controllerProvider.notifier);
-          if (action == 'edit') {
-            openPage(context, NotePage(note: note, edit: true));
-          } else if (action == 'ai') {
-            openPage(context, AiPage(initialNotes: [note]));
-          } else if (action == 'restore') {
-            await runAction(context, () => controller.restore(note));
-          } else if (action == 'trash') {
-            await runAction(context, () => controller.trash(note));
-          } else if (action == 'delete' &&
-              await confirm(
-                context,
-                'Eliminar definitivamente',
-                'Se eliminará este apunte y sus archivos. Esta acción no se puede deshacer.',
-              )) {
-            await runAction(context, () => controller.remove(note));
-          }
-        },
-        itemBuilder: (context) => [
-          if (!inTrash) ...[
-            const PopupMenuItem(value: 'edit', child: Text('Editar apunte')),
-            const PopupMenuItem(value: 'ai', child: Text('Herramientas de IA')),
-            const PopupMenuItem(
-              value: 'trash',
-              child: Text('Enviar a la papelera'),
-            ),
-          ] else ...[
-            const PopupMenuItem(value: 'restore', child: Text('Restaurar')),
-            const PopupMenuItem(
-              value: 'delete',
-              child: Text('Eliminar definitivamente'),
-            ),
-          ],
-        ],
-      );
+  Widget _noteMenu(
+    Note note, {
+    required bool inTrash,
+  }) => PopupMenuButton<String>(
+    tooltip: tr(context, 'Acciones del apunte'),
+    onSelected: (action) async {
+      final controller = ref.read(controllerProvider.notifier);
+      if (action == 'edit') {
+        openPage(context, NotePage(note: note, edit: true));
+      } else if (action == 'ai') {
+        openPage(context, AiPage(initialNotes: [note]));
+      } else if (action == 'restore') {
+        await runAction(context, () => controller.restore(note));
+      } else if (action == 'trash') {
+        await runAction(context, () => controller.trash(note));
+      } else if (action == 'delete' &&
+          await confirm(
+            context,
+            'Eliminar definitivamente',
+            'Se eliminará este apunte y sus archivos. Esta acción no se puede deshacer.',
+          )) {
+        if (!mounted) return;
+        await runAction(context, () => controller.remove(note));
+      }
+    },
+    itemBuilder: (context) => [
+      if (!inTrash) ...[
+        PopupMenuItem(value: 'edit', child: Text(tr(context, 'Editar apunte'))),
+        PopupMenuItem(
+          value: 'ai',
+          child: Text(tr(context, 'Herramientas de IA')),
+        ),
+        PopupMenuItem(
+          value: 'trash',
+          child: Text(tr(context, 'Enviar a la papelera')),
+        ),
+      ] else ...[
+        PopupMenuItem(value: 'restore', child: Text(tr(context, 'Restaurar'))),
+        PopupMenuItem(
+          value: 'delete',
+          child: Text(tr(context, 'Eliminar definitivamente')),
+        ),
+      ],
+    ],
+  );
   @override
   Widget build(BuildContext context) {
     final library = ref.watch(libraryProvider);
@@ -157,10 +166,10 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Image.asset('assets/images/logo.png', width: 29, height: 29),
-            const SizedBox(width: 8),
-            const Flexible(
+            SizedBox(width: 8),
+            Flexible(
               child: Text(
-                'DraftAI',
+                tr(context, 'DraftAI'),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -169,17 +178,17 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
         ),
         actions: [
           IconButton(
-            tooltip: 'Buscar',
+            tooltip: tr(context, 'Buscar'),
             onPressed: () => openPage(context, const SearchPage()),
             icon: const Icon(Icons.search, size: 21),
           ),
           IconButton(
-            tooltip: 'Búsqueda por voz',
+            tooltip: tr(context, 'Búsqueda por voz'),
             onPressed: () => openPage(context, const SearchPage(voice: true)),
             icon: const Icon(Icons.mic_none, size: 21),
           ),
           IconButton(
-            tooltip: 'Abrir perfil',
+            tooltip: tr(context, 'Abrir perfil'),
             onPressed: () => openPage(context, const ProfilePage()),
             icon: CircleAvatar(
               radius: 16,
@@ -194,7 +203,7 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
               ),
             ),
           ),
-          const SizedBox(width: 8),
+          SizedBox(width: 8),
         ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
@@ -212,10 +221,10 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
           error: (e, _) => Center(
             child: Padding(
               padding: const EdgeInsets.all(24),
-              child: Text('No se pudo abrir la biblioteca: $e'),
+              child: Text(tr(context, 'No se pudo abrir la biblioteca: $e')),
             ),
           ),
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: () => Center(child: CircularProgressIndicator()),
         ),
       ),
       bottomNavigationBar: SafeArea(
@@ -263,9 +272,9 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
                   ? Theme.of(context).colorScheme.onSurface
                   : AppColors.muted,
             ),
-            const SizedBox(height: 5),
+            SizedBox(height: 5),
             Text(
-              name,
+              tr(context, name),
               style: TextStyle(
                 fontSize: 10,
                 color: tab == index
@@ -288,7 +297,10 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
             'Recientes',
             action: TextButton(
               onPressed: () => setState(() => tab = 2),
-              child: const Text('Ver todos', style: TextStyle(fontSize: 11)),
+              child: Text(
+                tr(context, 'Ver todos'),
+                style: TextStyle(fontSize: 11),
+              ),
             ),
           ),
           if (recent.isEmpty)
@@ -303,7 +315,7 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 itemCount: recent.length,
-                separatorBuilder: (_, _) => const SizedBox(width: 11),
+                separatorBuilder: (_, _) => SizedBox(width: 11),
                 itemBuilder: (c, i) => SizedBox(
                   width: 196,
                   child: InkWell(
@@ -314,7 +326,7 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Expanded(child: RecentNotePreview(note: recent[i])),
-                          const SizedBox(height: 8),
+                          SizedBox(height: 8),
                           Text(
                             recent[i].title,
                             maxLines: 2,
@@ -324,7 +336,7 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
                               fontWeight: FontWeight.w600,
                             ),
                           ),
-                          const SizedBox(height: 3),
+                          SizedBox(height: 3),
                           Meta(dateLabel(recent[i].updatedAt)),
                         ],
                       ),
@@ -333,20 +345,20 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
                 ),
               ),
             ),
-          const SizedBox(height: 12),
+          SizedBox(height: 12),
           FilledButton.icon(
             key: const Key('new-note'),
             onPressed: () => createNote(context, ref),
             icon: const Icon(Icons.add, size: 18),
-            label: const Text('Nueva nota'),
+            label: Text(tr(context, 'Nueva nota')),
           ),
           SectionTitle(
             'Tus carpetas',
             action: TextButton.icon(
               onPressed: () => editFolder(context, ref),
               icon: const Icon(Icons.create_new_folder_outlined, size: 16),
-              label: const Text(
-                'Nueva carpeta',
+              label: Text(
+                tr(context, 'Nueva carpeta'),
                 style: TextStyle(fontSize: 11),
               ),
             ),
@@ -369,17 +381,17 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
             },
           ),
           if (lib.folders.isEmpty) ...[
-            const SizedBox(height: 12),
+            SizedBox(height: 12),
             OutlinedButton.icon(
               onPressed: () => runAction(
                 context,
                 () => ref.read(controllerProvider.notifier).loadExamples(),
               ),
               icon: const Icon(Icons.auto_stories_outlined, size: 18),
-              label: const Text('Cargar ejemplos del mockup'),
+              label: Text(tr(context, 'Cargar ejemplos del mockup')),
             ),
           ],
-          const SizedBox(height: 24),
+          SizedBox(height: 24),
         ],
       ),
     );
@@ -407,7 +419,10 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
         padding: const EdgeInsets.symmetric(horizontal: 6),
       ),
       icon: const Icon(Icons.sell_outlined, size: 15),
-      label: const Text('Nueva categoría', style: TextStyle(fontSize: 11)),
+      label: Text(
+        tr(context, 'Nueva categoría'),
+        style: TextStyle(fontSize: 11),
+      ),
     );
     final addNoteAction = FilledButton.tonalIcon(
       onPressed: () => createNote(context, ref, folderId: f.id),
@@ -418,7 +433,10 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
         padding: const EdgeInsets.symmetric(horizontal: 6),
       ),
       icon: const Icon(Icons.add, size: 15),
-      label: const Text('Agregar apunte', style: TextStyle(fontSize: 11)),
+      label: Text(
+        tr(context, 'Agregar apunte'),
+        style: TextStyle(fontSize: 11),
+      ),
     );
     return Container(
       padding: const EdgeInsets.all(10),
@@ -437,7 +455,7 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
           Row(
             children: [
               Icon(Icons.folder, color: foreground, size: 23),
-              const SizedBox(width: 8),
+              SizedBox(width: 8),
               Expanded(
                 child: Text(
                   f.name,
@@ -448,14 +466,14 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
                 ),
               ),
               IconButton(
-                tooltip: 'Editar carpeta',
+                tooltip: tr(context, 'Editar carpeta'),
                 onPressed: () => editFolder(context, ref, folder: f),
                 icon: Icon(Icons.edit_outlined, size: 17, color: foreground),
               ),
             ],
           ),
           if (categories.isNotEmpty) ...[
-            const SizedBox(height: 4),
+            SizedBox(height: 4),
             Wrap(
               spacing: 6,
               runSpacing: 6,
@@ -477,7 +495,7 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(Icons.sell_outlined, size: 13, color: foreground),
-                        const SizedBox(width: 5),
+                        SizedBox(width: 5),
                         ConstrainedBox(
                           constraints: const BoxConstraints(maxWidth: 150),
                           child: Text(
@@ -501,7 +519,7 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 12),
               child: Text(
-                'Aún no hay apuntes en esta carpeta.',
+                tr(context, 'Aún no hay apuntes en esta carpeta.'),
                 style: TextStyle(color: foreground),
               ),
             ),
@@ -525,7 +543,7 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
                   child: Row(
                     children: [
                       Icon(Icons.description, size: 16, color: foreground),
-                      const SizedBox(width: 9),
+                      SizedBox(width: 9),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -538,7 +556,7 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
                             ),
                             if (n.categoryId != null)
                               Text(
-                                'Categoría · ${categories.where((category) => category.id == n.categoryId).firstOrNull?.name ?? 'Sin categoría'}',
+                                '${tr(context, "Categoría")} · ${categories.where((category) => category.id == n.categoryId).firstOrNull?.name ?? tr(context, "Sin categoría")}',
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
@@ -558,19 +576,19 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
             TextButton(
               onPressed: () => openPage(context, SearchPage(folderId: f.id)),
               child: Text(
-                'Ver ${notes.length} apuntes',
+                tr(context, 'Ver ${notes.length} apuntes'),
                 style: TextStyle(color: foreground),
               ),
             ),
           if (stackActions) ...[
             SizedBox(width: double.infinity, child: categoryAction),
-            const SizedBox(height: 8),
+            SizedBox(height: 8),
             SizedBox(width: double.infinity, child: addNoteAction),
           ] else
             Row(
               children: [
                 Expanded(child: categoryAction),
-                const SizedBox(width: 8),
+                SizedBox(width: 8),
                 Expanded(child: addNoteAction),
               ],
             ),
@@ -582,7 +600,7 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
   Widget _all(Library lib) => ResponsiveBody(
     child: ListView(
       children: [
-        const SectionTitle('Tus apuntes'),
+        SectionTitle('Tus apuntes'),
         if (selecting)
           _selectionBar(
             count: selectedIds.length,
@@ -590,19 +608,21 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
               FilledButton.tonalIcon(
                 onPressed: () => _trashSelected(lib),
                 icon: const Icon(Icons.delete_outline, size: 17),
-                label: const Text('Enviar a papelera'),
+                label: Text(tr(context, 'Enviar a papelera')),
               ),
               OutlinedButton.icon(
                 onPressed: () => _openSelectedAi(lib),
                 icon: const Icon(Icons.auto_awesome_outlined, size: 17),
-                label: const Text('Herramientas de IA'),
+                label: Text(tr(context, 'Herramientas de IA')),
               ),
             ],
           )
         else if (lib.active.isNotEmpty)
-          const Padding(
+          Padding(
             padding: EdgeInsets.only(bottom: 10),
-            child: Meta('Mantén pulsado un apunte para seleccionar varios.'),
+            child: Meta(
+              tr(context, 'Mantén pulsado un apunte para seleccionar varios.'),
+            ),
           ),
         if (lib.active.isEmpty)
           _empty(
@@ -621,7 +641,7 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
             trailing: selecting ? null : _noteMenu(n, inTrash: false),
           ),
         ),
-        const SizedBox(height: 24),
+        SizedBox(height: 24),
       ],
     ),
   );
@@ -644,7 +664,7 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
                       }
                     }
                   }),
-                  child: const Text('Vaciar'),
+                  child: Text(tr(context, 'Vaciar')),
                 ),
         ),
         if (selecting)
@@ -654,20 +674,23 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
               OutlinedButton.icon(
                 onPressed: () => _restoreSelected(lib),
                 icon: const Icon(Icons.restore, size: 17),
-                label: const Text('Restaurar'),
+                label: Text(tr(context, 'Restaurar')),
               ),
               FilledButton.tonalIcon(
                 onPressed: () => _deleteSelected(lib),
                 icon: const Icon(Icons.delete_forever_outlined, size: 17),
-                label: const Text('Eliminar definitivamente'),
+                label: Text(tr(context, 'Eliminar definitivamente')),
               ),
             ],
           )
         else if (lib.trash.isNotEmpty)
-          const Padding(
+          Padding(
             padding: EdgeInsets.only(bottom: 10),
             child: Meta(
-              'Toca un apunte para seleccionarlo o mantenerlo pulsado para empezar.',
+              tr(
+                context,
+                'Toca un apunte para seleccionarlo o mantenerlo pulsado para empezar.',
+              ),
             ),
           ),
         if (lib.trash.isEmpty)
@@ -693,9 +716,9 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
     child: Column(
       children: [
         Icon(icon, size: 40, color: AppColors.muted),
-        const SizedBox(height: 12),
+        SizedBox(height: 12),
         Text(title, style: Theme.of(context).textTheme.titleMedium),
-        const SizedBox(height: 6),
+        SizedBox(height: 6),
         Text(subtitle, textAlign: TextAlign.center),
       ],
     ),
@@ -734,7 +757,7 @@ class NoteTile extends StatelessWidget {
                   ? Theme.of(context).colorScheme.primary
                   : AppColors.muted,
             ),
-            const SizedBox(width: 12),
+            SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -748,7 +771,7 @@ class NoteTile extends StatelessWidget {
                       fontWeight: FontWeight.w500,
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  SizedBox(height: 4),
                   Meta(
                     subtitle ??
                         '${note.topic.isEmpty ? 'Sin tema' : note.topic} · ${dateLabel(note.updatedAt)}',
@@ -793,10 +816,10 @@ class RecentNotePreview extends ConsumerWidget {
                 ? Row(
                     children: [
                       const Icon(Icons.attach_file, size: 18),
-                      const SizedBox(width: 6),
+                      SizedBox(width: 6),
                       Expanded(
                         child: Text(
-                          'Archivo adjunto',
+                          tr(context, 'Archivo adjunto'),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: Theme.of(context).textTheme.bodySmall,
@@ -805,7 +828,7 @@ class RecentNotePreview extends ConsumerWidget {
                     ],
                   )
                 : Text(
-                    'Sin contenido todavía',
+                    tr(context, 'Sin contenido todavía'),
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
           )
@@ -823,7 +846,7 @@ class RecentNotePreview extends ConsumerWidget {
                 return Container(
                   color: scheme.surfaceContainerLow,
                   alignment: Alignment.center,
-                  child: const SizedBox.square(
+                  child: SizedBox.square(
                     dimension: 18,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   ),
@@ -875,6 +898,7 @@ Future<void> createNote(
     final title = TextEditingController();
     String? selectedFolder = initialFolder;
     String? selectedCategory;
+    if (!context.mounted) return;
     final result = await showDialog<_NoteFormResult>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
@@ -886,29 +910,31 @@ Future<void> createNote(
             selectedCategory = null;
           }
           return AlertDialog(
-            title: const Text('Añadir apunte'),
+            title: Text(tr(context, 'Añadir apunte')),
             content: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Text('Elige dónde guardar este apunte.'),
-                  const SizedBox(height: 14),
+                  Text(tr(context, 'Elige dónde guardar este apunte.')),
+                  SizedBox(height: 14),
                   TextField(
                     controller: title,
                     maxLength: 200,
                     autofocus: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Título del apunte',
-                      hintText: 'Ej. Cálculo diferencial',
+                    decoration: InputDecoration(
+                      labelText: tr(context, 'Título del apunte'),
+                      hintText: tr(context, 'Ej. Cálculo diferencial'),
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  SizedBox(height: 8),
                   DropdownButtonFormField<String>(
                     key: ValueKey('note-folder-$selectedFolder'),
                     initialValue: selectedFolder,
                     isExpanded: true,
-                    decoration: const InputDecoration(labelText: 'Carpeta'),
+                    decoration: InputDecoration(
+                      labelText: tr(context, 'Carpeta'),
+                    ),
                     items: [
                       for (final folder in folders)
                         DropdownMenuItem(
@@ -919,7 +945,7 @@ Future<void> createNote(
                                 Icons.folder,
                                 color: _folderForeground(Color(folder.color)),
                               ),
-                              const SizedBox(width: 9),
+                              SizedBox(width: 9),
                               Expanded(
                                 child: Text(
                                   folder.name,
@@ -937,20 +963,20 @@ Future<void> createNote(
                     }),
                   ),
                   if (categories.isNotEmpty) ...[
-                    const SizedBox(height: 10),
+                    SizedBox(height: 10),
                     DropdownButtonFormField<String>(
                       key: ValueKey(
                         'note-category-$selectedFolder-$selectedCategory',
                       ),
                       initialValue: selectedCategory ?? '',
                       isExpanded: true,
-                      decoration: const InputDecoration(
-                        labelText: 'Categoría (opcional)',
+                      decoration: InputDecoration(
+                        labelText: tr(context, 'Categoría (opcional)'),
                       ),
                       items: [
-                        const DropdownMenuItem(
+                        DropdownMenuItem(
                           value: '',
-                          child: Text('Sin categoría'),
+                          child: Text(tr(context, 'Sin categoría')),
                         ),
                         for (final category in categories)
                           DropdownMenuItem(
@@ -973,7 +999,7 @@ Future<void> createNote(
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(dialogContext),
-                child: const Text('Cancelar'),
+                child: Text(tr(context, 'Cancelar')),
               ),
               FilledButton.icon(
                 onPressed: selectedFolder == null
@@ -987,7 +1013,7 @@ Future<void> createNote(
                         ),
                       ),
                 icon: const Icon(Icons.add, size: 17),
-                label: const Text('Crear apunte'),
+                label: Text(tr(context, 'Crear apunte')),
               ),
             ],
           );
@@ -996,6 +1022,7 @@ Future<void> createNote(
     );
     title.dispose();
     if (result == null || !context.mounted) return;
+    if (!context.mounted) return;
     final note = await controller.create(
       result.folderId,
       title: result.title,
@@ -1023,10 +1050,10 @@ Future<void> newNoteMenu(BuildContext context, WidgetRef ref) async {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const ListTile(title: Text('Añadir a tus apuntes')),
+          ListTile(title: Text(tr(context, 'Añadir a tus apuntes'))),
           ListTile(
             leading: const Icon(Icons.edit_note),
-            title: const Text('Escribir nota'),
+            title: Text(tr(context, 'Escribir nota')),
             onTap: () {
               Navigator.pop(c);
               createNote(context, ref);
@@ -1034,7 +1061,7 @@ Future<void> newNoteMenu(BuildContext context, WidgetRef ref) async {
           ),
           ListTile(
             leading: const Icon(Icons.camera_alt_outlined),
-            title: const Text('Capturar fotografías'),
+            title: Text(tr(context, 'Capturar fotografías')),
             onTap: () {
               Navigator.pop(c);
               openPage(
@@ -1045,7 +1072,7 @@ Future<void> newNoteMenu(BuildContext context, WidgetRef ref) async {
           ),
           ListTile(
             leading: const Icon(Icons.photo_library_outlined),
-            title: const Text('Añadir imágenes'),
+            title: Text(tr(context, 'Añadir imágenes')),
             onTap: () {
               Navigator.pop(c);
               openPage(context, const CapturePage());
@@ -1053,13 +1080,13 @@ Future<void> newNoteMenu(BuildContext context, WidgetRef ref) async {
           ),
           ListTile(
             leading: const Icon(Icons.attach_file),
-            title: const Text('Agregar archivos o texto'),
+            title: Text(tr(context, 'Agregar archivos o texto')),
             onTap: () {
               Navigator.pop(c);
               openPage(context, const CapturePage(source: CaptureSource.files));
             },
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: 12),
         ],
       ),
     ),
@@ -1120,12 +1147,12 @@ Future<void> editFolder(
                   maxLength: 80,
                   autofocus: true,
                   onChanged: (_) => setDialogState(() {}),
-                  decoration: const InputDecoration(
-                    labelText: 'Nombre de la carpeta',
+                  decoration: InputDecoration(
+                    labelText: tr(context, 'Nombre de la carpeta'),
                   ),
                 ),
-                const SizedBox(height: 14),
-                const SectionTitle('Previsualización'),
+                SizedBox(height: 14),
+                SectionTitle('Previsualización'),
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 12,
@@ -1141,7 +1168,7 @@ Future<void> editFolder(
                   child: Row(
                     children: [
                       Icon(Icons.folder, color: foreground),
-                      const SizedBox(width: 10),
+                      SizedBox(width: 10),
                       Expanded(
                         child: Text(
                           name.text.trim().isEmpty
@@ -1158,7 +1185,7 @@ Future<void> editFolder(
                     ],
                   ),
                 ),
-                const SectionTitle('Tono'),
+                SectionTitle('Tono'),
                 Slider(
                   value: HSVColor.fromColor(Color(color)).hue
                       .clamp(0.0, 360.0)
@@ -1178,20 +1205,31 @@ Future<void> editFolder(
                     hex.text = _folderHex(color);
                   }),
                 ),
+                SizedBox(
+                  height: 140,
+                  child: _ColorSpectrum(
+                    color: Color(color),
+                    onChanged: (next) => setDialogState(() {
+                      color = next.toARGB32();
+                      hex.text = _folderHex(color);
+                    }),
+                  ),
+                ),
+                const SizedBox(height: 12),
                 TextField(
                   controller: hex,
                   textCapitalization: TextCapitalization.characters,
-                  decoration: const InputDecoration(
-                    labelText: 'HEX',
+                  decoration: InputDecoration(
+                    labelText: tr(context, 'HEX'),
                     prefixIcon: Icon(Icons.tag),
-                    hintText: '#DCE8F1',
+                    hintText: tr(context, '#DCE8F1'),
                   ),
                   onChanged: (value) {
                     final parsed = _parseFolderHex(value);
                     if (parsed != null) setDialogState(() => color = parsed);
                   },
                 ),
-                const SectionTitle('Colores recomendados'),
+                SectionTitle('Colores recomendados'),
                 Wrap(
                   spacing: 9,
                   runSpacing: 9,
@@ -1244,7 +1282,7 @@ Future<void> editFolder(
                       hex.text = _folderHex(original);
                     }),
                     icon: const Icon(Icons.restart_alt, size: 17),
-                    label: const Text('Restaurar original'),
+                    label: Text(tr(context, 'Restaurar original')),
                   ),
                 ),
               ],
@@ -1285,11 +1323,11 @@ Future<void> editFolder(
                   );
                 },
                 icon: const Icon(Icons.delete_outline, size: 17),
-                label: const Text('Eliminar'),
+                label: Text(tr(context, 'Eliminar')),
               ),
             TextButton(
               onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Cancelar'),
+              child: Text(tr(context, 'Cancelar')),
             ),
             FilledButton.icon(
               onPressed:
@@ -1305,7 +1343,7 @@ Future<void> editFolder(
                       ),
                     ),
               icon: const Icon(Icons.check, size: 17),
-              label: const Text('Confirmar'),
+              label: Text(tr(context, 'Confirmar')),
             ),
           ],
         );
@@ -1332,14 +1370,19 @@ Future<void> editCategory(
     context: context,
     builder: (dialogContext) => StatefulBuilder(
       builder: (dialogContext, setDialogState) => AlertDialog(
-        title: const Text('Nueva categoría'),
+        title: Text(tr(context, 'Nueva categoría')),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text('La categoría organizará apuntes de ${folder.name}.'),
-              const SizedBox(height: 14),
+              Text(
+                tr(
+                  context,
+                  'La categoría organizará apuntes de ${folder.name}.',
+                ),
+              ),
+              SizedBox(height: 14),
               Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 12,
@@ -1357,7 +1400,7 @@ Future<void> editCategory(
                 child: Row(
                   children: [
                     const Icon(Icons.folder),
-                    const SizedBox(width: 10),
+                    SizedBox(width: 10),
                     Expanded(
                       child: Text(
                         folder.name,
@@ -1369,15 +1412,15 @@ Future<void> editCategory(
                   ],
                 ),
               ),
-              const SizedBox(height: 12),
+              SizedBox(height: 12),
               TextField(
                 controller: name,
                 maxLength: 80,
                 autofocus: true,
                 onChanged: (_) => setDialogState(() {}),
-                decoration: const InputDecoration(
-                  labelText: 'Nombre de categoría',
-                  hintText: 'Ej. Exámenes',
+                decoration: InputDecoration(
+                  labelText: tr(context, 'Nombre de categoría'),
+                  hintText: tr(context, 'Ej. Exámenes'),
                 ),
               ),
             ],
@@ -1386,14 +1429,14 @@ Future<void> editCategory(
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancelar'),
+            child: Text(tr(context, 'Cancelar')),
           ),
           FilledButton.icon(
             onPressed: name.text.trim().isEmpty
                 ? null
                 : () => Navigator.pop(dialogContext, name.text.trim()),
             icon: const Icon(Icons.sell_outlined, size: 17),
-            label: const Text('Crear categoría'),
+            label: Text(tr(context, 'Crear categoría')),
           ),
         ],
       ),
@@ -1476,18 +1519,18 @@ class _SearchPageState extends ConsumerState<SearchPage> {
       folderId: widget.folderId,
     );
     return Scaffold(
-      appBar: AppBar(title: const Text('Buscar apuntes')),
+      appBar: AppBar(title: Text(tr(context, 'Buscar apuntes'))),
       body: SafeArea(
         child: ResponsiveBody(
           child: ListView(
             children: [
-              const SizedBox(height: 16),
+              SizedBox(height: 16),
               TextField(
                 key: const Key('search-field'),
                 controller: search,
                 onChanged: (_) => setState(() {}),
                 decoration: InputDecoration(
-                  hintText: 'Buscar en tus apuntes',
+                  hintText: tr(context, 'Buscar en tus apuntes'),
                   prefixIcon: const Icon(Icons.search),
                   suffixIcon: IconButton(
                     tooltip: listening ? 'Detener voz' : 'Buscar por voz',
@@ -1498,7 +1541,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                   ),
                 ),
               ),
-              const SizedBox(height: 12),
+              SizedBox(height: 12),
               Wrap(
                 spacing: 8,
                 children: ['Todo', 'Título', 'Tema']
@@ -1512,10 +1555,13 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                     .toList(),
               ),
               if (listening)
-                const Padding(
+                Padding(
                   padding: EdgeInsets.all(16),
                   child: Text(
-                    'Escuchando… Puedes detener el micrófono cuando termines.',
+                    tr(
+                      context,
+                      'Escuchando… Puedes detener el micrófono cuando termines.',
+                    ),
                   ),
                 ),
               SectionTitle(
@@ -1524,10 +1570,13 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                     : '${results.length} resultados',
               ),
               if (results.isEmpty)
-                const Padding(
+                Padding(
                   padding: EdgeInsets.all(24),
                   child: Text(
-                    'No se encontraron apuntes. Prueba otra palabra.',
+                    tr(
+                      context,
+                      'No se encontraron apuntes. Prueba otra palabra.',
+                    ),
                   ),
                 ),
               ...results.map(
@@ -1542,4 +1591,81 @@ class _SearchPageState extends ConsumerState<SearchPage> {
       ),
     );
   }
+}
+
+class _ColorSpectrum extends StatelessWidget {
+  final Color color;
+  final ValueChanged<Color> onChanged;
+  const _ColorSpectrum({required this.color, required this.onChanged});
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, box) {
+      final hsv = HSVColor.fromColor(color);
+      void choose(Offset point) {
+        onChanged(
+          HSVColor.fromAHSV(
+            1,
+            hsv.hue,
+            (point.dx / box.maxWidth).clamp(0, 1),
+            (1 - point.dy / box.maxHeight).clamp(0, 1),
+          ).toColor(),
+        );
+      }
+
+      return Semantics(
+        label: Localizations.localeOf(context).languageCode == 'en'
+            ? 'Color spectrum'
+            : 'Espectro de color',
+        child: GestureDetector(
+          onPanDown: (d) => choose(d.localPosition),
+          onPanUpdate: (d) => choose(d.localPosition),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      Colors.white,
+                      HSVColor.fromAHSV(1, hsv.hue, 1, 1).toColor(),
+                    ],
+                  ),
+                ),
+              ),
+              const DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Colors.transparent, Colors.black],
+                  ),
+                ),
+              ),
+              Positioned(
+                left: (hsv.saturation * box.maxWidth - 6).clamp(
+                  0,
+                  box.maxWidth - 12,
+                ),
+                top: ((1 - hsv.value) * box.maxHeight - 6).clamp(
+                  0,
+                  box.maxHeight - 12,
+                ),
+                child: Container(
+                  width: 12,
+                  height: 12,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 2),
+                    boxShadow: const [
+                      BoxShadow(color: Colors.black54, blurRadius: 2),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    },
+  );
 }

@@ -39,6 +39,7 @@ class _NotePageState extends ConsumerState<NotePage>
   late String lastSignature;
   Timer? debounce;
   late List<PickedFile> pendingFiles;
+  bool inserting = false;
   bool editing = false,
       dirty = false,
       saving = false,
@@ -94,6 +95,7 @@ class _NotePageState extends ConsumerState<NotePage>
     title: title.text.trim().isEmpty ? 'Sin título' : title.text,
     topic: topic.text,
     document: jsonEncode(editor.document.toDelta().toJson()),
+    documentVersion: 2,
     plainText: editor.document
         .toPlainText()
         .replaceAll('\uFFFC', '')
@@ -194,16 +196,16 @@ class _NotePageState extends ConsumerState<NotePage>
       child: Scaffold(
         appBar: AppBar(
           leading: IconButton(
-            tooltip: 'Volver',
+            tooltip: tr(context, 'Volver'),
             onPressed: _back,
             icon: const Icon(Icons.arrow_back),
           ),
           title: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Meta('DraftAI'),
+              Meta(tr(context, 'DraftAI')),
               Text(
-                editing ? 'Editar apunte' : 'Vista del apunte',
+                tr(context, editing ? 'Editar apunte' : 'Vista del apunte'),
                 style: const TextStyle(fontSize: 16),
               ),
             ],
@@ -227,13 +229,14 @@ class _NotePageState extends ConsumerState<NotePage>
                           });
                         }
                       },
-                child: const Text('Guardar'),
+                child: Text(tr(context, 'Guardar')),
               ),
-            IconButton(
-              tooltip: 'Historial de versiones',
-              onPressed: _history,
-              icon: const Icon(Icons.history, size: 22),
-            ),
+            if (editing)
+              IconButton(
+                tooltip: tr(context, 'Historial de versiones'),
+                onPressed: _history,
+                icon: const Icon(Icons.history, size: 22),
+              ),
           ],
         ),
         body: SafeArea(
@@ -253,8 +256,8 @@ class _NotePageState extends ConsumerState<NotePage>
                     controller: title,
                     maxLength: 200,
                     style: Theme.of(context).textTheme.titleLarge,
-                    decoration: const InputDecoration(
-                      labelText: 'Título de la sesión',
+                    decoration: InputDecoration(
+                      labelText: tr(context, 'Título de la sesión'),
                     ),
                   )
                 else
@@ -262,28 +265,34 @@ class _NotePageState extends ConsumerState<NotePage>
                     title.text,
                     style: Theme.of(context).textTheme.titleLarge,
                   ),
-                const SizedBox(height: 10),
+                SizedBox(height: 10),
                 Meta(
-                  '${dateLabel(note.createdAt)} · ${_snapshot().words} palabras',
+                  tr(
+                    context,
+                    '${dateLabel(note.createdAt)} · ${_snapshot().words} palabras',
+                  ),
                 ),
-                const SizedBox(height: 12),
+                SizedBox(height: 12),
                 if (editing)
                   TextField(
                     controller: topic,
                     maxLength: 120,
-                    decoration: const InputDecoration(
-                      labelText: 'Tema',
-                      hintText: 'Ej. Geometría diferencial',
+                    decoration: InputDecoration(
+                      labelText: tr(context, 'Tema'),
+                      hintText: tr(context, 'Ej. Geometría diferencial'),
                     ),
                   )
                 else if (topic.text.isNotEmpty)
                   Pill(topic.text),
-                const SizedBox(height: 10),
+                SizedBox(height: 10),
                 if (editing && lib != null) _location(lib),
-                const SizedBox(height: 16),
+                SizedBox(height: 16),
                 if (editing && pendingFiles.isNotEmpty) ...[
-                  const Text(
-                    'Toca una línea del texto y luego pulsa Insertar.',
+                  Text(
+                    tr(
+                      context,
+                      'Toca una línea del texto y luego pulsa Insertar.',
+                    ),
                   ),
                   FilledButton.icon(
                     onPressed: () async {
@@ -298,7 +307,9 @@ class _NotePageState extends ConsumerState<NotePage>
                       });
                     },
                     icon: const Icon(Icons.add_photo_alternate_outlined),
-                    label: Text('Insertar ${pendingFiles.length} archivos'),
+                    label: Text(
+                      tr(context, 'Insertar ${pendingFiles.length} archivos'),
+                    ),
                   ),
                 ],
                 q.QuillEditor(
@@ -306,7 +317,17 @@ class _NotePageState extends ConsumerState<NotePage>
                   focusNode: focus,
                   scrollController: editorScroll,
                   config: q.QuillEditorConfig(
-                    embedBuilders: [NoteMediaEmbed(note.attachments)],
+                    embedBuilders: [
+                      NoteMediaEmbed(
+                        note.attachments
+                            .where(
+                              (a) => NoteDocument.references(
+                                jsonEncode(editor.document.toDelta().toJson()),
+                              ).contains(a.id),
+                            )
+                            .toList(),
+                      ),
+                    ],
                     scrollable: false,
                     autoFocus: false,
                     padding: const EdgeInsets.symmetric(vertical: 12),
@@ -319,13 +340,13 @@ class _NotePageState extends ConsumerState<NotePage>
                   OutlinedButton.icon(
                     onPressed: () => _attach(CaptureSource.gallery),
                     icon: const Icon(Icons.add_photo_alternate_outlined),
-                    label: const Text('Añadir imágenes'),
+                    label: Text(tr(context, 'Añadir imágenes')),
                   ),
                 if (note.summary.isNotEmpty) ...[
-                  const SectionTitle('Resumen interno'),
+                  SectionTitle('Resumen interno'),
                   Surface(child: SelectableText(note.summary)),
                 ],
-                const SizedBox(height: 24),
+                SizedBox(height: 24),
               ],
             ),
           ),
@@ -408,9 +429,12 @@ class _NotePageState extends ConsumerState<NotePage>
         value: note.categoryId ?? '',
         isDense: true,
         items: [
-          const DropdownMenuItem(
+          DropdownMenuItem(
             value: '',
-            child: Text('Sin categoría', style: TextStyle(fontSize: 12)),
+            child: Text(
+              tr(context, 'Sin categoría'),
+              style: TextStyle(fontSize: 12),
+            ),
           ),
           ...lib.categories
               .where((c) => c.folderId == note.folderId)
@@ -431,7 +455,7 @@ class _NotePageState extends ConsumerState<NotePage>
           final f = lib.folders.firstWhere((f) => f.id == note.folderId);
           editCategory(context, ref, f);
         },
-        child: const Text('+ Categoría'),
+        child: Text(tr(context, '+ Categoría')),
       ),
     ],
   );
@@ -444,8 +468,8 @@ class _NotePageState extends ConsumerState<NotePage>
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(icon, size: 20),
-            const SizedBox(height: 5),
-            Text(label, style: const TextStyle(fontSize: 10)),
+            SizedBox(height: 5),
+            Text(tr(context, label), style: const TextStyle(fontSize: 10)),
           ],
         ),
       ),
@@ -464,7 +488,7 @@ class _NotePageState extends ConsumerState<NotePage>
         FilledButton.icon(
           onPressed: _ai,
           icon: const Icon(Icons.auto_awesome),
-          label: const Text('IA'),
+          label: Text(tr(context, 'IA')),
         ),
         IconButton(
           tooltip: tr(context, 'Más'),
@@ -504,7 +528,8 @@ class _NotePageState extends ConsumerState<NotePage>
   }
 
   Future<void> _insertFiles(List<PickedFile> files, {int? at}) async {
-    if (files.isEmpty) return;
+    if (files.isEmpty || inserting) return;
+    setState(() => inserting = true);
     final added = <Attachment>[];
     try {
       for (final f in files) {
@@ -514,6 +539,7 @@ class _NotePageState extends ConsumerState<NotePage>
       for (final a in added) {
         await ref.read(mediaPort).delete(a);
       }
+      if (mounted) setState(() => inserting = false);
       rethrow;
     }
     if (!mounted) return;
@@ -562,6 +588,7 @@ class _NotePageState extends ConsumerState<NotePage>
     dirty = true;
     _changed();
     await _flush();
+    if (mounted) setState(() => inserting = false);
   }
 
   Future<void> _dictate() async {
@@ -603,13 +630,26 @@ class _NotePageState extends ConsumerState<NotePage>
     final selection = editor.selection;
     final full = editor.document.toPlainText();
     final start = selection.start.clamp(0, full.length);
-    final end = selection.end.clamp(0, full.length);
+    final end = selection.end.clamp(0, full.length - 1);
     if (start == end) {
       message(context, tr(context, 'Selecciona el texto que quieres mejorar.'));
       return;
     }
     final originalSignature = jsonEncode(editor.document.toDelta().toJson());
     final selected = full.substring(start, end);
+    if (selected.contains('\uFFFC')) {
+      message(context, 'Selecciona solo texto para mejorarlo.');
+      return;
+    }
+    if (ref.read(aiPort).configured &&
+        !await confirm(
+          context,
+          'Procesar con IA',
+          'Se enviará únicamente el texto seleccionado al servicio de IA. ¿Continuar?',
+        )) {
+      return;
+    }
+    if (!mounted) return;
     await runAction(context, () async {
       final result = await ref
           .read(controllerProvider.notifier)
@@ -627,10 +667,10 @@ class _NotePageState extends ConsumerState<NotePage>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Meta('ORIGINAL'),
+                Meta(tr(context, 'ORIGINAL')),
                 SelectableText(selected),
                 const Divider(),
-                const Meta('PROPUESTA'),
+                Meta(tr(context, 'PROPUESTA')),
                 SelectableText(result),
               ],
             ),
@@ -638,11 +678,11 @@ class _NotePageState extends ConsumerState<NotePage>
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(c, false),
-              child: const Text('Descartar'),
+              child: Text(tr(context, 'Descartar')),
             ),
             FilledButton(
               onPressed: () => Navigator.pop(c, true),
-              child: const Text('Reemplazar texto'),
+              child: Text(tr(context, 'Reemplazar texto')),
             ),
           ],
         ),
@@ -656,12 +696,27 @@ class _NotePageState extends ConsumerState<NotePage>
           );
           return;
         }
-        editor.replaceText(
-          start,
-          end - start,
-          result,
-          TextSelection.collapsed(offset: start + result.length),
-        );
+        if (RegExp(r'^#{1,3} |^[-*] ', multiLine: true).hasMatch(result)) {
+          final delta = q.Document.fromJson(NoteDocument.formatted(result))
+              .toDelta();
+          editor.replaceText(start, end - start, delta, null);
+          editor.updateSelection(
+            TextSelection.collapsed(
+              offset: (start + delta.length).clamp(
+                0,
+                editor.document.length - 1,
+              ),
+            ),
+            q.ChangeSource.local,
+          );
+        } else {
+          editor.replaceText(
+            start,
+            end - start,
+            result,
+            TextSelection.collapsed(offset: start + result.length),
+          );
+        }
         await _flush();
       }
     });
@@ -678,34 +733,19 @@ class _NotePageState extends ConsumerState<NotePage>
       AiPage(
         initialNotes: [_snapshot()],
         onInsert: (text) async {
-          var position = insertion.clamp(0, editor.document.length - 1);
-          editor.replaceText(
-            position,
-            0,
-            '\n',
-            TextSelection.collapsed(offset: ++position),
+          final position = insertion.clamp(0, editor.document.length - 1);
+          final delta = q.Document.fromJson(NoteDocument.formatted('\n$text'))
+              .toDelta();
+          editor.replaceText(position, 0, delta, null);
+          editor.updateSelection(
+            TextSelection.collapsed(
+              offset: (position + delta.length).clamp(
+                0,
+                editor.document.length - 1,
+              ),
+            ),
+            q.ChangeSource.local,
           );
-          for (final op in NoteDocument.formatted(text)) {
-            final value = op['insert'] as String;
-            editor.replaceText(
-              position,
-              0,
-              value,
-              TextSelection.collapsed(offset: position + value.length),
-            );
-            final attrs = op['attributes'];
-            if (attrs is Map && attrs['header'] is int) {
-              editor.formatText(
-                position,
-                1,
-                q.HeaderAttribute(level: attrs['header'] as int),
-              );
-            }
-            if (attrs is Map && attrs['list'] == 'bullet') {
-              editor.formatText(position, 1, q.Attribute.ul);
-            }
-            position += value.length;
-          }
           dirty = true;
           await _flush();
         },
@@ -730,16 +770,21 @@ class _NotePageState extends ConsumerState<NotePage>
             height: MediaQuery.sizeOf(c).height * .65,
             child: ListView(
               children: [
-                const ListTile(title: Text('Versiones anteriores')),
+                ListTile(title: Text(tr(context, 'Versiones anteriores'))),
                 if (history.isEmpty)
-                  const ListTile(
-                    title: Text('Todavía no hay versiones anteriores.'),
+                  ListTile(
+                    title: Text(
+                      tr(context, 'Todavía no hay versiones anteriores.'),
+                    ),
                   ),
                 ...history.map(
                   (r) => ListTile(
                     title: Text(r.note.title),
                     subtitle: Text(
-                      '${dateLabel(r.note.updatedAt)} · ${r.reason}',
+                      tr(
+                        context,
+                        '${dateLabel(r.note.updatedAt)} · ${r.reason}',
+                      ),
                     ),
                     trailing: const Icon(Icons.restore),
                     onTap: () => Navigator.pop(c, r),
@@ -794,22 +839,22 @@ class _NotePageState extends ConsumerState<NotePage>
           children: [
             ListTile(
               leading: const Icon(Icons.auto_awesome_outlined),
-              title: const Text('Herramientas de IA'),
+              title: Text(tr(context, 'Herramientas de IA')),
               onTap: () => Navigator.pop(c, 'ai'),
             ),
             ListTile(
               leading: const Icon(Icons.drive_file_rename_outline),
-              title: const Text('Renombrar o mover'),
+              title: Text(tr(context, 'Renombrar o mover')),
               onTap: () => Navigator.pop(c, 'edit'),
             ),
             ListTile(
               leading: const Icon(Icons.history),
-              title: const Text('Historial y revertir cambios'),
+              title: Text(tr(context, 'Historial y revertir cambios')),
               onTap: () => Navigator.pop(c, 'history'),
             ),
             ListTile(
               leading: const Icon(Icons.delete_outline),
-              title: const Text('Enviar a la papelera'),
+              title: Text(tr(context, 'Enviar a la papelera')),
               onTap: () => Navigator.pop(c, 'trash'),
             ),
           ],
@@ -859,10 +904,13 @@ Future<void> exportMenu(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const ListTile(
-            title: Text('Exportar como'),
+          ListTile(
+            title: Text(tr(context, 'Exportar como')),
             subtitle: Text(
-              'El archivo compartido podrá leerse fuera de DraftAI.',
+              tr(
+                context,
+                'El archivo compartido podrá leerse fuera de DraftAI.',
+              ),
             ),
           ),
           for (final entry in [

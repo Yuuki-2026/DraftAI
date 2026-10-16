@@ -37,6 +37,7 @@ Future<void> main() async {
     runApp(
       ProviderScope(
         overrides: [
+          examplesPort.overrideWithValue(sl<ExampleService>()),
           notesPort.overrideWithValue(sl<NotesRepository>()),
           mediaPort.overrideWithValue(sl<MediaRepository>()),
           exportPort.overrideWithValue(sl<ExportService>()),

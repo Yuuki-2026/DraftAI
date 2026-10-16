@@ -24,13 +24,15 @@ class MainActivity: FlutterActivity() {
             pdfWorker.execute {
                 var temporary: File? = null
                 try {
-                    temporary = File.createTempFile("draftai_pdf_", ".pdf", cacheDir)
-                    temporary.writeBytes(bytes)
-                    ParcelFileDescriptor.open(temporary, ParcelFileDescriptor.MODE_READ_ONLY).use { descriptor ->
+                    val temp = File.createTempFile("draftai_pdf_", ".pdf", cacheDir)
+                    temporary = temp
+                    temp.writeBytes(bytes)
+                    ParcelFileDescriptor.open(temp, ParcelFileDescriptor.MODE_READ_ONLY).use { descriptor ->
                         PdfRenderer(descriptor).use { renderer ->
                             require(renderer.pageCount in 1..500)
                             if (call.method == "info") {
-                                runOnUiThread { result.success(renderer.pageCount) }
+                                val pageCount = renderer.pageCount
+                                runOnUiThread { result.success(pageCount) }
                             } else {
                                 val index = call.argument<Int>("page") ?: 0
                                 require(index in 0 until renderer.pageCount)

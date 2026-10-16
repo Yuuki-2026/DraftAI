@@ -34,6 +34,7 @@ export class DailyQuota {
   }
 }
 export async function providerJson(config,messages,{vision=false,guard=false,transport=fetch}={}){
+  if(config.signal?.aborted)throw new ServiceError(499,'Solicitud cancelada.','cancelled');
   config.reserveProvider?.();
   const endpoint=new URL(config.url??'https://api.groq.com/openai/v1/chat/completions');
   if(endpoint.protocol!=='https:')throw new ServiceError(503,'Proveedor no configurado.');
@@ -41,7 +42,7 @@ export async function providerJson(config,messages,{vision=false,guard=false,tra
   if(!config.key||!model)throw new ServiceError(503,'Proveedor no configurado.');
   const response=await transport(endpoint,{method:'POST',headers:{Authorization:`Bearer ${config.key}`,'Content-Type':'application/json'},
     body:JSON.stringify({model,messages,temperature:0.1,max_completion_tokens:guard?500:1536,
-      response_format:{type:'json_object'},...(model.includes('gpt-oss')?{reasoning_effort:'low'}:{})}),signal:AbortSignal.timeout(65000)});
+      response_format:{type:'json_object'},...(model.includes('gpt-oss')?{reasoning_effort:'low'}:{})}),signal:config.signal?AbortSignal.any([config.signal,AbortSignal.timeout(65000)]):AbortSignal.timeout(65000)});
   if(!response.ok)throw new ServiceError(response.status===429?429:502,'El proveedor no pudo completar la solicitud.','provider_unavailable');
   const result=await response.json();const content=result?.choices?.[0]?.message?.content;
   if(typeof content!=='string'||content.length>20000)throw new ServiceError(502,'Respuesta no válida.','invalid_response');

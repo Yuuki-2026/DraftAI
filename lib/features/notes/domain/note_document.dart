@@ -29,7 +29,11 @@ abstract final class NoteDocument {
         .whereType<String>()
         .toSet();
     // Legacy notes stored their media outside the document. Append them once.
-    for (final a in note.attachments.where((a) => !used.contains(a.id))) {
+    for (final a in note.attachments.where(
+      (a) =>
+          (note.documentVersion < 2 || note.document.isEmpty) &&
+          !used.contains(a.id),
+    )) {
       ops.add({
         'insert': {mediaKey: a.id},
       });

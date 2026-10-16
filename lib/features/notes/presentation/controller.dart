@@ -4,6 +4,10 @@ import '../domain/entities.dart';
 import '../domain/ports.dart';
 import '../domain/use_cases.dart';
 
+final examplesPort = Provider<ExampleService>(
+  (ref) => throw UnimplementedError(),
+);
+
 final notesPort = Provider<NotesRepository>(
   (ref) => throw UnimplementedError(),
 );
@@ -99,7 +103,17 @@ class AppController extends AsyncNotifier<Settings> {
         for (final a in revision.note.attachments) a.id: a,
     };
     await _repo.deletePermanently(n.id);
-    for (final a in attachments.values) {
+    final remaining = await _repo.load();
+    final referenced = <String>{};
+    for (final other in remaining.notes) {
+      referenced.addAll(other.attachments.map((a) => a.id));
+      for (final revision in await _repo.history(other.id)) {
+        referenced.addAll(revision.note.attachments.map((a) => a.id));
+      }
+    }
+    for (final a in attachments.values.where(
+      (a) => !referenced.contains(a.id),
+    )) {
       await ref.read(mediaPort).delete(a);
     }
   }

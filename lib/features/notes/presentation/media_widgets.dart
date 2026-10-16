@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_quill/flutter_quill.dart' as q;
@@ -21,7 +20,7 @@ class NoteMediaEmbed extends q.EmbedBuilder {
     final a = attachments
         .where((a) => a.id == embedContext.node.value.data)
         .firstOrNull;
-    if (a == null) return const SizedBox.shrink();
+    if (a == null) return SizedBox.shrink();
     return EmbeddedMedia(attachment: a, gallery: attachments);
   }
 }
@@ -47,7 +46,7 @@ class EmbeddedMedia extends ConsumerWidget {
                   return Text(tr(context, 'No se pudo abrir la imagen.'));
                 }
                 if (!s.hasData) {
-                  return const SizedBox(
+                  return SizedBox(
                     height: 100,
                     child: Center(child: CircularProgressIndicator()),
                   );
@@ -136,7 +135,9 @@ class _GalleryState extends ConsumerState<ImageGallery> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: Text('${index + 1} / ${widget.images.length}')),
+    appBar: AppBar(
+      title: Text(tr(context, '${index + 1} / ${widget.images.length}')),
+    ),
     body: SafeArea(
       child: PageView.builder(
         controller: pages,
@@ -238,7 +239,7 @@ class _PdfState extends ConsumerState<PdfAttachmentPage> {
             child: Text(tr(context, 'No se pudo abrir el archivo.')),
           );
         }
-        if (!s.hasData) return const Center(child: CircularProgressIndicator());
+        if (!s.hasData) return Center(child: CircularProgressIndicator());
         final (bytes, count) = s.data!;
         return ListView.builder(
           itemCount: count,
@@ -246,7 +247,7 @@ class _PdfState extends ConsumerState<PdfAttachmentPage> {
             children: [
               Padding(
                 padding: const EdgeInsets.all(8),
-                child: Text('${i + 1} / $count'),
+                child: Text(tr(context, '${i + 1} / $count')),
               ),
               FutureBuilder<Uint8List?>(
                 future: rendered.putIfAbsent(
