@@ -6,7 +6,6 @@ import 'package:flutter_quill/flutter_quill.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app/di.dart';
-import 'core/presentation/strings.dart';
 import 'core/presentation/design.dart';
 import 'features/notes/domain/ports.dart';
 import 'features/notes/domain/use_cases.dart';
@@ -97,7 +96,7 @@ class DraftApp extends ConsumerWidget {
           : theme == 'light'
           ? ThemeMode.light
           : ThemeMode.dark,
-      locale: Locale(ref.watch(localeProvider).value ?? 'es'),
+      locale: Locale(settings.value?.locale ?? 'es'),
       supportedLocales: const [Locale('es'), Locale('en')],
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,

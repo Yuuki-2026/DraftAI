@@ -25,12 +25,13 @@ final libraryProvider = StreamProvider<Library>(
 
 class Settings {
   final bool entered, pro;
-  final String theme;
+  final String theme, locale;
   final int used;
   const Settings({
     this.entered = false,
     this.pro = false,
     this.theme = 'dark',
+    this.locale = 'es',
     this.used = 0,
   });
 }
@@ -47,6 +48,7 @@ class AppController extends AsyncNotifier<Settings> {
     entered: await _repo.preference('entered') == 'true',
     pro: await ref.read(policyPort).pro,
     theme: await _repo.preference('theme') ?? 'dark',
+    locale: await _repo.preference('locale') ?? 'es',
     used: await ref.read(policyPort).used(),
   );
   Future<void> refresh() async {
@@ -75,7 +77,16 @@ class AppController extends AsyncNotifier<Settings> {
     await refresh();
   }
 
-  Future<Note> create(String folderId) => _actions.create(folderId);
+  Future<void> locale(String v) async {
+    await _repo.setPreference('locale', v);
+    await refresh();
+  }
+
+  Future<Note> create(
+    String folderId, {
+    String title = 'Sin título',
+    String? categoryId,
+  }) => _actions.create(folderId, title: title, categoryId: categoryId);
   Future<void> save(Note n, {String reason = 'Edición'}) =>
       _actions.save(n, reason: reason);
   Future<void> trash(Note n) => _actions.trash(n);

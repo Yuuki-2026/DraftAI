@@ -5,9 +5,9 @@ abstract final class AppColors {
       low = Color(0xFF1C1B1B),
       mid = Color(0xFF201F1F),
       high = Color(0xFF2A2A2A),
-      line = Color(0xFF393939),
+      line = Color(0xFF4A4A4A),
       text = Color(0xFFF5F5F5),
-      muted = Color(0xFFA0A0A0);
+      muted = Color(0xFFB5B5B5);
 }
 
 ThemeData appTheme(Brightness brightness) {
@@ -19,9 +19,15 @@ ThemeData appTheme(Brightness brightness) {
       ).copyWith(
         primary: dark ? Colors.white : Colors.black,
         onPrimary: dark ? Colors.black : Colors.white,
-        surface: dark ? AppColors.background : const Color(0xFFF5F5F5),
-        onSurface: dark ? AppColors.text : const Color(0xFF181818),
-        outline: dark ? AppColors.line : const Color(0xFFCECECE),
+        surface: dark ? AppColors.background : const Color(0xFFFAFAFA),
+        onSurface: dark ? AppColors.text : const Color(0xFF171717),
+        onSurfaceVariant: dark
+            ? const Color(0xFFD0D0D0)
+            : const Color(0xFF424242),
+        outline: dark ? AppColors.line : const Color(0xFF8F8F8F),
+        outlineVariant: dark
+            ? const Color(0xFF393939)
+            : const Color(0xFFB0B0B0),
       );
   return ThemeData(
     useMaterial3: true,
@@ -48,7 +54,7 @@ ThemeData appTheme(Brightness brightness) {
       bodySmall: TextStyle(
         fontSize: 11,
         height: 1.5,
-        color: dark ? AppColors.muted : Colors.black54,
+        color: dark ? AppColors.muted : const Color(0xFF555555),
       ),
       titleLarge: TextStyle(
         fontSize: 23,
@@ -73,6 +79,13 @@ ThemeData appTheme(Brightness brightness) {
         ),
       ),
     ),
+    textButtonTheme: TextButtonThemeData(
+      style: TextButton.styleFrom(
+        foregroundColor: dark ? Colors.white : const Color(0xFF111111),
+        minimumSize: const Size(44, 44),
+        textStyle: const TextStyle(fontWeight: FontWeight.w600),
+      ),
+    ),
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: OutlinedButton.styleFrom(
         foregroundColor: scheme.onSurface,
@@ -91,6 +104,10 @@ ThemeData appTheme(Brightness brightness) {
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
         borderSide: BorderSide(color: scheme.outline),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: BorderSide(color: scheme.primary, width: 2),
       ),
       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
     ),
