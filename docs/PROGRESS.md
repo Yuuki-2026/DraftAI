@@ -103,3 +103,6 @@ Próximo: el propietario prueba esta entrega en el teléfono y comunica diferenc
 Se exige explicación académica en español en lugar de descripción visual, traducción del contenido y ausencia de anotaciones de imagen. Rechazos no académicos/ilegibles vacían destinos en servidor; catálogo completo sin forzar única carpeta. Diez cupos, cuotas y presupuesto global intactos. Gratis mantiene Groq para selección/resumen; Pro OpenAI para fuentes. Sin cambios Flutter ni APK. Validación: sintaxis Node y comprobaciones locales del contrato; sin llamadas de pago ni pruebas Android.
 
 Aclaración posterior: texto, resumen y mejora conservan el idioma predominante de la fuente; no se traduce automáticamente. Los avisos de revisión siguen en español. Se comprobó sintaxis, sin llamadas de pago.
+
+## Resumen mejorado para estudiar
+Texto de fuente presentado como apuntes claros y resumen didáctico con definiciones, diferencias y ejemplos pertinentes, sin descripciones visuales, nombres de archivo ni comentarios de idioma. Limitaciones solo en aviso de revisión español. GET/PUT y otros identificadores no determinan idioma inglés. Rechazo explícito de prefijos de descripción visual conocidos, sin reintentos automáticos. Idioma predominante conservado. Sintaxis Node comprobada; sin consumo de API ni pruebas Android.
