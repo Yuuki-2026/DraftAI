@@ -581,9 +581,7 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
     child: ListView(
       children: [
         SectionTitle('Tus apuntes'),
-        if (selecting)
-          _selectionBar(count: selectedIds.length, actions: _quickActions(lib))
-        else if (lib.active.isNotEmpty)
+        if (!selecting && lib.active.isNotEmpty)
           Padding(
             padding: EdgeInsets.only(bottom: 10),
             child: Meta(
