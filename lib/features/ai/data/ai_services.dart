@@ -232,6 +232,10 @@ class RemoteAi implements AiService, AiRunMetadata, AiAccessProvider {
       vision: j['vision'] == true,
       model: j['model'] as String? ?? '',
       remaining: j['remaining'] as int? ?? 0,
+      limit: j['limit'] as int? ?? 0,
+      used: j['used'] as int? ?? 0,
+      globalRemaining: j['globalRemaining'] as int? ?? -1,
+      globalLimit: j['globalLimit'] as int? ?? 0,
     );
   }
 }

@@ -138,26 +138,56 @@ class AppController extends AsyncNotifier<Settings> {
     return access;
   }
 
-  Future<String> transform(String text, AiAction action) async {
-    await syncAiAccess();
-    await ref.read(policyPort).check();
-    final result = await ref.read(aiPort).transform(text, action);
-    await ref.read(policyPort).recordSuccess();
-    await refresh();
-    return result;
-  }
-
-  Future<AnalysisProposal> analyze(List<PickedFile> files, Library lib) async {
-    final access = await syncAiAccess();
-    if (access != null && !access.vision) {
+  Future<void> _checkAccess(AiAccess? access, {bool sources = false}) async {
+    if (access == null) {
+      await ref.read(policyPort).check(ocr: sources);
+      return;
+    }
+    if (sources && !access.vision) {
       throw const AppFailure(
         'Conectado como Gratis. Usa el código Pro de prueba para analizar imágenes o documentos.',
       );
     }
-    await ref.read(policyPort).check(ocr: true);
-    final result = await ref.read(aiPort).analyze(files, lib);
-    await ref.read(policyPort).recordSuccess();
-    await refresh();
-    return result;
+    if (access.remaining <= 0) {
+      throw const AppFailure(
+        'Agotaste los usos de esta conexión por hoy. Consulta el contador en Perfil.',
+      );
+    }
+    if (access.globalRemaining == 0) {
+      throw const AppFailure(
+        'El servidor agotó el presupuesto compartido de hoy. Consulta el contador en Perfil.',
+      );
+    }
+  }
+
+  Future<String> transform(String text, AiAction action) async {
+    await _checkAccess(await syncAiAccess());
+    try {
+      final result = await ref.read(aiPort).transform(text, action);
+      await ref.read(policyPort).recordSuccess();
+      await refresh();
+      return result;
+    } finally {
+      ref.invalidate(aiAccessProvider);
+    }
+  }
+
+  Future<AnalysisProposal> analyze(List<PickedFile> files, Library lib) async {
+    await _checkAccess(await syncAiAccess(), sources: true);
+    try {
+      final result = await ref.read(aiPort).analyze(files, lib);
+      await ref.read(policyPort).recordSuccess();
+      await refresh();
+      return result;
+    } finally {
+      ref.invalidate(aiAccessProvider);
+    }
   }
 }
+
+// Server quota is authoritative for connected devices; local counts are demo-only.
+final aiAccessProvider = FutureProvider.autoDispose<AiAccess?>((ref) async {
+  final service = ref.watch(aiPort);
+  if (!service.configured || service is! AiAccessProvider) return null;
+  return (service as AiAccessProvider).refreshAccess();
+});

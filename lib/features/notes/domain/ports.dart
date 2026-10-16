@@ -73,12 +73,16 @@ class AnalysisProposal {
 class AiAccess {
   final bool pro, vision;
   final String model;
-  final int remaining;
+  final int remaining, limit, used, globalRemaining, globalLimit;
   const AiAccess({
     required this.pro,
     required this.vision,
     required this.model,
     required this.remaining,
+    this.limit = 0,
+    this.used = 0,
+    this.globalRemaining = -1,
+    this.globalLimit = 0,
   });
 }
 

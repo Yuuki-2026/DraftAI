@@ -1,3 +1,4 @@
+import '../../ai/presentation/ai_quota_card.dart';
 import '../../../core/presentation/user_avatar.dart';
 import 'example_page.dart';
 import '../../../core/presentation/strings.dart';
@@ -176,39 +177,7 @@ class ProfilePage extends ConsumerWidget {
                 ),
               ),
               SizedBox(height: 12),
-              Surface(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(child: Text(tr(context, 'Acciones de IA'))),
-                        Pill(
-                          tr(
-                            context,
-                            '${settings?.used ?? 0} de ${settings?.pro == true ? 10 : 2} hoy',
-                          ),
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: 12),
-                    LinearProgressIndicator(
-                      value:
-                          ((settings?.used ?? 0) /
-                                  (settings?.pro == true ? 10 : 2))
-                              .clamp(0, 1),
-                    ),
-                    SizedBox(height: 10),
-                    Text(
-                      tr(
-                        context,
-                        'Resúmenes y mejoras comparten el límite diario. El contador se renueva cada día.',
-                      ),
-                      style: TextStyle(fontSize: 11, color: AppColors.muted),
-                    ),
-                  ],
-                ),
-              ),
+              const AiQuotaCard(),
               SizedBox(height: 16),
               _item(
                 context,
@@ -656,7 +625,7 @@ class AboutPage extends StatelessWidget {
                 style: TextStyle(fontSize: 24, fontWeight: FontWeight.w600),
               ),
             ),
-            Center(child: Meta(tr(context, 'Versión 0.2.3-beta.2 · Build 7'))),
+            Center(child: Meta(tr(context, 'Versión 0.2.3-beta.3 · Build 8'))),
             SizedBox(height: 20),
             Surface(
               child: Wrap(
@@ -694,7 +663,7 @@ class AboutPage extends StatelessWidget {
               onTap: () => showLicensePage(
                 context: context,
                 applicationName: 'DraftAI',
-                applicationVersion: '0.2.3-beta.2',
+                applicationVersion: '0.2.3-beta.3',
               ),
             ),
             SizedBox(height: 24),

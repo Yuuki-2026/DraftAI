@@ -109,3 +109,6 @@ Texto de fuente presentado como apuntes claros y resumen didáctico con definici
 
 ## Ampliación temporal de pruebas autorizada por el propietario
 16/10/2026 Lima: 120 llamadas globales, 20 dispositivos, Gratis 10 y Pro 30 operaciones. Retorno automático a valores anteriores a las 00:00 del 17/10 Lima, evaluado por solicitud sin depender de un reinicio. Consumo acumulado preservado; presupuesto persistente sincroniza contador secundario. Raíz HTTPS informativa y códigos persistentes de 24h. Sin cambios APK. Verificación de sintaxis y salud; sin llamadas de pago.
+
+## Beta 0.2.3-beta.3+8: cuota real
+Se elimina el bloqueo local duplicado cuando el servicio expone acceso remoto. El servidor es autoridad de usos; contador en Perfil e IA con actualización manual y tras operaciones, incluido fallo. Estado autenticado incluye usados/límite/presupuesto global persistente. Conexión expone errores seguros del servidor. Sin migraciones de notas. Verificación de compilación, análisis y firma; sin emulador ni capturas para agilizar según petición del usuario.

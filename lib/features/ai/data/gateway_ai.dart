@@ -67,8 +67,12 @@ class GatewayAi
           .then(http.Response.fromStream)
           .timeout(const Duration(seconds: 20));
       if (response.statusCode != 200) {
-        throw const AppFailure(
-          'No se pudo conectar. Revisa el código y que el servidor esté encendido.',
+        final failure = jsonDecode(response.body);
+        final message = failure is Map ? failure['error'] : null;
+        throw AppFailure(
+          message is String && message.length <= 300
+              ? message
+              : 'No se pudo conectar al servidor de prueba.',
         );
       }
       final value = jsonDecode(response.body) as Map;

@@ -4,7 +4,7 @@ Apuntes con texto, imágenes y archivos, organizados en carpetas. Edita con form
 
 **Versión en pruebas; puede contener errores.** Android 8.0 o superior.
 
-[Descargar beta para Android](https://github.com/Yuuki-2026/DraftAI/releases/tag/v0.2.3-beta.2)
+[Descargar beta para Android](https://github.com/Yuuki-2026/DraftAI/releases/tag/v0.2.3-beta.3)
 
 - Guardado manual con aviso al salir.
 - Temas con fecha y selección de contenido para resúmenes.

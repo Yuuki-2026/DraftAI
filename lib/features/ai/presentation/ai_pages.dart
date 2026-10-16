@@ -1,3 +1,4 @@
+import 'ai_quota_card.dart';
 import '../../notes/domain/note_sections.dart';
 
 import 'package:flutter/material.dart';
@@ -156,6 +157,8 @@ class _AiPageState extends ConsumerState<AiPage> {
           maxWidth: 720,
           child: ListView(
             children: [
+              const AiQuotaCard(),
+              const SizedBox(height: 12),
               if (connection != null)
                 ListTile(
                   leading: Icon(verified ? Icons.link : Icons.link_off),
@@ -177,6 +180,7 @@ class _AiPageState extends ConsumerState<AiPage> {
                   onTap: () async {
                     if (await connectAiDialog(context, connection) && mounted) {
                       await _verifyConnection();
+                      ref.invalidate(aiAccessProvider);
                     }
                   },
                   trailing: service.configured
@@ -184,6 +188,7 @@ class _AiPageState extends ConsumerState<AiPage> {
                           tooltip: tr(context, 'Desconectar'),
                           onPressed: () async {
                             await connection.disconnect();
+                            ref.invalidate(aiAccessProvider);
                             if (mounted) setState(() => verified = false);
                           },
                           icon: const Icon(Icons.close),

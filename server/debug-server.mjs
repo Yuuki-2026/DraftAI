@@ -58,7 +58,11 @@ const server=createServer(async(req,res)=>{
   const bearer=/^Bearer ([a-f0-9]{64})$/.exec(req.headers.authorization??'')?.[1];
   const device=bearer?state.devices.find(d=>safeEqual(d.hash,hash(bearer))&&d.expires>Date.now()):null;
   if(!device)throw new ServiceError(401,'Conecta este dispositivo para usar la IA de prueba.','pair_required');
-  if(req.url==='/v1/status'){res.end(JSON.stringify({pro:device.pro,model:device.pro?proModel:fixedModels.model,vision:device.pro&&Boolean(process.env.AI_PRO_API_KEY),remaining:Math.max(0,(device.pro?limits().pro:limits().free)-(usage().operations[device.hash]??0)),expires:device.expires}));return;}
+  if(req.url==='/v1/status'){
+   const current=limits(),limit=device.pro?current.pro:current.free,used=usage().operations[device.hash]??0;
+   budget.max=current.calls;
+   res.end(JSON.stringify({pro:device.pro,model:device.pro?proModel:fixedModels.model,vision:device.pro&&Boolean(process.env.AI_PRO_API_KEY),remaining:Math.max(0,limit-used),limit,used,globalLimit:current.calls,globalRemaining:budget.remaining(),expires:device.expires}));return;
+  }
   burst(device.hash,4);
   if(inflight>=2)throw new ServiceError(429,'El servidor está ocupado. Reintenta más tarde.','busy');
   const body=await readBody(req,req.url==='/v1/analyze'?14500000:60000);
