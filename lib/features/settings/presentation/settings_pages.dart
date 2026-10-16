@@ -1,3 +1,4 @@
+import '../../../core/presentation/user_avatar.dart';
 import 'example_page.dart';
 import '../../../core/presentation/strings.dart';
 
@@ -152,14 +153,7 @@ class ProfilePage extends ConsumerWidget {
                     CircleAvatar(
                       radius: 24,
                       backgroundColor: AppColors.mid,
-                      child: ClipOval(
-                        child: Image.asset(
-                          'assets/images/12225881.png',
-                          width: 48,
-                          height: 48,
-                          fit: BoxFit.cover,
-                        ),
-                      ),
+                      child: const UserAvatar(size: 48),
                     ),
                     SizedBox(width: 12),
                     Expanded(

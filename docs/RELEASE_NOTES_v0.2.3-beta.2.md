@@ -1,8 +1,10 @@
 # DraftAI · Beta 2 para Android
 
-- Corregida la transición entre guardar, leer y volver a editar.
-- Fechas más pequeñas e interlineado más cómodo.
-- Fórmulas LaTeX renderizadas al leer el apunte.
-- Aviso de los adjuntos y del formato que no se incluyen al exportar.
+- Ajustes al volver a editar y guardar apuntes.
+- Fechas discretas, interlineado y fórmulas LaTeX en lectura.
+- Selección de carpeta y apunte con buscadores y vista previa ampliable.
+- Acciones rápidas en Inicio: eliminar, exportar y resumir.
+- Menús, exportación, encabezados, búsqueda y papelera ajustados al mockup.
+- Imagen de ejemplo para el usuario de prueba.
 
-Versión en pruebas para Android 8.0 o superior. Actualiza sin desinstalar para conservar tus notas. Google sigue como acceso de prueba y la IA necesita el servidor.
+Beta para Android 8.0 o superior. Actualiza sin desinstalar. La IA necesita el servidor; Google sigue simulado. Antes de exportar se indica qué adjuntos no se incluyen. Sin pruebas funcionales en esta entrega, por solicitud del propietario.

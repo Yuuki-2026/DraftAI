@@ -6,6 +6,8 @@ Fechas de temas convertidas de H3 a texto de 11 puntos; compatibilidad con fecha
 
 Exportación: PDF/Word incluyen imágenes, no el contenido de PDF u otros adjuntos. TXT/MD no incluyen imágenes ni adjuntos. El diálogo identifica archivos excluidos y aclara que las fórmulas se exportan como fuente LaTeX; los originales siguen en DraftAI. Se simplifican algunos estilos de exportación.
 
+Observaciones añadidas durante la implementación: selector manual reconstruido con el HTML hazlo-tu-categorizar (vista previa, pasos, buscador de carpetas y apuntes, micrófono, selección y confirmación). El mismo selector edita destinos de IA. Las fotos y PDF se previsualizan antes de guardar reutilizando el visor nativo existente; zoom por pellizco/doble toque. Acciones rápidas de Inicio y listado: papelera, exportar y resumen de los apuntes completos seleccionados; menús de tarjetas y del apunte usan panel común con el diseño del mockup. Exportación con tarjetas y etiquetas de extensión. Encabezado incluye lupa/micrófono agrupados y avatar; lectura/exportar/Más también arriba del documento. Buscador con Todo/Título/Tema compartido desde menú y lupa. Papelera en cuadrícula, selección/restauración/borrado; el aviso informa la retención real (no hay purga automática de 30 días). Google de prueba usa la foto de ejemplo ya presente en Contexto, copiada a assets sin modificar la referencia.
+
 No se ejecutan pruebas, emulador ni capturas por instrucción expresa del propietario. Se registra solo revisión de código, compilación y verificación del artefacto firmado. Servidor/túnel permanecen apagados. Versión 0.2.3-beta.2+7; publicación pendiente.
 
 ---

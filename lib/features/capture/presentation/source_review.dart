@@ -1,5 +1,9 @@
 import 'dart:convert';
 
+import 'source_draft.dart';
+export 'source_draft.dart';
+import 'destination_picker.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart' as q;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -30,43 +34,6 @@ List<List<PickedFile>> sourceGroups(List<PickedFile> files) {
   }
   if (group.isNotEmpty) groups.add(group);
   return groups;
-}
-
-class SourceDraft {
-  final PickedFile file;
-  final AnalysisProposal? proposal;
-  String? folderId, noteId;
-  String folderName, noteTitle, text, summary;
-  bool include, saved = false;
-  SourceDraft(this.file, this.proposal, Library lib)
-    : folderId = lib.folders.any((f) => f.id == proposal?.folderId)
-          ? proposal!.folderId
-          : lib.folders
-                .where(
-                  (f) =>
-                      f.name.toLowerCase() ==
-                      proposal?.folderName.toLowerCase(),
-                )
-                .firstOrNull
-                ?.id,
-      noteId = lib.active.any((n) => n.id == proposal?.noteId)
-          ? proposal!.noteId
-          : null,
-      folderName = proposal?.folderName ?? 'Mis apuntes',
-      noteTitle = proposal?.noteTitle.isNotEmpty == true
-          ? proposal!.noteTitle
-          : proposal?.title ?? 'Nuevo apunte',
-      text = proposal?.text ?? '',
-      summary = proposal?.summary ?? '',
-      include = proposal == null || proposal.academic && proposal.readable;
-  factory SourceDraft.manual(PickedFile file, Library lib) {
-    final draft = SourceDraft(file, null, lib);
-    draft.folderId = lib.folders.firstOrNull?.id;
-    draft.folderName = lib.folders.firstOrNull?.name ?? 'Mis apuntes';
-    if (file.mime.startsWith('text/')) draft.text = utf8.decode(file.bytes);
-    return draft;
-  }
-  String get model => proposal?.model ?? '';
 }
 
 class SourceAnalysisPage extends ConsumerStatefulWidget {
@@ -306,174 +273,20 @@ class _ReviewState extends ConsumerState<SourceReviewPage> {
       lib.active.where((n) => n.id == d.noteId).firstOrNull?.title ??
       d.noteTitle;
   Future<void> _edit(SourceDraft d) async {
-    final lib = ref.read(libraryProvider).value ?? const Library([], [], []);
-    var folderId = d.folderId, noteId = d.noteId;
-    final folder = TextEditingController(text: d.folderName),
-        title = TextEditingController(text: d.noteTitle),
-        text = TextEditingController(text: d.text),
-        summary = TextEditingController(text: d.summary);
-    final accept = await showModalBottomSheet<bool>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      builder: (c) => StatefulBuilder(
-        builder: (c, set) => Padding(
-          padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(c).bottom),
-          child: SizedBox(
-            height: MediaQuery.sizeOf(c).height * .86,
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          tr(c, 'Editar destino'),
-                          style: Theme.of(c).textTheme.titleMedium,
-                        ),
-                      ),
-                      IconButton(
-                        onPressed: () => Navigator.pop(c),
-                        icon: const Icon(Icons.close),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    tr(
-                      c,
-                      'Usa nombres claros de materia y apunte: ayudan a la IA a elegir el destino correcto.',
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  DropdownButtonFormField<String>(
-                    initialValue: folderId ?? '',
-                    isExpanded: true,
-                    decoration: InputDecoration(labelText: tr(c, 'Carpeta')),
-                    items: [
-                      DropdownMenuItem(
-                        value: '',
-                        child: Text(tr(c, 'Crear una carpeta nueva')),
-                      ),
-                      for (final f in lib.folders)
-                        DropdownMenuItem(
-                          value: f.id,
-                          child: Text(f.name, overflow: TextOverflow.ellipsis),
-                        ),
-                    ],
-                    onChanged: (v) => set(() {
-                      folderId = v == '' ? null : v;
-                      noteId = null;
-                    }),
-                  ),
-                  if (folderId == null) ...[
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: folder,
-                      maxLength: 80,
-                      decoration: InputDecoration(
-                        labelText: tr(c, 'Nombre de la carpeta'),
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: 12),
-                  DropdownButtonFormField<String>(
-                    key: ValueKey(folderId),
-                    initialValue: noteId ?? '',
-                    isExpanded: true,
-                    decoration: InputDecoration(
-                      labelText: tr(c, 'Apunte de destino'),
-                    ),
-                    items: [
-                      DropdownMenuItem(
-                        value: '',
-                        child: Text(tr(c, 'Crear un apunte nuevo')),
-                      ),
-                      for (final n in lib.active.where(
-                        (n) => n.folderId == folderId,
-                      ))
-                        DropdownMenuItem(
-                          value: n.id,
-                          child: Text(n.title, overflow: TextOverflow.ellipsis),
-                        ),
-                    ],
-                    onChanged: (v) => set(() => noteId = v == '' ? null : v),
-                  ),
-                  if (noteId == null) ...[
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: title,
-                      maxLength: 200,
-                      decoration: InputDecoration(
-                        labelText: tr(c, 'Título del apunte'),
-                        hintText: tr(c, 'Ej. Matemáticas · Derivadas'),
-                      ),
-                    ),
-                  ],
-                  if (d.proposal != null ||
-                      d.file.mime.startsWith('text/')) ...[
-                    const SizedBox(height: 18),
-                    TextField(
-                      controller: text,
-                      minLines: 4,
-                      maxLines: 10,
-                      maxLength: 12000,
-                      decoration: InputDecoration(
-                        labelText: tr(c, 'Texto leído · revisa y corrige'),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: summary,
-                      minLines: 2,
-                      maxLines: 5,
-                      maxLength: 3000,
-                      decoration: InputDecoration(
-                        labelText: tr(
-                          c,
-                          'Resumen interno · al final del apunte',
-                        ),
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: 16),
-                  FilledButton(
-                    onPressed: () {
-                      if (folderId == null && folder.text.trim().isEmpty ||
-                          noteId == null && title.text.trim().isEmpty) {
-                        message(
-                          c,
-                          tr(c, 'Escribe la carpeta y el título del apunte.'),
-                        );
-                        return;
-                      }
-                      Navigator.pop(c, true);
-                    },
-                    child: Text(tr(c, 'Guardar y continuar')),
-                  ),
-                ],
-              ),
-            ),
-          ),
+    await Navigator.push(
+      context,
+      MaterialPageRoute<void>(
+        builder: (_) => DestinationPicker(
+          drafts: [d],
+          reviewOnly: true,
+          onComplete: (values) async {
+            d.apply(values.single);
+            Navigator.pop(context);
+          },
         ),
       ),
     );
-    if (accept == true && mounted) {
-      setState(() {
-        d.folderId = folderId;
-        d.noteId = noteId;
-        d.folderName = folder.text.trim();
-        d.noteTitle = title.text.trim();
-        d.text = text.text;
-        d.summary = summary.text;
-      });
-    }
-    folder.dispose();
-    title.dispose();
-    text.dispose();
-    summary.dispose();
+    if (mounted) setState(() {});
   }
 
   Future<void> _save() async {
@@ -747,6 +560,16 @@ class _ReviewState extends ConsumerState<SourceReviewPage> {
   );
   @override
   Widget build(BuildContext context) {
+    if (widget.manual)
+      return DestinationPicker(
+        drafts: widget.drafts,
+        onComplete: (values) async {
+          for (var i = 0; i < values.length; i++) {
+            widget.drafts[i].apply(values[i]);
+          }
+          await _save();
+        },
+      );
     final lib = ref.watch(libraryProvider).value ?? const Library([], [], []);
     final list = widget.manual ? [widget.drafts[index]] : widget.drafts;
     return PopScope(

@@ -1,3 +1,5 @@
+import '../../../core/presentation/action_panel.dart';
+import '../../../core/presentation/user_avatar.dart';
 import '../../../core/presentation/strings.dart';
 
 import 'package:flutter/material.dart';
@@ -21,6 +23,7 @@ class LibraryPage extends ConsumerStatefulWidget {
 
 class _LibraryPageState extends ConsumerState<LibraryPage> {
   int tab = 0;
+  bool trashMode = false;
   final Set<String> selectedIds = <String>{};
 
   bool get selecting => selectedIds.isNotEmpty;
@@ -112,50 +115,101 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
     });
   }
 
-  Widget _noteMenu(
-    Note note, {
-    required bool inTrash,
-  }) => PopupMenuButton<String>(
+  List<Widget> _quickActions(Library lib) => [
+    FilledButton.tonalIcon(
+      onPressed: () => _trashSelected(lib),
+      icon: const Icon(Icons.delete_outline, size: 17),
+      label: Text(tr(context, 'Enviar a papelera')),
+    ),
+    OutlinedButton.icon(
+      onPressed: () => exportMenu(
+        context,
+        ref,
+        lib.active.where((n) => selectedIds.contains(n.id)).toList(),
+      ),
+      icon: const Icon(Icons.ios_share_outlined, size: 17),
+      label: Text(tr(context, 'Exportar')),
+    ),
+    OutlinedButton.icon(
+      onPressed: () => _openSelectedAi(lib),
+      icon: const Icon(Icons.auto_awesome_outlined, size: 17),
+      label: Text(tr(context, 'Generar resumen')),
+    ),
+  ];
+  Widget _noteMenu(Note note, {required bool inTrash}) => IconButton(
     tooltip: tr(context, 'Acciones del apunte'),
-    onSelected: (action) async {
-      final controller = ref.read(controllerProvider.notifier);
-      if (action == 'edit') {
-        openPage(context, NotePage(note: note, edit: true));
-      } else if (action == 'ai') {
-        openPage(context, AiPage(initialNotes: [note]));
-      } else if (action == 'restore') {
-        await runAction(context, () => controller.restore(note));
-      } else if (action == 'trash') {
-        await runAction(context, () => controller.trash(note));
-      } else if (action == 'delete' &&
+    icon: const Icon(Icons.more_vert, size: 20),
+    onPressed: () async {
+      final action = await showActionPanel<String>(
+        context,
+        title: note.title,
+        caption: 'ACCIONES · APUNTE',
+        actions: inTrash
+            ? const [
+                PanelAction(
+                  'restore',
+                  'Restaurar',
+                  'Volver a tus apuntes',
+                  Icons.restore,
+                ),
+                PanelAction(
+                  'delete',
+                  'Eliminar definitivamente',
+                  'Borrar este apunte y sus archivos',
+                  Icons.delete_forever_outlined,
+                ),
+              ]
+            : const [
+                PanelAction(
+                  'trash',
+                  'Enviar a la papelera',
+                  'Mover a eliminados',
+                  Icons.delete_outline,
+                ),
+                PanelAction(
+                  'edit',
+                  'Renombrar apunte',
+                  'Cambiar el título del apunte',
+                  Icons.edit_outlined,
+                ),
+                PanelAction(
+                  'search',
+                  'Buscar',
+                  'Encontrar texto clave',
+                  Icons.search,
+                ),
+                PanelAction(
+                  'export',
+                  'Exportar',
+                  'Elegir formato de archivo',
+                  Icons.ios_share_outlined,
+                ),
+                PanelAction(
+                  'ai',
+                  'Generar resumen',
+                  'Resumir el apunte completo',
+                  Icons.auto_awesome_outlined,
+                ),
+              ],
+      );
+      if (!mounted) return;
+      final ctrl = ref.read(controllerProvider.notifier);
+      if (action == 'edit') openPage(context, NotePage(note: note, edit: true));
+      if (action == 'search') openPage(context, const SearchPage());
+      if (action == 'export') await exportMenu(context, ref, [note]);
+      if (action == 'ai') openPage(context, AiPage(initialNotes: [note]));
+      if (action == 'restore')
+        await runAction(context, () => ctrl.restore(note));
+      if (action == 'trash') await runAction(context, () => ctrl.trash(note));
+      if (action == 'delete' &&
           await confirm(
             context,
             'Eliminar definitivamente',
             'Se eliminará este apunte y sus archivos. Esta acción no se puede deshacer.',
           )) {
-        if (!mounted) return;
-        await runAction(context, () => controller.remove(note));
+        if (mounted) await runAction(context, () => ctrl.remove(note));
       }
     },
-    itemBuilder: (context) => [
-      if (!inTrash) ...[
-        PopupMenuItem(value: 'edit', child: Text(tr(context, 'Editar apunte'))),
-        PopupMenuItem(
-          value: 'ai',
-          child: Text(tr(context, 'Herramientas de IA')),
-        ),
-        PopupMenuItem(
-          value: 'trash',
-          child: Text(tr(context, 'Enviar a la papelera')),
-        ),
-      ] else ...[
-        PopupMenuItem(value: 'restore', child: Text(tr(context, 'Restaurar'))),
-        PopupMenuItem(
-          value: 'delete',
-          child: Text(tr(context, 'Eliminar definitivamente')),
-        ),
-      ],
-    ],
   );
   @override
   Widget build(BuildContext context) {
@@ -169,42 +223,24 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
             SizedBox(width: 8),
             Flexible(
               child: Text(
-                tr(context, 'DraftAI'),
+                tr(context, tab == 3 ? 'Papelera' : 'DraftAI'),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
             ),
           ],
         ),
-        actions: [
-          IconButton(
-            tooltip: tr(context, 'Buscar'),
-            onPressed: () => openPage(context, const SearchPage()),
-            icon: const Icon(Icons.search, size: 21),
-          ),
-          IconButton(
-            tooltip: tr(context, 'Búsqueda por voz'),
-            onPressed: () => openPage(context, const SearchPage(voice: true)),
-            icon: const Icon(Icons.mic_none, size: 21),
-          ),
-          IconButton(
-            tooltip: tr(context, 'Abrir perfil'),
-            onPressed: () => openPage(context, const ProfilePage()),
-            icon: CircleAvatar(
-              radius: 16,
-              backgroundColor: AppColors.mid,
-              child: ClipOval(
-                child: Image.asset(
-                  'assets/images/12225881.png',
-                  width: 32,
-                  height: 32,
-                  fit: BoxFit.cover,
-                ),
-              ),
-            ),
-          ),
-          SizedBox(width: 8),
-        ],
+        leading: tab == 3
+            ? IconButton(
+                onPressed: () => setState(() {
+                  tab = 0;
+                  selectedIds.clear();
+                  trashMode = false;
+                }),
+                icon: const Icon(Icons.arrow_back),
+              )
+            : null,
+        actions: [HeaderSearchActions(showSearch: tab != 3)],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
           child: Divider(height: 1, color: Theme.of(context).dividerColor),
@@ -293,6 +329,11 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
     return ResponsiveBody(
       child: ListView(
         children: [
+          if (selecting)
+            _selectionBar(
+              count: selectedIds.length,
+              actions: _quickActions(lib),
+            ),
           SectionTitle(
             'Recientes',
             action: TextButton(
@@ -319,7 +360,10 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
                 itemBuilder: (c, i) => SizedBox(
                   width: scaler.scale(144).clamp(144.0, 190.0).toDouble(),
                   child: InkWell(
-                    onTap: () => openPage(context, NotePage(note: recent[i])),
+                    onTap: () => selecting
+                        ? _toggleSelection(recent[i].id)
+                        : openPage(context, NotePage(note: recent[i])),
+                    onLongPress: () => _toggleSelection(recent[i].id),
                     child: Surface(
                       padding: const EdgeInsets.all(10),
                       child: Column(
@@ -337,7 +381,26 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
                             ),
                           ),
                           SizedBox(height: 3),
-                          Meta(dateLabel(recent[i].updatedAt)),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Meta(dateLabel(recent[i].updatedAt)),
+                              ),
+                              if (selecting)
+                                Icon(
+                                  selectedIds.contains(recent[i].id)
+                                      ? Icons.check_box
+                                      : Icons.check_box_outline_blank,
+                                  size: 19,
+                                )
+                              else
+                                SizedBox(
+                                  height: 28,
+                                  width: 28,
+                                  child: _noteMenu(recent[i], inTrash: false),
+                                ),
+                            ],
+                          ),
                         ],
                       ),
                     ),
@@ -445,18 +508,37 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
           for (final n in notes.take(6))
             Padding(
               padding: const EdgeInsets.only(bottom: 6),
-              child: OutlinedButton.icon(
-                onPressed: () => openPage(context, NotePage(note: n)),
-                style: OutlinedButton.styleFrom(
-                  alignment: Alignment.centerLeft,
-                  minimumSize: const Size(double.infinity, 44),
-                ),
-                icon: const Icon(Icons.description_outlined, size: 16),
-                label: Text(
-                  n.title,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 11),
+              child: GestureDetector(
+                onLongPress: () => _toggleSelection(n.id),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () => selecting
+                            ? _toggleSelection(n.id)
+                            : openPage(context, NotePage(note: n)),
+                        style: OutlinedButton.styleFrom(
+                          alignment: Alignment.centerLeft,
+                          minimumSize: const Size(double.infinity, 44),
+                        ),
+                        icon: Icon(
+                          selecting
+                              ? (selectedIds.contains(n.id)
+                                    ? Icons.check_box
+                                    : Icons.check_box_outline_blank)
+                              : Icons.description_outlined,
+                          size: 16,
+                        ),
+                        label: Text(
+                          n.title,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontSize: 11),
+                        ),
+                      ),
+                    ),
+                    if (!selecting) _noteMenu(n, inTrash: false),
+                  ],
                 ),
               ),
             ),
@@ -483,21 +565,7 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
       children: [
         SectionTitle('Tus apuntes'),
         if (selecting)
-          _selectionBar(
-            count: selectedIds.length,
-            actions: [
-              FilledButton.tonalIcon(
-                onPressed: () => _trashSelected(lib),
-                icon: const Icon(Icons.delete_outline, size: 17),
-                label: Text(tr(context, 'Enviar a papelera')),
-              ),
-              OutlinedButton.icon(
-                onPressed: () => _openSelectedAi(lib),
-                icon: const Icon(Icons.auto_awesome_outlined, size: 17),
-                label: Text(tr(context, 'Herramientas de IA')),
-              ),
-            ],
-          )
+          _selectionBar(count: selectedIds.length, actions: _quickActions(lib))
         else if (lib.active.isNotEmpty)
           Padding(
             padding: EdgeInsets.only(bottom: 10),
@@ -529,25 +597,55 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
   Widget _trash(Library lib) => ResponsiveBody(
     child: ListView(
       children: [
-        SectionTitle(
-          'Papelera',
-          action: lib.trash.isEmpty || selecting
-              ? null
-              : TextButton(
-                  onPressed: () => runAction(context, () async {
-                    if (await confirm(
-                      context,
-                      'Vaciar papelera',
-                      'Se eliminarán definitivamente ${lib.trash.length} apuntes y sus imágenes. Esta acción no se puede deshacer.',
-                    )) {
-                      for (final n in lib.trash) {
-                        await ref.read(controllerProvider.notifier).remove(n);
-                      }
-                    }
-                  }),
-                  child: Text(tr(context, 'Vaciar')),
-                ),
+        const SizedBox(height: 16),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            OutlinedButton.icon(
+              onPressed: lib.trash.isEmpty
+                  ? null
+                  : () async {
+                      if (!await confirm(
+                        context,
+                        'Vaciar papelera',
+                        'Se eliminarán todos los apuntes de la papelera y sus archivos. Esta acción no se puede deshacer.',
+                      ))
+                        return;
+                      if (!mounted) return;
+                      await runAction(context, () async {
+                        for (final n in lib.trash) {
+                          await ref.read(controllerProvider.notifier).remove(n);
+                        }
+                        if (mounted) _clearSelection();
+                      });
+                    },
+              icon: const Icon(Icons.delete_outline, size: 17),
+              label: Text(tr(context, 'Vaciar')),
+            ),
+            OutlinedButton.icon(
+              onPressed: lib.trash.isEmpty
+                  ? null
+                  : () => setState(() {
+                      trashMode = !trashMode;
+                      if (!trashMode) selectedIds.clear();
+                    }),
+              icon: const Icon(Icons.check, size: 17),
+              label: Text(tr(context, trashMode ? 'Cancelar' : 'Seleccionar')),
+            ),
+          ],
         ),
+        const SizedBox(height: 12),
+        Surface(
+          radius: 16,
+          child: Text(
+            tr(
+              context,
+              'Los apuntes permanecen aquí hasta que los restaures o elimines definitivamente.',
+            ),
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ),
+        const SizedBox(height: 14),
         if (selecting)
           _selectionBar(
             count: selectedIds.length,
@@ -563,16 +661,6 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
                 label: Text(tr(context, 'Eliminar definitivamente')),
               ),
             ],
-          )
-        else if (lib.trash.isNotEmpty)
-          Padding(
-            padding: EdgeInsets.only(bottom: 10),
-            child: Meta(
-              tr(
-                context,
-                'Toca un apunte para seleccionarlo o mantenerlo pulsado para empezar.',
-              ),
-            ),
           ),
         if (lib.trash.isEmpty)
           _empty(
@@ -580,15 +668,106 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
             'Los apuntes eliminados aparecerán aquí.',
             Icons.delete_outline,
           ),
-        for (final n in lib.trash)
-          NoteTile(
-            note: n,
-            selected: selectedIds.contains(n.id),
-            subtitle: 'Eliminado: ${dateLabel(n.deletedAt!)}',
-            onTap: () => _toggleSelection(n.id),
-            onLongPress: () => _toggleSelection(n.id),
-            trailing: selecting ? null : _noteMenu(n, inTrash: true),
+        LayoutBuilder(
+          builder: (c, box) => GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: lib.trash.length,
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: box.maxWidth < 300
+                  ? 1
+                  : box.maxWidth >= 900
+                  ? 4
+                  : box.maxWidth >= 600
+                  ? 3
+                  : 2,
+              crossAxisSpacing: 10,
+              mainAxisSpacing: 16,
+              mainAxisExtent: (190 * MediaQuery.textScalerOf(c).scale(1)).clamp(
+                190.0,
+                300.0,
+              ),
+            ),
+            itemBuilder: (c, i) {
+              final n = lib.trash[i],
+                  age = DateTime.now()
+                      .difference(n.deletedAt!)
+                      .inDays
+                      .clamp(0, 9999);
+              return GestureDetector(
+                onLongPress: () => setState(() {
+                  trashMode = true;
+                  _toggleSelection(n.id);
+                }),
+                onTap: () => setState(() {
+                  trashMode = true;
+                  _toggleSelection(n.id);
+                }),
+                child: Surface(
+                  radius: 18,
+                  padding: const EdgeInsets.all(11),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              border: Border.all(
+                                color: Theme.of(c).dividerColor,
+                              ),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Icon(
+                              trashMode
+                                  ? (selectedIds.contains(n.id)
+                                        ? Icons.check_box
+                                        : Icons.check_box_outline_blank)
+                                  : Icons.description_outlined,
+                              size: 17,
+                            ),
+                          ),
+                          const Spacer(),
+                          Pill('$age d'),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        n.title,
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        n.plainText.replaceAll('\n', ' '),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(c).textTheme.bodySmall,
+                      ),
+                      const Spacer(),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Meta(
+                              tr(c, 'Hace') + ' $age ' + tr(c, 'días'),
+                            ),
+                          ),
+                          _noteMenu(n, inTrash: true),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
           ),
+        ),
+        const SizedBox(height: 24),
       ],
     ),
   );
@@ -1226,7 +1405,13 @@ class _SearchPageState extends ConsumerState<SearchPage> {
       folderId: widget.folderId,
     );
     return Scaffold(
-      appBar: AppBar(title: Text(tr(context, 'Buscar apuntes'))),
+      appBar: AppBar(
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [const Meta('DRAFTAI'), Text(tr(context, 'Buscar'))],
+        ),
+        actions: const [HeaderSearchActions(showSearch: false)],
+      ),
       body: SafeArea(
         child: ResponsiveBody(
           child: ListView(
@@ -1249,17 +1434,42 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                 ),
               ),
               SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                children: ['Todo', 'Título', 'Tema']
-                    .map(
-                      (s) => ChoiceChip(
-                        label: Text(s),
-                        selected: mode == s,
-                        onSelected: (_) => setState(() => mode = s),
+              Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surfaceContainerLow,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    for (final value in ['Todo', 'Título', 'Tema'])
+                      Expanded(
+                        child: Material(
+                          color: mode == value
+                              ? Theme.of(context).colorScheme.primary
+                              : Colors.transparent,
+                          borderRadius: BorderRadius.circular(6),
+                          child: InkWell(
+                            onTap: () => setState(() => mode = value),
+                            borderRadius: BorderRadius.circular(6),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 11),
+                              child: Text(
+                                tr(context, value),
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: mode == value
+                                      ? Theme.of(context).colorScheme.onPrimary
+                                      : Theme.of(context).colorScheme.onSurface,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
                       ),
-                    )
-                    .toList(),
+                  ],
+                ),
               ),
               if (listening)
                 Padding(
@@ -1374,5 +1584,48 @@ class _ColorSpectrum extends StatelessWidget {
         ),
       );
     },
+  );
+}
+
+class HeaderSearchActions extends StatelessWidget {
+  final bool showSearch;
+  const HeaderSearchActions({super.key, this.showSearch = true});
+  @override
+  Widget build(BuildContext context) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      if (showSearch)
+        Container(
+          margin: const EdgeInsets.only(right: 6),
+          decoration: BoxDecoration(
+            border: Border.all(color: Theme.of(context).dividerColor),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                visualDensity: VisualDensity.compact,
+                tooltip: tr(context, 'Buscar'),
+                onPressed: () => openPage(context, const SearchPage()),
+                icon: const Icon(Icons.search, size: 18),
+              ),
+              IconButton(
+                visualDensity: VisualDensity.compact,
+                tooltip: tr(context, 'Búsqueda por voz'),
+                onPressed: () =>
+                    openPage(context, const SearchPage(voice: true)),
+                icon: const Icon(Icons.mic_none, size: 18),
+              ),
+            ],
+          ),
+        ),
+      IconButton(
+        tooltip: tr(context, 'Abrir perfil'),
+        onPressed: () => openPage(context, const ProfilePage()),
+        icon: const UserAvatar(),
+      ),
+      const SizedBox(width: 4),
+    ],
   );
 }

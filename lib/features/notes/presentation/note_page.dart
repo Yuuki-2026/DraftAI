@@ -1,3 +1,5 @@
+import '../../../core/presentation/action_panel.dart';
+
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -339,13 +341,14 @@ class _NotePageState extends ConsumerState<NotePage> {
                       ? 'Editar apunte'
                       : reading
                       ? 'Modo lectura'
-                      : 'Vista del apunte',
+                      : note.title,
                 ),
                 style: const TextStyle(fontSize: 16),
               ),
             ],
           ),
           actions: [
+            if (!editing) const HeaderSearchActions(),
             if (editing)
               IconButton(
                 tooltip: tr(context, 'Insertar'),
@@ -376,33 +379,51 @@ class _NotePageState extends ConsumerState<NotePage> {
                 if (!editing)
                   Row(
                     children: [
-                      TextButton.icon(
+                      Expanded(
+                        child: Meta(
+                          tr(context, 'Actualizado') +
+                              ' ' +
+                              dateLabel(note.updatedAt),
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: tr(context, 'Exportar'),
+                        onPressed: _export,
+                        icon: const Icon(Icons.ios_share_outlined, size: 20),
+                      ),
+                      IconButton(
+                        tooltip: tr(context, 'Lectura'),
                         onPressed: () => setState(() => reading = !reading),
                         icon: Icon(
                           reading ? Icons.menu_book : Icons.menu_book_outlined,
-                          size: 18,
-                        ),
-                        label: Text(
-                          tr(context, reading ? 'Lectura activa' : 'Lectura'),
+                          size: 20,
                         ),
                       ),
-                      const Spacer(),
-                      if (reading) ...[
-                        IconButton(
-                          tooltip: tr(context, 'Reducir texto'),
-                          onPressed: readingScale <= .85
-                              ? null
-                              : () => setState(() => readingScale -= .1),
-                          icon: const Icon(Icons.text_decrease, size: 20),
-                        ),
-                        IconButton(
-                          tooltip: tr(context, 'Ampliar texto'),
-                          onPressed: readingScale >= 1.65
-                              ? null
-                              : () => setState(() => readingScale += .1),
-                          icon: const Icon(Icons.text_increase, size: 20),
-                        ),
-                      ],
+                      IconButton(
+                        tooltip: tr(context, 'Más'),
+                        onPressed: _more,
+                        icon: const Icon(Icons.more_vert, size: 20),
+                      ),
+                    ],
+                  ),
+                if (reading)
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      IconButton(
+                        tooltip: tr(context, 'Reducir texto'),
+                        onPressed: readingScale <= .85
+                            ? null
+                            : () => setState(() => readingScale -= .1),
+                        icon: const Icon(Icons.text_decrease, size: 20),
+                      ),
+                      IconButton(
+                        tooltip: tr(context, 'Ampliar texto'),
+                        onPressed: readingScale >= 1.65
+                            ? null
+                            : () => setState(() => readingScale += .1),
+                        icon: const Icon(Icons.text_increase, size: 20),
+                      ),
                     ],
                   ),
                 if (saving || aiBusy) const LinearProgressIndicator(),
@@ -1305,37 +1326,47 @@ class _NotePageState extends ConsumerState<NotePage> {
   }
 
   Future<void> _more() async {
-    final action = await showModalBottomSheet<String>(
-      context: context,
-      builder: (c) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.auto_awesome_outlined),
-              title: Text(tr(context, 'Herramientas de IA')),
-              onTap: () => Navigator.pop(c, 'ai'),
-            ),
-            ListTile(
-              leading: const Icon(Icons.drive_file_rename_outline),
-              title: Text(tr(context, 'Renombrar o mover')),
-              onTap: () => Navigator.pop(c, 'edit'),
-            ),
-            ListTile(
-              leading: const Icon(Icons.history),
-              title: Text(tr(context, 'Historial y revertir cambios')),
-              onTap: () => Navigator.pop(c, 'history'),
-            ),
-            ListTile(
-              leading: const Icon(Icons.delete_outline),
-              title: Text(tr(context, 'Enviar a la papelera')),
-              onTap: () => Navigator.pop(c, 'trash'),
-            ),
-          ],
+    final action = await showActionPanel<String>(
+      context,
+      title: note.title,
+      caption: 'ACCIONES · APUNTE',
+      actions: const [
+        PanelAction(
+          'trash',
+          'Enviar a la papelera',
+          'Mover a eliminados',
+          Icons.delete_outline,
         ),
-      ),
+        PanelAction(
+          'edit',
+          'Renombrar apunte',
+          'Cambiar el título del apunte',
+          Icons.edit_outlined,
+        ),
+        PanelAction('search', 'Buscar', 'Encontrar texto clave', Icons.search),
+        PanelAction(
+          'export',
+          'Exportar',
+          'Elegir formato de archivo',
+          Icons.ios_share_outlined,
+        ),
+        PanelAction(
+          'ai',
+          'Generar resumen',
+          'Resumir el apunte completo',
+          Icons.auto_awesome_outlined,
+        ),
+        PanelAction(
+          'history',
+          'Historial y revertir cambios',
+          'Ver versiones anteriores',
+          Icons.history,
+        ),
+      ],
     );
     if (!mounted) return;
+    if (action == 'search') openPage(context, const SearchPage());
+    if (action == 'export') await _export();
     if (action == 'ai') await _ai();
     if (action == 'edit') _enterEdit();
     if (action == 'history') await _history();
@@ -1367,65 +1398,41 @@ Future<void> exportMenu(
   WidgetRef ref,
   List<Note> notes,
 ) async {
-  final format = await showModalBottomSheet<ExportFormat>(
-    context: context,
-    isScrollControlled: true,
-    builder: (c) => SafeArea(
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxHeight: MediaQuery.sizeOf(c).height * .85,
-        ),
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                title: Text(tr(c, 'Exportar como')),
-                subtitle: Text(
-                  tr(
-                    c,
-                    'Elige un formato. Los originales se conservarán en DraftAI.',
-                  ),
-                ),
-              ),
-              for (final item in [
-                (
-                  ExportFormat.pdf,
-                  'PDF',
-                  'Texto e imágenes; no incluye PDF ni archivos adjuntos.',
-                  Icons.picture_as_pdf_outlined,
-                ),
-                (
-                  ExportFormat.word,
-                  'Word',
-                  'Texto e imágenes; no incluye PDF ni archivos adjuntos.',
-                  Icons.description_outlined,
-                ),
-                (
-                  ExportFormat.text,
-                  'TXT',
-                  'Solo texto; sin imágenes ni archivos adjuntos.',
-                  Icons.text_snippet_outlined,
-                ),
-                (
-                  ExportFormat.markdown,
-                  'Markdown',
-                  'Texto con encabezados; sin imágenes ni archivos adjuntos.',
-                  Icons.code,
-                ),
-              ])
-                ListTile(
-                  leading: Icon(item.$4),
-                  title: Text(item.$2),
-                  subtitle: Text(tr(c, item.$3)),
-                  onTap: () => Navigator.pop(c, item.$1),
-                ),
-              const SizedBox(height: 12),
-            ],
-          ),
-        ),
+  final format = await showActionPanel<ExportFormat>(
+    context,
+    title: tr(context, 'Exportar como:'),
+    caption: 'ACCIÓN RÁPIDA',
+    choice: true,
+    actions: const [
+      PanelAction(
+        ExportFormat.pdf,
+        'PDF',
+        'Documento estándar con imágenes',
+        Icons.description_outlined,
+        badge: '.pdf',
       ),
-    ),
+      PanelAction(
+        ExportFormat.word,
+        'Word',
+        'Formato editable',
+        Icons.description_outlined,
+        badge: '.docx',
+      ),
+      PanelAction(
+        ExportFormat.text,
+        'Texto',
+        'Archivo de texto plano',
+        Icons.description_outlined,
+        badge: '.txt',
+      ),
+      PanelAction(
+        ExportFormat.markdown,
+        'Markdown',
+        'Compatible con editores de notas',
+        Icons.subject,
+        badge: '.md',
+      ),
+    ],
   );
   if (format == null || !context.mounted) return;
   final referenced = <String>{
@@ -1446,6 +1453,10 @@ Future<void> exportMenu(
         noteMathPattern.hasMatch(n.plainText) ||
         noteMathPattern.hasMatch(n.summary),
   );
+  if (excluded.isEmpty && !math) {
+    await runAction(context, () => ref.read(exportPort).export(notes, format));
+    return;
+  }
   final details = <String>[
     if (excluded.isNotEmpty)
       tr(context, 'No se incluirá el contenido de estos adjuntos:'),

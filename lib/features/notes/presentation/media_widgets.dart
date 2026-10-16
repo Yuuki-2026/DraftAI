@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_quill/flutter_quill.dart' as q;
@@ -249,8 +251,10 @@ class _ZoomImageState extends State<_ZoomImage> {
 }
 
 class PdfAttachmentPage extends ConsumerStatefulWidget {
-  final Attachment attachment;
-  const PdfAttachmentPage({super.key, required this.attachment});
+  final Attachment? attachment;
+  final Uint8List? bytes;
+  const PdfAttachmentPage({super.key, this.attachment, this.bytes})
+    : assert(attachment != null || bytes != null);
   @override
   ConsumerState<PdfAttachmentPage> createState() => _PdfState();
 }
@@ -266,7 +270,8 @@ class _PdfState extends ConsumerState<PdfAttachmentPage> {
   }
 
   Future<(Uint8List, int)> _load() async {
-    final bytes = await ref.read(mediaPort).read(widget.attachment);
+    final bytes =
+        widget.bytes ?? await ref.read(mediaPort).read(widget.attachment!);
     final count = await channel.invokeMethod<int>('info', {'bytes': bytes});
     return (bytes, count ?? 0);
   }
@@ -302,10 +307,9 @@ class _PdfState extends ConsumerState<PdfAttachmentPage> {
                   }),
                 ),
                 builder: (context, page) => page.hasData
-                    ? InteractiveViewer(
-                        minScale: 1,
-                        maxScale: 4,
-                        child: Image.memory(page.data!),
+                    ? SizedBox(
+                        height: MediaQuery.sizeOf(context).height * .8,
+                        child: _ZoomImage(bytes: page.data!, onZoom: (_) {}),
                       )
                     : SizedBox(
                         height: 180,
@@ -322,6 +326,35 @@ class _PdfState extends ConsumerState<PdfAttachmentPage> {
           ),
         );
       },
+    ),
+  );
+}
+
+void previewPickedFile(BuildContext context, PickedFile file) {
+  Navigator.push(
+    context,
+    MaterialPageRoute<void>(
+      builder: (_) => file.mime == 'application/pdf'
+          ? PdfAttachmentPage(bytes: file.bytes)
+          : Scaffold(
+              appBar: AppBar(
+                title: Text(
+                  file.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              body: SafeArea(
+                child: file.mime.startsWith('image/')
+                    ? _ZoomImage(bytes: file.bytes, onZoom: (_) {})
+                    : SingleChildScrollView(
+                        padding: const EdgeInsets.all(20),
+                        child: SelectableText(
+                          utf8.decode(file.bytes, allowMalformed: true),
+                        ),
+                      ),
+              ),
+            ),
     ),
   );
 }

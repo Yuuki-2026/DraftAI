@@ -1,3 +1,5 @@
+import '../../notes/presentation/media_widgets.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -175,16 +177,24 @@ class _CaptureState extends ConsumerState<CapturePage> {
                           children: [
                             Center(
                               child: files[i].mime.startsWith('image/')
-                                  ? Image.memory(
-                                      files[i].bytes,
-                                      fit: BoxFit.contain,
-                                      cacheWidth: 900,
+                                  ? GestureDetector(
+                                      onTap: () =>
+                                          previewPickedFile(context, files[i]),
+                                      child: Image.memory(
+                                        files[i].bytes,
+                                        fit: BoxFit.contain,
+                                        cacheWidth: 900,
+                                      ),
                                     )
-                                  : Icon(
-                                      files[i].mime == 'application/pdf'
-                                          ? Icons.picture_as_pdf_outlined
-                                          : Icons.text_snippet_outlined,
-                                      size: 64,
+                                  : GestureDetector(
+                                      onTap: () =>
+                                          previewPickedFile(context, files[i]),
+                                      child: Icon(
+                                        files[i].mime == 'application/pdf'
+                                            ? Icons.picture_as_pdf_outlined
+                                            : Icons.text_snippet_outlined,
+                                        size: 64,
+                                      ),
                                     ),
                             ),
                             Positioned(
