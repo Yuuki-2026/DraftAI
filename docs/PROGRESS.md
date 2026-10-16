@@ -106,3 +106,6 @@ Aclaración posterior: texto, resumen y mejora conservan el idioma predominante 
 
 ## Resumen mejorado para estudiar
 Texto de fuente presentado como apuntes claros y resumen didáctico con definiciones, diferencias y ejemplos pertinentes, sin descripciones visuales, nombres de archivo ni comentarios de idioma. Limitaciones solo en aviso de revisión español. GET/PUT y otros identificadores no determinan idioma inglés. Rechazo explícito de prefijos de descripción visual conocidos, sin reintentos automáticos. Idioma predominante conservado. Sintaxis Node comprobada; sin consumo de API ni pruebas Android.
+
+## Ampliación temporal de pruebas autorizada por el propietario
+16/10/2026 Lima: 120 llamadas globales, 20 dispositivos, Gratis 10 y Pro 30 operaciones. Retorno automático a valores anteriores a las 00:00 del 17/10 Lima, evaluado por solicitud sin depender de un reinicio. Consumo acumulado preservado; presupuesto persistente sincroniza contador secundario. Raíz HTTPS informativa y códigos persistentes de 24h. Sin cambios APK. Verificación de sintaxis y salud; sin llamadas de pago.

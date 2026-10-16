@@ -44,3 +44,6 @@ La clasificación recibe solo identificadores y títulos de carpetas/apuntes, ad
 
 ## Análisis académico actualizado
 Gratis usa Groq openai/gpt-oss-20b para mejorar selecciones y resumir (2 acciones/día). Pro usa gpt-5-nano-2025-08-07 y permite fuentes (10 acciones/día). NVIDIA no está activo como proveedor alternativo: no se hacen llamadas ni cambios automáticos de proveedor. Hasta 10 conexiones de prueba simultáneamente autorizadas; presupuesto global de 60 llamadas/día conservado. El resumen explica conceptos en el idioma predominante de la fuente (inglés → inglés, español → español); las fuentes no académicas o ilegibles no reciben destino.
+
+## Ampliación temporal autorizada: 16 de octubre de 2026 (Lima)
+Solo hasta las 00:00 del 17 de octubre: 120 llamadas globales por día UTC, 20 dispositivos autorizados, 10 operaciones Gratis y 30 Pro por dispositivo/día. El consumo anterior se conserva; cada operación puede consumir varias llamadas por los controles de seguridad. A medianoche de Lima vuelve automáticamente a 60 llamadas, 10 dispositivos, 2 operaciones Gratis y 10 Pro. No se reinician contadores ni se amplía el límite del proveedor. Los códigos privados se conservan entre reinicios hasta su vencimiento de 24 horas. Dos operaciones IA simultáneas siguen vigentes.
