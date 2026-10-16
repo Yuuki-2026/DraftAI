@@ -112,3 +112,5 @@ Texto de fuente presentado como apuntes claros y resumen didáctico con definici
 
 ## Beta 0.2.3-beta.3+8: cuota real
 Se elimina el bloqueo local duplicado cuando el servicio expone acceso remoto. El servidor es autoridad de usos; contador en Perfil e IA con actualización manual y tras operaciones, incluido fallo. Estado autenticado incluye usados/límite/presupuesto global persistente. Conexión expone errores seguros del servidor. Sin migraciones de notas. Verificación de compilación, análisis y firma; sin emulador ni capturas para agilizar según petición del usuario.
+
+Comprobaciones beta.3: Node --check correcto; presupuesto persistente 1 prueba aprobada sin llamadas externas. Flutter analyze terminó con 25 avisos de estilo/contexto (no se declara limpio). No se ejecutaron pruebas Flutter, emulador ni capturas para priorizar la entrega solicitada.
