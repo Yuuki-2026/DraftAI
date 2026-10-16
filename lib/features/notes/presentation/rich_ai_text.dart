@@ -1,3 +1,5 @@
+import 'note_reader.dart';
+
 import 'package:flutter/material.dart';
 
 import '../domain/note_document.dart';
@@ -41,7 +43,12 @@ class RichAiText extends StatelessWidget {
       } else {
         spans.add(
           TextSpan(
-            text: value,
+            children: NoteMathText.spans(
+              context,
+              value,
+              Theme.of(context).textTheme.bodyMedium!
+                  .copyWith(fontSize: 14, height: 1.65),
+            ),
             style: TextStyle(
               fontWeight: attrs['bold'] == true ? FontWeight.w700 : null,
               fontStyle: attrs['italic'] == true ? FontStyle.italic : null,

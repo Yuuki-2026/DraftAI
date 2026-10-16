@@ -1,3 +1,15 @@
+# Continuidad · 0.2.3 Beta 2
+
+Solicitud: corregir documento en blanco al guardar y volver a editar; fecha discreta, LaTeX, interlineado y aviso de exportación. Sin funciones adicionales. Se separó el lector del editor: la vista de edición se monta de nuevo al entrar, con clave por controlador/modo, foco solicitado después del montaje y recarga de la copia canónica persistida tras guardar. Se mantienen borradores manuales y confirmación al salir.
+
+Fechas de temas convertidas de H3 a texto de 11 puntos; compatibilidad con fechas de Beta 1. Lectura preserva formato y medios intercalados. LaTeX local con flutter_math_fork 0.7.4 exacto; soporta delimitadores dólar, doble dólar, paréntesis y corchetes escapados. Fuente TeX original conservada, expresiones no válidas/extendidas muestran texto. No WebView ni servicio externo para renderizar. Edición mantiene código; lectura lo presenta visualmente.
+
+Exportación: PDF/Word incluyen imágenes, no el contenido de PDF u otros adjuntos. TXT/MD no incluyen imágenes ni adjuntos. El diálogo identifica archivos excluidos y aclara que las fórmulas se exportan como fuente LaTeX; los originales siguen en DraftAI. Se simplifican algunos estilos de exportación.
+
+No se ejecutan pruebas, emulador ni capturas por instrucción expresa del propietario. Se registra solo revisión de código, compilación y verificación del artefacto firmado. Servidor/túnel permanecen apagados. Versión 0.2.3-beta.2+7; publicación pendiente.
+
+---
+
 # Continuidad · 0.2.3 Beta 1
 
 Cambios solicitados en la captura del propietario: guardado explícito, aviso Guardar/Descartar/Seguir editando, editor estable al pegar y escribir, volver desde lectura regresa al apunte, contador eliminado. Añadir tema crea un encabezado dentro del mismo documento. Fechas encima de cada tema: última edición del tema, una sola fecha por tema, sin duplicados al guardar varias veces el mismo día. Los temas que no cambian conservan su fecha. La fecha no pretende ser una copia histórica del contenido; las versiones anteriores siguen en Historial.

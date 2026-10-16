@@ -5,6 +5,22 @@ String tr(BuildContext context, String es) =>
     ? english[es] ?? extraEnglish[es] ?? _dynamicEnglish(es)
     : es;
 const english = <String, String>{
+  "La fórmula se verá renderizada al guardar el apunte.":
+      "The formula will be rendered after saving the note.",
+  "Antes de exportar": "Before exporting",
+  "Elige un formato. Los originales se conservarán en DraftAI.":
+      "Choose a format. Originals will remain in DraftAI.",
+  "Texto e imágenes; no incluye PDF ni archivos adjuntos.":
+      "Text and images; attached PDFs and other files are not included.",
+  "Solo texto; sin imágenes ni archivos adjuntos.":
+      "Text only; no images or attached files.",
+  "Texto con encabezados; sin imágenes ni archivos adjuntos.":
+      "Text with headings; no images or attached files.",
+  "No se incluirá el contenido de estos adjuntos:":
+      "The contents of these attachments will not be included:",
+  "Y otros archivos": "Other files",
+  "Las fórmulas se exportan como código LaTeX, sin el renderizado visual de la app.": "Equations are exported as LaTeX source, without the visual rendering shown in the app.",
+  "El formato de texto puede simplificarse. Los originales seguirán disponibles en DraftAI.": "Text formatting may be simplified. Originals will remain available in DraftAI.",
   "Google · Beta": "Google · Beta",
   "El inicio de sesión con Google aún no está disponible. Puedes entrar como usuario de prueba, sin vincular una cuenta.": "Google sign-in is not available yet. You can enter as a test user without linking an account.",
   "Entrar como usuario de prueba": "Continue as a test user",

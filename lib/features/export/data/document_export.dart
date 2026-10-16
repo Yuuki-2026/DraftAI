@@ -100,11 +100,27 @@ class DocumentExport implements ExportService {
               ),
             );
           }
+        } else if (RegExp(r'^\d{2}/\d{2}/\d{4}$').hasMatch(part.text.trim())) {
+          content.add(
+            pw.Padding(
+              padding: const pw.EdgeInsets.only(top: 8, bottom: 2),
+              child: pw.Text(
+                part.text,
+                style: const pw.TextStyle(
+                  fontSize: 9,
+                  color: PdfColors.grey700,
+                ),
+              ),
+            ),
+          );
         } else if (part.heading > 0) {
           content.add(pw.Header(level: part.heading, text: part.text));
         } else {
           content.add(
-            pw.Paragraph(text: '${part.bullet ? '• ' : ''}${part.text}'),
+            pw.Paragraph(
+              text: '${part.bullet ? '• ' : ''}${part.text}',
+              style: const pw.TextStyle(lineSpacing: 3),
+            ),
           );
         }
       }

@@ -10,6 +10,7 @@ import 'controller.dart';
 import 'media_widgets.dart';
 import 'note_format_bar.dart';
 import 'rich_ai_text.dart';
+import 'note_reader.dart';
 import '../domain/ports.dart';
 import '../../ai/presentation/connection_dialog.dart';
 import '../domain/note_document.dart';
@@ -72,7 +73,9 @@ class _NotePageState extends ConsumerState<NotePage> {
   }
 
   q.QuillController _controller(Note n) {
-    final doc = q.Document.fromJson(NoteDocument.delta(n));
+    final doc = q.Document.fromJson(
+      NoteDocument.delta(NoteSections.compactDates(n)),
+    );
     return q.QuillController(
       document: doc,
       selection: const TextSelection.collapsed(offset: 0),
@@ -130,12 +133,17 @@ class _NotePageState extends ConsumerState<NotePage> {
     }
     try {
       await ref.read(controllerProvider.notifier).save(snapshot);
-      note = snapshot;
-      committed = snapshot;
+      final stored =
+          (await ref.read(notesPort).load()).active
+              .where((n) => n.id == snapshot.id)
+              .firstOrNull ??
+          snapshot;
+      note = stored;
+      committed = stored;
       if (mounted && !dirty) {
         editor.removeListener(_changed);
         final oldEditor = editor;
-        editor = _controller(snapshot);
+        editor = _controller(stored);
         editor.readOnly = !editing;
         editor.addListener(_changed);
         lastSignature = _signature();
@@ -490,33 +498,83 @@ class _NotePageState extends ConsumerState<NotePage> {
                             .scale(reading ? readingScale : 1),
                       ),
                     ),
-                    child: q.QuillEditor(
-                      controller: editor,
-                      focusNode: focus,
-                      scrollController: editorScroll,
-                      key: const ValueKey('note-editor'),
-                      config: q.QuillEditorConfig(
-                        embedBuilders: [
-                          NoteMediaEmbed(
-                            note.attachments
-                                .where(
-                                  (a) => NoteDocument.references(
-                                    jsonEncode(
-                                      editor.document.toDelta().toJson(),
+                    child: !editing
+                        ? NoteReader(note: _snapshot())
+                        : q.QuillEditor(
+                            controller: editor,
+                            focusNode: focus,
+                            scrollController: editorScroll,
+                            key: ValueKey((editor, editing)),
+                            config: q.QuillEditorConfig(
+                              customStyles: q.DefaultStyles(
+                                paragraph: q.DefaultStyles.getInstance(context)
+                                    .paragraph!
+                                    .copyWith(
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodyMedium!
+                                          .copyWith(fontSize: 15, height: 1.6),
+                                      verticalSpacing: const q.VerticalSpacing(
+                                        3,
+                                        7,
+                                      ),
                                     ),
-                                  ).contains(a.id),
-                                )
-                                .toList(),
+                                h3: q.DefaultStyles.getInstance(context).h3!
+                                    .copyWith(
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .titleMedium!
+                                          .copyWith(fontSize: 17, height: 1.5),
+                                    ),
+                              ),
+                              textSpanBuilder:
+                                  (
+                                    c,
+                                    node,
+                                    offset,
+                                    text,
+                                    style,
+                                    recognizer,
+                                  ) => TextSpan(
+                                    text: text,
+                                    recognizer: recognizer,
+                                    style:
+                                        RegExp(r'^\d{2}/\d{2}/\d{4}$')
+                                            .hasMatch(text.trim())
+                                        ? (style ?? const TextStyle()).copyWith(
+                                            fontSize: 11,
+                                            height: 1.4,
+                                            fontWeight: FontWeight.normal,
+                                            color: Theme.of(c)
+                                                .colorScheme
+                                                .onSurfaceVariant,
+                                          )
+                                        : style,
+                                  ),
+                              embedBuilders: [
+                                NoteMediaEmbed(
+                                  note.attachments
+                                      .where(
+                                        (a) => NoteDocument.references(
+                                          jsonEncode(
+                                            editor.document.toDelta().toJson(),
+                                          ),
+                                        ).contains(a.id),
+                                      )
+                                      .toList(),
+                                ),
+                              ],
+                              scrollable: false,
+                              autoFocus: false,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              placeholder: tr(
+                                context,
+                                'Escribe tus ideas aquí…',
+                              ),
+                              expands: false,
+                              minHeight: 220,
+                            ),
                           ),
-                        ],
-                        scrollable: false,
-                        autoFocus: false,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        placeholder: tr(context, 'Escribe tus ideas aquí…'),
-                        expands: false,
-                        minHeight: 220,
-                      ),
-                    ),
                   ),
                 ),
                 if (note.lastAiModel.isNotEmpty)
@@ -733,12 +791,15 @@ class _NotePageState extends ConsumerState<NotePage> {
   );
 
   void _enterEdit() {
+    focus.unfocus();
     setState(() {
       editing = true;
       reading = false;
       editor.readOnly = false;
     });
-    focus.requestFocus();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && editing) focus.requestFocus();
+    });
   }
 
   Future<void> _export() async {
@@ -826,19 +887,23 @@ class _NotePageState extends ConsumerState<NotePage> {
   );
 
   Future<void> _formula() async {
-    final input = TextEditingController();
+    var input = '';
     final selection = editor.selection;
     final value = await showDialog<String>(
       context: context,
       builder: (c) => AlertDialog(
         title: Text(tr(c, 'Fórmula')),
         content: TextField(
-          controller: input,
+          onChanged: (value) => input = value,
           autofocus: true,
           minLines: 1,
           maxLines: 4,
-          decoration: const InputDecoration(
-            hintText: '∮ F · dr = ∬ (∇ × F) · n dS',
+          decoration: InputDecoration(
+            hintText: r'\frac{a}{b} = \sqrt{x}',
+            helperText: tr(
+              c,
+              'La fórmula se verá renderizada al guardar el apunte.',
+            ),
           ),
         ),
         actions: [
@@ -847,22 +912,24 @@ class _NotePageState extends ConsumerState<NotePage> {
             child: Text(tr(c, 'Cancelar')),
           ),
           FilledButton(
-            onPressed: () => Navigator.pop(c, input.text.trim()),
+            onPressed: () => Navigator.pop(c, input.trim()),
             child: Text(tr(c, 'Insertar')),
           ),
         ],
       ),
     );
-    input.dispose();
     if (value == null || value.isEmpty || !mounted) return;
     final start = selection.start.clamp(0, editor.document.length - 1);
     final length =
         selection.end.clamp(start, editor.document.length - 1) - start;
+    final formula = noteMathPattern.hasMatch(value)
+        ? value
+        : r'\(' + value + r'\)';
     editor.replaceText(
       start,
       length,
-      value,
-      TextSelection.collapsed(offset: start + value.length),
+      formula,
+      TextSelection.collapsed(offset: start + formula.length),
     );
   }
 
@@ -1302,47 +1369,117 @@ Future<void> exportMenu(
 ) async {
   final format = await showModalBottomSheet<ExportFormat>(
     context: context,
+    isScrollControlled: true,
     builder: (c) => SafeArea(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          ListTile(
-            title: Text(tr(context, 'Exportar como')),
-            subtitle: Text(
-              tr(
-                context,
-                'El archivo compartido podrá leerse fuera de DraftAI.',
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.sizeOf(c).height * .85,
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                title: Text(tr(c, 'Exportar como')),
+                subtitle: Text(
+                  tr(
+                    c,
+                    'Elige un formato. Los originales se conservarán en DraftAI.',
+                  ),
+                ),
               ),
-            ),
+              for (final item in [
+                (
+                  ExportFormat.pdf,
+                  'PDF',
+                  'Texto e imágenes; no incluye PDF ni archivos adjuntos.',
+                  Icons.picture_as_pdf_outlined,
+                ),
+                (
+                  ExportFormat.word,
+                  'Word',
+                  'Texto e imágenes; no incluye PDF ni archivos adjuntos.',
+                  Icons.description_outlined,
+                ),
+                (
+                  ExportFormat.text,
+                  'TXT',
+                  'Solo texto; sin imágenes ni archivos adjuntos.',
+                  Icons.text_snippet_outlined,
+                ),
+                (
+                  ExportFormat.markdown,
+                  'Markdown',
+                  'Texto con encabezados; sin imágenes ni archivos adjuntos.',
+                  Icons.code,
+                ),
+              ])
+                ListTile(
+                  leading: Icon(item.$4),
+                  title: Text(item.$2),
+                  subtitle: Text(tr(c, item.$3)),
+                  onTap: () => Navigator.pop(c, item.$1),
+                ),
+              const SizedBox(height: 12),
+            ],
           ),
-          for (final entry in [
-            (
-              ExportFormat.pdf,
-              'PDF · documento con imágenes',
-              Icons.picture_as_pdf_outlined,
-            ),
-            (
-              ExportFormat.word,
-              'Word · documento editable',
-              Icons.description_outlined,
-            ),
-            (
-              ExportFormat.text,
-              'Texto · archivo .txt',
-              Icons.text_snippet_outlined,
-            ),
-            (ExportFormat.markdown, 'Markdown · archivo .md', Icons.code),
-          ])
-            ListTile(
-              leading: Icon(entry.$3),
-              title: Text(entry.$2),
-              onTap: () => Navigator.pop(c, entry.$1),
-            ),
-        ],
+        ),
       ),
     ),
   );
-  if (format != null && context.mounted) {
+  if (format == null || !context.mounted) return;
+  final referenced = <String>{
+    for (final n in notes)
+      ...NoteDocument.parts(n).map((p) => p.attachmentId).whereType<String>(),
+  };
+  final excluded = {
+    for (final n in notes)
+      for (final a in n.attachments)
+        if (referenced.contains(a.id) &&
+            (format == ExportFormat.text ||
+                format == ExportFormat.markdown ||
+                !a.mime.startsWith('image/')))
+          a.id: a,
+  }.values.toList();
+  final math = notes.any(
+    (n) =>
+        noteMathPattern.hasMatch(n.plainText) ||
+        noteMathPattern.hasMatch(n.summary),
+  );
+  final details = <String>[
+    if (excluded.isNotEmpty)
+      tr(context, 'No se incluirá el contenido de estos adjuntos:'),
+    ...excluded.take(5).map((a) => '• ${a.name}'),
+    if (excluded.length > 5)
+      '${tr(context, "Y otros archivos")}: ${excluded.length - 5}',
+    if (math)
+      tr(
+        context,
+        'Las fórmulas se exportan como código LaTeX, sin el renderizado visual de la app.',
+      ),
+    tr(
+      context,
+      'El formato de texto puede simplificarse. Los originales seguirán disponibles en DraftAI.',
+    ),
+  ];
+  final proceed = await showDialog<bool>(
+    context: context,
+    builder: (c) => AlertDialog(
+      title: Text(tr(c, 'Antes de exportar')),
+      content: SingleChildScrollView(child: Text(details.join('\n\n'))),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(c, false),
+          child: Text(tr(c, 'Cancelar')),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(c, true),
+          child: Text(tr(c, 'Exportar')),
+        ),
+      ],
+    ),
+  );
+  if (proceed == true && context.mounted) {
     await runAction(context, () => ref.read(exportPort).export(notes, format));
   }
 }

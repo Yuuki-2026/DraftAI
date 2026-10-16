@@ -71,9 +71,7 @@ abstract final class NoteSections {
 
     for (var i = 0; i < lines.length; i++) {
       final line = lines[i];
-      final stamp = (line.last['attributes'] as Map?)?['header'] == 3
-          ? _date(_text(line))
-          : null;
+      final stamp = _date(_text(line));
       if (stamp != null && i + 1 < lines.length && _heading(lines[i + 1])) {
         finish();
         date = stamp;
@@ -108,11 +106,11 @@ abstract final class NoteSections {
           before != null &&
           jsonEncode(before.operations) == jsonEncode(section.operations);
       final date = unchanged ? before.date : now.toLocal();
-      out.add({'insert': label(date)});
       out.add({
-        'insert': '\n',
-        'attributes': {'header': 3},
+        'insert': label(date),
+        'attributes': {'size': '11'},
       });
+      out.add({'insert': '\n'});
       final hasHeading = section.operations.any(
         (o) => [1, 2].contains((o['attributes'] as Map?)?['header']),
       );
@@ -134,6 +132,24 @@ abstract final class NoteSections {
           .join()
           .trimRight(),
     );
+  }
+
+  static Note compactDates(Note note) {
+    final lines = _lines(note), out = <Map<String, dynamic>>[];
+    for (var i = 0; i < lines.length; i++) {
+      if (_date(_text(lines[i])) != null &&
+          i + 1 < lines.length &&
+          _heading(lines[i + 1])) {
+        out.add({
+          'insert': _text(lines[i]),
+          'attributes': {'size': '11'},
+        });
+        out.add({'insert': '\n'});
+      } else {
+        out.addAll(lines[i]);
+      }
+    }
+    return note.copyWith(document: jsonEncode(out), documentVersion: 2);
   }
 
   static Note? select(
