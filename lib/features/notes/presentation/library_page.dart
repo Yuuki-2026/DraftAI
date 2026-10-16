@@ -757,7 +757,25 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
                               tr(c, 'Hace') + ' $age ' + tr(c, 'días'),
                             ),
                           ),
-                          _noteMenu(n, inTrash: true),
+                          IconButton(
+                            tooltip: tr(c, 'Eliminar definitivamente'),
+                            icon: const Icon(Icons.delete_outline, size: 18),
+                            onPressed: () async {
+                              if (!await confirm(
+                                context,
+                                'Eliminar definitivamente',
+                                'Se eliminará este apunte y sus archivos. Esta acción no se puede deshacer.',
+                              ))
+                                return;
+                              if (mounted)
+                                await runAction(
+                                  context,
+                                  () => ref
+                                      .read(controllerProvider.notifier)
+                                      .remove(n),
+                                );
+                            },
+                          ),
                         ],
                       ),
                     ],
@@ -1284,7 +1302,7 @@ Future<void> editFolder(
                     dialog,
                     tr(
                       dialog,
-                      'Mueve o elimina los apuntes de esta carpeta primero.',
+                      'Mueve los apuntes o elimínalos definitivamente de la papelera antes de borrar la carpeta.',
                     ),
                   );
                   return;
