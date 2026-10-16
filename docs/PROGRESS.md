@@ -1,3 +1,15 @@
+# Continuidad · 0.2.3 Beta 1
+
+Cambios solicitados en la captura del propietario: guardado explícito, aviso Guardar/Descartar/Seguir editando, editor estable al pegar y escribir, volver desde lectura regresa al apunte, contador eliminado. Añadir tema crea un encabezado dentro del mismo documento. Fechas encima de cada tema: última edición del tema, una sola fecha por tema, sin duplicados al guardar varias veces el mismo día. Los temas que no cambian conservan su fecha. La fecha no pretende ser una copia histórica del contenido; las versiones anteriores siguen en Historial.
+
+Google en beta: botón visible con aviso explícito de no disponibilidad y elección de entrar como usuario de prueba local. No se invoca Google/Firebase ni se vincula una cuenta; preferencia local beta_user distingue el perfil. Cancelar no entra. IA: debe comprobar conexión autenticada antes de mostrar modelo conectado. Sin código/token válido no muestra conexión. La selección por fechas intersecta los apuntes y temas marcados; nunca incluye automáticamente todos los apuntes del rango. No se envían los cuerpos de temas excluidos. No se cambiaron proveedores, modelos ni límites.
+
+Validación acotada: 24 comprobaciones de fechas, edición, selección, persistencia y documentos aprobadas en unos tres segundos de ejecución. Comprobación adicional del botón Añadir tema y análisis estático registrados antes de compilar. Sin emulador, capturas ni llamadas de pago. Servidor y túnel permanecen apagados por solicitud del propietario.
+
+Versión 0.2.3-beta.1+6, Android mínimo API 26/target 36. README y release breves para el público; entrega marcada Beta de pruebas. Publicación y firma se registran al finalizar.
+
+---
+
 # Continuidad 0.2.2
 
 Implementado: análisis real por fuente (imagen/PDF/TXT/MD), revisión manual o IA con carpeta y apunte, resumen al final y modelo, clasificación académica, grupos de cinco; corrección de Pro perdido al emparejar, reconexión y cuotas persistentes. Lectura sin barra inferior, formato de edición y carpetas/listas plegables. Revisados todos los 153 HTML: docs/MOCKUP_REVIEW_0.2.2.md.

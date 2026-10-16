@@ -1,34 +1,18 @@
-# DraftAI
-DraftAI es una aplicación para crear y organizar notas con texto e imágenes. Guarda tus apuntes en el dispositivo, agrúpalos en carpetas, encuentra lo que necesitas y exporta tus notas para compartirlas.
+# DraftAI · Beta
 
-[Descargar APK firmado 0.2.2](https://github.com/Yuuki-2026/DraftAI/releases/tag/v0.2.2) · [Configuración de servicios](docs/CONFIGURATION.md) · [Continuidad](docs/PROGRESS.md)
+Apuntes con texto, imágenes y archivos, organizados en carpetas. Edita con formato, añade temas y exporta tus notas.
 
-Notas con formato, imágenes y cámara, carpetas, búsqueda y voz, historial, papelera y exportación PDF/Word/TXT/Markdown. Datos cifrados localmente. Gratis permite resúmenes y mejoras limitadas. La IA de prueba se conecta por dispositivo a un servidor temporal, sin Google; las claves de proveedor permanecen fuera del APK. Los planes no procesan pagos.
+**Versión en pruebas; puede contener errores.** Android 8.0 o superior.
 
-![Inicio del APK Android de la versión 0.1.0](docs/screenshots/android-release-home.png)
+[Descargar beta para Android](https://github.com/Yuuki-2026/DraftAI/releases/tag/v0.2.3-beta.1)
 
-Captura de la primera entrega; en 0.2.2 se actualizó la interfaz y se omitieron nuevas capturas a petición del propietario.
+- Guardado manual con aviso al salir.
+- Temas con fecha y selección de contenido para resúmenes.
+- Mejora de texto y organización de fuentes con IA.
+- Notas cifradas en el dispositivo.
 
-## Entorno fijado
-- Flutter **3.47.2**, Dart **3.13.2**, Java **17**.
-- Android mínimo **8.0 / API 26**, compile/target **36**.
-- iOS mínimo **15.0**; configuración preparada, requiere validación en macOS.
-- Dependencias exactas en `pubspec.yaml`, resolución en `pubspec.lock`, SDK en `.fvmrc`.
+La IA necesita Internet y conexión al servidor de pruebas. Google muestra un aviso y permite entrar como usuario de prueba; los pagos siguen simulados. La app empieza vacía; Perfil → Biblioteca de prueba permite cargar ejemplos opcionales.
 
-## Ejecución
-`flutter pub get`, `dart run build_runner build`, `flutter run`.
+[Conexión de pruebas](docs/TEST_SERVER.md) · [Configuración](docs/CONFIGURATION.md) · [Desarrollo](docs/PROGRESS.md)
 
-## Desarrollo y continuidad
-Consultar `docs/PROGRESS.md`, `docs/ARCHITECTURE.md` y `docs/TESTING.md` antes de continuar. El material `Contexto/` es referencia local y no se modifica ni se publica.
-
-## Servicios
-Sin credenciales debe funcionar el modo invitado. La IA remota y Google requieren configuración: ver `docs/CONFIGURATION.md`. Los planes son demostrativos y no cobran dinero.
-
-## Probar la versión 0.2.2
-La instalación nueva empieza vacía. Perfil → Biblioteca de prueba permite cargar 120 notas ficticias con imágenes/PDF y eliminar solo esos ejemplos. Las instalaciones anteriores conservan sus notas.
-
-En Herramientas de IA, conectar el servidor HTTPS con el código privado facilitado localmente. Gratis: Groq `openai/gpt-oss-20b`; Pro, texto e imágenes: OpenAI `gpt-5-nano-2025-08-07`, solo para dispositivos de prueba Pro autorizados por el operador. La app realiza transformaciones de notas, no ofrece chat libre.
-
-Ver docs/TEST_SERVER.md para iniciar/detener la conexión de prueba, modelos y límites. Google y pagos reales siguen pendientes.
-
-La captura permite revisar cada imagen, PDF, TXT o Markdown y elegir su carpeta y apunte, manualmente o con propuestas de IA. Los resultados muestran el modelo y separan el resumen al final. La revisión del material HTML está documentada en docs/MOCKUP_REVIEW_0.2.2.md.
+Flutter 3.47.2 · Dart 3.13.2 · Java 17 · Android API 26–36. iOS 15 preparado, sin validar.

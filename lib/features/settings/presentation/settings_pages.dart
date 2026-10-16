@@ -17,10 +17,36 @@ class WelcomePage extends ConsumerStatefulWidget {
 class _WelcomePageState extends ConsumerState<WelcomePage> {
   bool busy = false;
   Future<void> _enter(bool google) async {
+    if (busy) return;
+    if (google) {
+      final proceed = await showDialog<bool>(
+        context: context,
+        builder: (c) => AlertDialog(
+          title: Text(tr(c, 'Google · Beta')),
+          content: Text(
+            tr(
+              c,
+              'El inicio de sesión con Google aún no está disponible. Puedes entrar como usuario de prueba, sin vincular una cuenta.',
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(c, false),
+              child: Text(tr(c, 'Cancelar')),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(c, true),
+              child: Text(tr(c, 'Entrar como usuario de prueba')),
+            ),
+          ],
+        ),
+      );
+      if (proceed != true || !mounted) return;
+    }
     setState(() => busy = true);
     await runAction(
       context,
-      () => ref.read(controllerProvider.notifier).enter(google: google),
+      () => ref.read(controllerProvider.notifier).enter(testUser: google),
     );
     if (mounted) setState(() => busy = false);
   }
@@ -52,7 +78,9 @@ class _WelcomePageState extends ConsumerState<WelcomePage> {
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 28, fontWeight: FontWeight.w600),
                 ),
-                SizedBox(height: 32),
+                const SizedBox(height: 10),
+                Center(child: Pill(tr(context, 'Beta · En pruebas'))),
+                SizedBox(height: 24),
                 Text(
                   tr(context, 'Bienvenido'),
                   style: Theme.of(context).textTheme.titleLarge,
@@ -139,7 +167,10 @@ class ProfilePage extends ConsumerWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            identity.displayName ?? 'Modo invitado',
+                            settings?.testUser == true
+                                ? tr(context, 'Usuario de prueba')
+                                : identity.displayName ??
+                                      tr(context, 'Modo invitado'),
                             style: const TextStyle(fontWeight: FontWeight.w600),
                           ),
                           Meta(tr(context, 'Datos en este dispositivo')),
@@ -631,7 +662,7 @@ class AboutPage extends StatelessWidget {
                 style: TextStyle(fontSize: 24, fontWeight: FontWeight.w600),
               ),
             ),
-            Center(child: Meta(tr(context, 'Versión 0.2.2 · Build 5'))),
+            Center(child: Meta(tr(context, 'Versión 0.2.3-beta.1 · Build 6'))),
             SizedBox(height: 20),
             Surface(
               child: Wrap(
@@ -669,7 +700,7 @@ class AboutPage extends StatelessWidget {
               onTap: () => showLicensePage(
                 context: context,
                 applicationName: 'DraftAI',
-                applicationVersion: '0.2.2',
+                applicationVersion: '0.2.3-beta.1',
               ),
             ),
             SizedBox(height: 24),
@@ -700,7 +731,7 @@ class InformationPage extends StatelessWidget {
             ),
             (
               'Servicios externos',
-              'Google se utiliza para autenticar cuando lo solicitas. No sincroniza notas. El servicio de IA recibe solo el contenido que confirmes enviar. Su proveedor y tratamiento deben revisarse al configurar el servicio.',
+              'En esta beta, Google aún no inicia sesión. El usuario de prueba es local y no sincroniza notas. El servicio de IA recibe solo el contenido que confirmes enviar. Su proveedor y tratamiento deben revisarse al configurar el servicio.',
             ),
             (
               'Voz y permisos',

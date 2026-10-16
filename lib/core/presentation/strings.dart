@@ -5,6 +5,22 @@ String tr(BuildContext context, String es) =>
     ? english[es] ?? extraEnglish[es] ?? _dynamicEnglish(es)
     : es;
 const english = <String, String>{
+  "Google · Beta": "Google · Beta",
+  "El inicio de sesión con Google aún no está disponible. Puedes entrar como usuario de prueba, sin vincular una cuenta.": "Google sign-in is not available yet. You can enter as a test user without linking an account.",
+  "Entrar como usuario de prueba": "Continue as a test user",
+  "Usuario de prueba": "Test user",
+  "Beta · En pruebas": "Beta · Testing",
+  "¿Guardar los cambios?": "Save changes?",
+  "Tienes cambios sin guardar en este apunte.":
+      "This note has unsaved changes.",
+  "Seguir editando": "Keep editing",
+  "Cambios guardados.": "Changes saved.",
+  "Añadir tema": "Add topic",
+  "Nombre del tema": "Topic name",
+  "Comprobando conexión…": "Checking connection…",
+  "Sin conexión verificada a IA": "No verified AI connection",
+  "Apuntes y temas": "Notes and topics",
+  "Solo se enviarán los apuntes y temas marcados. Las fechas filtran la última edición de cada tema.": "Only checked notes and topics will be sent. Dates filter the latest edit of each topic.",
   "Captura completada": "Capture complete",
   "Asigna cada fuente a una carpeta y a un apunte.":
       "Assign each source to a folder and a note.",
