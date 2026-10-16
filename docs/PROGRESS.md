@@ -4,14 +4,14 @@ Implementado: análisis real por fuente (imagen/PDF/TXT/MD), revisión manual o 
 
 Comprobaciones breves: siete del servidor; operación real sintética de ocho segundos con OpenAI; análisis estático. No se ejecutó suite Flutter completa ni emulador. La revisión visual final en teléfono sigue pendiente del propietario.
 
-Versión 0.2.2+5. Publicación del APK y huella se registra al finalizar la entrega. Nunca publicar Contexto, credenciales ni códigos de conexión. Servidor privado de prueba con códigos separados Gratis/Pro. Ver docs/TEST_SERVER.md.
+Versión **0.2.2+5 publicada**: [v0.2.2](https://github.com/Yuuki-2026/DraftAI/releases/tag/v0.2.2). APK firmado de 80465550 bytes, certificado existente conservado, min SDK 26 / target 36; auditoría de las tres claves de proveedor aprobada en APK y 292 blobs de Git. SHA-256: `241ea4c9f9038efa3ae9766d0a95ebda1ef2a1b77e17cde31a28d33ad88de9e3`. Tamaño y digest verificados también en los adjuntos de GitHub. Código compilado: `8a25b9b1c1209a6216734b10835834efdd95b2f2`. Nunca publicar Contexto, credenciales ni códigos de conexión. Servidor privado de prueba con códigos separados Gratis/Pro. Ver docs/TEST_SERVER.md.
 
 ---
 
 # Continuidad de DraftAI
 
 ## Objetivo y estado
-**Entregado:** [DraftAI 0.2.1 de pruebas](https://github.com/Yuuki-2026/DraftAI/releases/tag/v0.2.1), con APK firmado y SHA256SUMS.txt publicados en GitHub Releases. SDK fijado: Flutter 3.47.2, Dart 3.13.2, Java 17. Android min API 26, compile/target 36. iOS 15 preparado, aún sin validación en macOS.
+**Entregado:** [DraftAI 0.2.2 de pruebas](https://github.com/Yuuki-2026/DraftAI/releases/tag/v0.2.2), con APK firmado y SHA256SUMS.txt publicados en GitHub Releases. SDK fijado: Flutter 3.47.2, Dart 3.13.2, Java 17. Android min API 26, compile/target 36. iOS 15 preparado, aún sin validación en macOS.
 
 ## Acuerdos
 Notas exclusivamente locales. Diseño canónico en Contexto/Mockup/mockup_screens y mockup.css, sin modificar las referencias. Gratis permite texto con cuotas y adjuntar imágenes; lectura remota de imágenes solo para dispositivos de prueba Pro autorizados. Google y pagos son pendientes; planes demostrativos. Gratis usa Groq openai/gpt-oss-20b. Pro autorizado usa OpenAI gpt-5-nano-2025-08-07 para texto/imágenes; guardas de seguridad en Groq. No hay modelo instalado localmente. Se mantienen como futuras decisiones los identificadores de Luna y Jev. Claves privadas únicamente en el servidor, cifradas con Windows fuera de Git.
