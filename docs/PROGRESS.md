@@ -1,10 +1,10 @@
 # Continuidad de DraftAI
 
 ## Objetivo y estado
-**Entregado:** [DraftAI 0.2.0 de pruebas](https://github.com/Yuuki-2026/DraftAI/releases/tag/v0.2.0), con APK firmado y SHA256SUMS.txt publicados en GitHub Releases. SDK fijado: Flutter 3.47.2, Dart 3.13.2, Java 17. Android min API 26, compile/target 36. iOS 15 preparado, aún sin validación en macOS.
+**Entregado:** [DraftAI 0.2.1 de pruebas](https://github.com/Yuuki-2026/DraftAI/releases/tag/v0.2.1), con APK firmado y SHA256SUMS.txt publicados en GitHub Releases. SDK fijado: Flutter 3.47.2, Dart 3.13.2, Java 17. Android min API 26, compile/target 36. iOS 15 preparado, aún sin validación en macOS.
 
 ## Acuerdos
-Notas exclusivamente locales. Diseño canónico en Contexto/Mockup/mockup_screens y mockup.css, sin modificar las referencias. Gratis permite texto con cuotas y adjuntar imágenes; lectura remota de imágenes solo para dispositivos de prueba Pro autorizados. Google y pagos son pendientes; planes demostrativos. Groq ejecuta remotamente openai/gpt-oss-20b para texto y qwen/qwen3.8-27b para imágenes; no hay modelo instalado localmente. Futura API de OpenAI/identificadores de Luna y Jev por definir. Claves privadas únicamente en el servidor, cifradas con Windows fuera de Git.
+Notas exclusivamente locales. Diseño canónico en Contexto/Mockup/mockup_screens y mockup.css, sin modificar las referencias. Gratis permite texto con cuotas y adjuntar imágenes; lectura remota de imágenes solo para dispositivos de prueba Pro autorizados. Google y pagos son pendientes; planes demostrativos. Gratis usa Groq openai/gpt-oss-20b. Pro autorizado usa OpenAI gpt-5-nano-2025-08-07 para texto/imágenes; guardas de seguridad en Groq. No hay modelo instalado localmente. Se mantienen como futuras decisiones los identificadores de Luna y Jev. Claves privadas únicamente en el servidor, cifradas con Windows fuera de Git.
 
 ## Etapas iniciales (0.1.0)
 - [x] Entorno y plataformas fijados, documentación arquitectónica.
@@ -28,17 +28,17 @@ Validación de esta actualización: analizador sin hallazgos y 27 pruebas Flutte
 La primera compilación agotó memoria del equipo; se completó con un límite local de 3 GiB para Gradle y dos workers mediante GRADLE_OPTS, sin cambiar las opciones versionadas del proyecto. Registros en artifacts/text-update-*.log.
 
 ## Continuar desde aquí
-1. La entrega Android 0.2.0 de pruebas está publicada. El servidor temporal Groq funciona sin Google mientras la computadora y el túnel estén activos. Acceso privado en el perfil del propietario, fuera de Git; ver docs/TEST_SERVER.md. Próximo: pruebas funcionales y visuales del propietario en su teléfono y correcciones según sus resultados.
+1. La entrega Android 0.2.1 de pruebas está publicada. El servidor temporal Groq funciona sin Google mientras la computadora y el túnel estén activos. Acceso privado en el perfil del propietario, fuera de Git; ver docs/TEST_SERVER.md. Próximo: pruebas funcionales y visuales del propietario en su teléfono y correcciones según sus resultados.
 2. Antes de modificar, leer AGENTS.md y las decisiones de arquitectura. Mantener diseño del mockup y datos exclusivamente locales.
 3. Conservar android/draftai-release.jks y android/key.properties: son privados y se necesitan para futuras actualizaciones.
 4. Incrementar versión/build en pubspec.yaml para la siguiente release. Ver docs/RELEASE.md; compilar release sin --no-pub para regenerar correctamente plugins nativos.
 5. Volver a comprobar integración Android tras cambios funcionales. Para iOS se requiere macOS y validación propia antes de distribuir.
 
 ## Pendiente del propietario
-Probar el APK en el teléfono y conectar con la guía privada local. Autorizar ese dispositivo desde la computadora para visión Pro de pruebas. Firebase/Google y la futura API de OpenAI quedan para otra fase según docs/CONFIGURATION.md; no se necesitan para el modo invitado ni para el servidor temporal actual. Producción requiere alojamiento estable, cuotas compartidas y derechos de pago verificados. No hay sincronización ni pagos reales.
+Probar el APK en el teléfono y conectar con la guía privada local. Autorizar ese dispositivo desde la computadora para visión Pro de pruebas. Firebase/Google y pagos reales quedan para otra fase según docs/CONFIGURATION.md; no se necesitan para el modo invitado ni para el servidor temporal actual. Producción requiere alojamiento estable, cuotas compartidas y derechos de pago verificados. No hay sincronización ni pagos reales.
 
-## Artefacto verificado
-`artifacts/DraftAI-0.2.0-android.apk` (79121650 bytes). SHA-256: `a9248a93401dfb4972f09d9fba57e9c489669e7cf87b6bd658efa69692bd5502`. Firma conservada respecto a v0.1.0 y v0.1.1. GitHub confirmó tamaño y digest de los dos archivos publicados (APK y SHA256SUMS.txt).
+## Artefacto verificado actual
+`artifacts/DraftAI-0.2.1-android.apk` (79416786 bytes). SHA-256: `7abed525326c60768ee697b9f47452360c4d0ae0d9332d8647bd8b9a0fc3dbae`. Misma firma de actualizaciones anteriores. GitHub confirmó tamaños y digest del APK y SHA256SUMS.txt publicados en v0.2.1. No se hicieron instalación/emulador, capturas ni pruebas automatizadas de 0.2.1 por petición del propietario; no reutilizar la evidencia Android de 0.2.0 como prueba de esta interfaz.
 
 ## Integración 0.2.0 verificada para publicación
 Rama integration/v0.2.0: feat/ui-organizacion c0dd60a integrada por merge df0cca9; nuestro bloque feat/editor-medios-ia integrado por 5a8029f. PR #1 y #2 conservan los commits. Estado de idioma unificado con AppController del colaborador; helper tr(context, texto) y catálogo local en strings.dart.
@@ -52,11 +52,13 @@ APK 0.2.0+3 compilado, firma v2 y certificado anterior verificados; mínimo API 
 Instalado como actualización en Android 14/API 34, versión 0.2.0+3 confirmada por Android; actividad iniciada y proceso vivo sin excepción de arranque en el registro revisado. No se ejecutó una nueva prueba funcional completa ni se tomaron capturas. HTTPS del servidor temporal verificado. PR #3 fusionado en main (4fe4665); PR #1 y #2 figuran fusionados. Release v0.2.0 publicada como versión de pruebas con APK y SHA256SUMS.txt verificados. Auditoría adicional de 233 blobs de todas las referencias Git: sin coincidencias con las claves facilitadas. Servidor de prueba requiere computadora/túnel activos; no confundir con servicio productivo. Google/pagos/OpenAI de Pro siguen pendientes.
 
 
-## Corrección 0.2.1 en preparación
+## Corrección 0.2.1 publicada
 Petición del propietario: corregir fidelidad al HTML/CSS y capturas del mockup y publicar rápidamente sin pruebas/capturas nuevas. Se corrigen carpetas, acciones visibles, modo lectura, dos barras del editor, inserción discreta y zoom real por doble toque. No se crean nuevas categorías; se conserva compatibilidad con las anteriores. Referencia PDF de requerimientos revisada como material de consulta; las indicaciones actuales del propietario prevalecen.
 
 Biblioteca opcional ampliada a 120 apuntes, 8 carpetas, 24 temas, fechas de ocho meses y adjuntos generados. Clave OpenAI actualizada y cifrada con DPAPI fuera del repositorio. Modelo económico comprobado en /v1/models: gpt-5-nano-2025-08-07. Precio de referencia oficial: input USD 0.05 / output USD 0.40 por millón de tokens. Figura como modelo antiguo en documentación, pero la cuenta conserva acceso. No hay sustitución automática por otro más caro. Pro usa OpenAI; guardas usan Groq; presupuesto global común.
 
 Conexión Pro real verificada con material ficticio y cuotas comunes activas: resumen no vacío devuelto por gpt-5-nano-2025-08-07. Analizador sin hallazgos. APK 0.2.1+4 compilado y firma v2/certificado anterior confirmados, mínimo API 26 y target 36. Auditoría de cada entrada del APK contra las tres claves aportadas: sin coincidencias. Tamaño 79416786 bytes; SHA-256 `7abed525326c60768ee697b9f47452360c4d0ae0d9332d8647bd8b9a0fc3dbae`. Fuente del APK f38957a. No se ejecutaron suite de pruebas, capturas, instalación ni emulador por solicitud del propietario. El último dispositivo de pruebas conectado se autorizó Pro; nuevos emparejamientos siguen en Gratis hasta autorización local. Servidor reiniciado con Pro activo y mismo túnel; guía privada actualizada fuera de Git.
 
-Pendiente: publicar APK 0.2.1 y su checksum.
+Release v0.2.1 publicada desde ee98524 con APK y checksum; ambos digest remotos verificados. Los commits 49ebeb5 y f38957a conservan los cambios visuales y Pro por etapas. Auditoría adicional de las tres claves contra 258 blobs de todas las referencias Git: sin coincidencias. Servidor/túnel activos y health HTTPS indica Pro disponible. Guía privada vigente CONEXION_PRUEBAS_0.2.1.txt en el perfil del propietario, fuera de Git.
+
+Próximo: el propietario prueba esta entrega en el teléfono y comunica diferencias concretas respecto al mockup. Para cargar la biblioteca ampliada, eliminar primero los ejemplos antiguos desde Perfil; no se borran notas reales. Nuevos dispositivos requieren autorización Pro local y activación del plan demostrativo en el APK. No hay compras reales.
