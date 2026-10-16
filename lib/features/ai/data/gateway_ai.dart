@@ -20,7 +20,10 @@ class GatewayAi
         const String.fromEnvironment('AI_BASE_URL');
     _model = await secure.read('test_ai_model') ?? _model;
     final token = await secure.read('test_ai_device_token') ?? '';
-    if (_endpoint.isNotEmpty && token.isNotEmpty) {
+    final expires = int.tryParse(await secure.read('test_ai_expires') ?? '');
+    if (_endpoint.isNotEmpty &&
+        RegExp(r'^[a-f0-9]{64}$').hasMatch(token) &&
+        (expires == null || expires > DateTime.now().millisecondsSinceEpoch)) {
       _remote = RemoteAi(Uri.parse(_endpoint), _DeviceIdentity(token), client);
     }
   }
@@ -78,6 +81,14 @@ class GatewayAi
       _endpoint = base.toString();
       _model = value['model'] as String? ?? _model;
       await secure.write('test_ai_model', _model);
+      await secure.write(
+        'test_ai_expires',
+        (value['expires'] as num? ??
+                DateTime.now()
+                    .add(const Duration(hours: 24))
+                    .millisecondsSinceEpoch)
+            .toString(),
+      );
       _remote = RemoteAi(base, _DeviceIdentity(token), client);
     } on AppFailure {
       rethrow;
@@ -91,6 +102,9 @@ class GatewayAi
     _remote?.cancel();
     await secure.write('test_ai_device_token', '');
     _remote = null;
+    _model = '';
+    await secure.write('test_ai_model', '');
+    await secure.write('test_ai_expires', '0');
   }
 
   @override

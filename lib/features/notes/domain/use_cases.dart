@@ -1,3 +1,4 @@
+import 'note_sections.dart';
 import 'entities.dart';
 import 'ports.dart';
 
@@ -25,10 +26,14 @@ class NoteActions {
     return note;
   }
 
-  Future<void> save(Note note, {String reason = 'Edición'}) {
+  Future<void> save(Note note, {String reason = 'Edición'}) async {
     if (note.title.trim().isEmpty || note.title.length > 200) {
       throw const AppFailure('El título debe tener entre 1 y 200 caracteres.');
     }
+    final previous = (await repository.load()).notes
+        .where((n) => n.id == note.id)
+        .firstOrNull;
+    note = NoteSections.stamp(note, previous, clock());
     return repository.save(
       note.copyWith(title: note.title.trim(), updatedAt: clock().toUtc()),
       reason: reason,

@@ -1,3 +1,5 @@
+import '../../notes/domain/note_sections.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -26,10 +28,13 @@ class _AiPageState extends ConsumerState<AiPage> {
   String instruction = 'Genera un mapa mental en Markdown y Mermaid.',
       result = '';
   String resultModel = '';
+  bool verified = false, checkingConnection = false;
+  final selectedTopics = <String, Set<String>>{};
   @override
   void initState() {
     super.initState();
     selected.addAll(widget.initialNotes.map((n) => n.id));
+    WidgetsBinding.instance.addPostFrameCallback((_) => _verifyConnection());
   }
 
   Future<void> _date(bool start) async {
@@ -51,11 +56,45 @@ class _AiPageState extends ConsumerState<AiPage> {
     }
   }
 
-  List<Note> _notes(Library lib) => NoteFilter.apply(
-    lib.active,
-    from: byDates ? from : null,
-    until: byDates ? until : null,
-  ).where((n) => byDates || selected.contains(n.id)).toList();
+  Future<void> _verifyConnection() async {
+    final service = ref.read(aiPort);
+    if (!service.configured || service is! AiAccessProvider) {
+      if (mounted) setState(() => verified = false);
+      return;
+    }
+    setState(() => checkingConnection = true);
+    var ok = false;
+    try {
+      await (service as AiAccessProvider).refreshAccess();
+      ok = true;
+    } catch (_) {}
+    if (mounted) {
+      setState(() {
+        verified = ok;
+        checkingConnection = false;
+      });
+    }
+  }
+
+  List<Note> _available(Library lib) => {
+    for (final n in lib.active) n.id: n,
+    for (final n in widget.initialNotes) n.id: n,
+  }.values.toList();
+
+  List<Note> _notes(Library lib) =>
+      _available(lib)
+          .where((n) => selected.contains(n.id))
+          .map(
+            (n) => NoteSections.select(
+              n,
+              topics: selectedTopics[n.id],
+              from: byDates ? from : null,
+              until: byDates ? until : null,
+            ),
+          )
+          .whereType<Note>()
+          .toList();
+
   Future<void> _generate(Library lib) async {
     if (from != null && until != null && from!.isAfter(until!)) {
       message(context, 'La fecha inicial debe ser anterior a la fecha final.');
@@ -96,6 +135,7 @@ class _AiPageState extends ConsumerState<AiPage> {
       if (mounted) {
         setState(() {
           result = value;
+          verified = true;
           resultModel = aiModelLabel(ref.read(aiPort));
         });
       }
@@ -108,6 +148,7 @@ class _AiPageState extends ConsumerState<AiPage> {
     final service = ref.read(aiPort);
     final connection = service is AiConnection ? service as AiConnection : null;
     final lib = ref.watch(libraryProvider).value ?? const Library([], [], []);
+    final available = _available(lib);
     return Scaffold(
       appBar: AppBar(title: Text(tr(context, 'Herramientas de IA'))),
       body: SafeArea(
@@ -117,25 +158,25 @@ class _AiPageState extends ConsumerState<AiPage> {
             children: [
               if (connection != null)
                 ListTile(
-                  leading: Icon(
-                    service.configured ? Icons.link : Icons.link_off,
-                  ),
+                  leading: Icon(verified ? Icons.link : Icons.link_off),
                   title: Text(
                     tr(
                       context,
-                      service.configured
+                      checkingConnection
+                          ? 'Comprobando conexión…'
+                          : verified
                           ? 'IA conectada'
                           : 'Conectar IA de prueba',
                     ),
                   ),
                   subtitle: Text(
-                    service.configured
+                    verified
                         ? connection.model
-                        : tr(context, 'Sin conexión a IA'),
+                        : tr(context, 'Sin conexión verificada a IA'),
                   ),
                   onTap: () async {
                     if (await connectAiDialog(context, connection) && mounted) {
-                      setState(() {});
+                      await _verifyConnection();
                     }
                   },
                   trailing: service.configured
@@ -143,7 +184,7 @@ class _AiPageState extends ConsumerState<AiPage> {
                           tooltip: tr(context, 'Desconectar'),
                           onPressed: () async {
                             await connection.disconnect();
-                            if (mounted) setState(() {});
+                            if (mounted) setState(() => verified = false);
                           },
                           icon: const Icon(Icons.close),
                         )
@@ -232,15 +273,16 @@ class _AiPageState extends ConsumerState<AiPage> {
                   ],
                 ),
                 Meta(tr(context, '${_notes(lib).length} apuntes en el rango')),
-              ] else ...[
+              ],
+              ...[
                 SectionTitle(
-                  'Listado de temas',
+                  'Apuntes y temas',
                   action: TextButton(
                     onPressed: () => setState(() {
-                      if (selected.length == lib.active.length) {
+                      if (selected.length == available.length) {
                         selected.clear();
                       } else {
-                        selected.addAll(lib.active.map((n) => n.id));
+                        selected.addAll(available.map((n) => n.id));
                       }
                       result = '';
                     }),
@@ -249,7 +291,7 @@ class _AiPageState extends ConsumerState<AiPage> {
                 ),
                 ExpansionTile(
                   title: Text(
-                    '${selected.length} ${tr(context, 'seleccionados')} / ${lib.active.length}',
+                    '${selected.length} ${tr(context, 'seleccionados')} / ${available.length}',
                   ),
                   subtitle: Text(
                     tr(
@@ -261,26 +303,67 @@ class _AiPageState extends ConsumerState<AiPage> {
                     SizedBox(
                       height: 320,
                       child: ListView.builder(
-                        itemCount: lib.active.length,
+                        itemCount: available.length,
                         itemBuilder: (c, i) {
-                          final n = lib.active[i];
-                          return CheckboxListTile(
-                            title: Text(
-                              n.title,
-                              style: const TextStyle(fontSize: 12),
-                            ),
-                            subtitle: Meta(
-                              '${n.topic} · ${n.words} ${tr(context, 'palabras')}',
-                            ),
-                            value: selected.contains(n.id),
-                            onChanged: busy
-                                ? null
-                                : (v) => setState(() {
-                                    v == true
-                                        ? selected.add(n.id)
-                                        : selected.remove(n.id);
-                                    result = '';
-                                  }),
+                          final n = available[i];
+                          return Column(
+                            children: [
+                              CheckboxListTile(
+                                title: Text(
+                                  n.title,
+                                  style: const TextStyle(fontSize: 12),
+                                ),
+                                subtitle: Meta(n.topic),
+                                value: selected.contains(n.id),
+                                onChanged: busy
+                                    ? null
+                                    : (v) => setState(() {
+                                        v == true
+                                            ? selected.add(n.id)
+                                            : selected.remove(n.id);
+                                        if (v == true) {
+                                          selectedTopics.remove(n.id);
+                                        }
+                                        result = '';
+                                      }),
+                              ),
+                              if (selected.contains(n.id))
+                                for (final part in NoteSections.read(n))
+                                  Padding(
+                                    padding: const EdgeInsets.only(left: 20),
+                                    child: CheckboxListTile(
+                                      dense: true,
+                                      title: Text(
+                                        part.title,
+                                        style: const TextStyle(fontSize: 12),
+                                      ),
+                                      subtitle: Text(
+                                        NoteSections.label(part.date),
+                                      ),
+                                      value:
+                                          selectedTopics[n.id]?.contains(
+                                            part.id,
+                                          ) ??
+                                          true,
+                                      onChanged: busy
+                                          ? null
+                                          : (v) => setState(() {
+                                              final ids = selectedTopics
+                                                  .putIfAbsent(
+                                                    n.id,
+                                                    () =>
+                                                        NoteSections.read(n)
+                                                            .map((p) => p.id)
+                                                            .toSet(),
+                                                  );
+                                              v == true
+                                                  ? ids.add(part.id)
+                                                  : ids.remove(part.id);
+                                              result = '';
+                                            }),
+                                    ),
+                                  ),
+                            ],
                           );
                         },
                       ),
@@ -321,6 +404,12 @@ class _AiPageState extends ConsumerState<AiPage> {
                     ),
                   ),
                 ),
+              Meta(
+                tr(
+                  context,
+                  'Solo se enviarán los apuntes y temas marcados. Las fechas filtran la última edición de cada tema.',
+                ),
+              ),
               SizedBox(height: 16),
               FilledButton.icon(
                 onPressed: busy ? null : () => _generate(lib),

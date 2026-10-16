@@ -588,6 +588,14 @@ class _ReviewState extends ConsumerState<SourceReviewPage> {
           rethrow;
         }
       }
+      if (last != null) {
+        final savedId = last!.id;
+        last =
+            (await ref.read(notesPort).load()).active
+                .where((n) => n.id == savedId)
+                .firstOrNull ??
+            last;
+      }
       if (mounted && last != null) {
         Navigator.pushReplacement(
           context,

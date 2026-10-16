@@ -28,11 +28,12 @@ final libraryProvider = StreamProvider<Library>(
 );
 
 class Settings {
-  final bool entered, pro;
+  final bool entered, pro, testUser;
   final String theme, locale;
   final int used;
   const Settings({
     this.entered = false,
+    this.testUser = false,
     this.pro = false,
     this.theme = 'dark',
     this.locale = 'es',
@@ -50,6 +51,7 @@ class AppController extends AsyncNotifier<Settings> {
   @override
   Future<Settings> build() async => Settings(
     entered: await _repo.preference('entered') == 'true',
+    testUser: await _repo.preference('beta_user') == 'true',
     pro: await ref.read(policyPort).pro,
     theme: await _repo.preference('theme') ?? 'dark',
     locale: await _repo.preference('locale') ?? 'es',
@@ -59,8 +61,9 @@ class AppController extends AsyncNotifier<Settings> {
     state = AsyncData(await build());
   }
 
-  Future<void> enter({bool google = false}) async {
+  Future<void> enter({bool google = false, bool testUser = false}) async {
     if (google) await ref.read(identityPort).signIn();
+    await _repo.setPreference('beta_user', testUser ? 'true' : 'false');
     await _repo.setPreference('entered', 'true');
     await refresh();
   }

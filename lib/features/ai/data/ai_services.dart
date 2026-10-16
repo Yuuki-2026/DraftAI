@@ -102,7 +102,7 @@ class RemoteAi implements AiService, AiRunMetadata, AiAccessProvider {
           .send(request)
           .then(http.Response.fromStream)
           .timeout(
-            const Duration(seconds: 90),
+            Duration(seconds: method == 'GET' ? 5 : 90),
             onTimeout: () {
               cancel();
               throw TimeoutException('timeout');

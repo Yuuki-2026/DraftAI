@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -14,6 +13,7 @@ import 'rich_ai_text.dart';
 import '../domain/ports.dart';
 import '../../ai/presentation/connection_dialog.dart';
 import '../domain/note_document.dart';
+import '../domain/note_sections.dart';
 import '../../../core/presentation/strings.dart';
 import 'library_page.dart';
 import '../../ai/presentation/ai_pages.dart';
@@ -32,8 +32,7 @@ class NotePage extends ConsumerStatefulWidget {
   ConsumerState<NotePage> createState() => _NotePageState();
 }
 
-class _NotePageState extends ConsumerState<NotePage>
-    with WidgetsBindingObserver {
+class _NotePageState extends ConsumerState<NotePage> {
   late Note note;
   late TextEditingController title, topic;
   late q.QuillController editor;
@@ -41,7 +40,8 @@ class _NotePageState extends ConsumerState<NotePage>
   final scroll = ScrollController();
   final editorScroll = ScrollController();
   late String lastSignature;
-  Timer? debounce;
+  late Note committed;
+  bool closing = false;
   late List<PickedFile> pendingFiles;
   bool inserting = false;
   bool aiBusy = false;
@@ -57,8 +57,8 @@ class _NotePageState extends ConsumerState<NotePage>
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
     note = widget.note;
+    committed = note;
     editing = widget.edit;
     title = TextEditingController(text: note.title);
     topic = TextEditingController(text: note.topic);
@@ -92,10 +92,8 @@ class _NotePageState extends ConsumerState<NotePage>
     final signature = _signature();
     if (signature == lastSignature) return;
     lastSignature = signature;
+    if (!dirty && mounted) setState(() => status = 'Cambios sin guardar');
     dirty = true;
-    debounce?.cancel();
-    if (mounted) setState(() => status = 'Cambios sin guardar');
-    debounce = Timer(const Duration(milliseconds: 900), () => _flush());
   }
 
   Note _snapshot() => note.copyWith(
@@ -110,12 +108,11 @@ class _NotePageState extends ConsumerState<NotePage>
     updatedAt: DateTime.now().toUtc(),
   );
   Future<bool> _flush() async {
-    debounce?.cancel();
     if (activeSave != null) {
       await activeSave;
     }
     if (!dirty) return true;
-    final snapshot = _snapshot();
+    final snapshot = NoteSections.stamp(_snapshot(), committed, DateTime.now());
     dirty = false;
     final future = _persist(snapshot);
     activeSave = future;
@@ -134,6 +131,18 @@ class _NotePageState extends ConsumerState<NotePage>
     try {
       await ref.read(controllerProvider.notifier).save(snapshot);
       note = snapshot;
+      committed = snapshot;
+      if (mounted && !dirty) {
+        editor.removeListener(_changed);
+        final oldEditor = editor;
+        editor = _controller(snapshot);
+        editor.readOnly = !editing;
+        editor.addListener(_changed);
+        lastSignature = _signature();
+        WidgetsBinding.instance.addPostFrameCallback(
+          (_) => oldEditor.dispose(),
+        );
+      }
       if (mounted) {
         setState(() {
           saving = false;
@@ -156,29 +165,133 @@ class _NotePageState extends ConsumerState<NotePage>
     }
   }
 
+  Future<bool> _resolveChanges() async {
+    if (!dirty) return true;
+    final decision = await showDialog<String>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: Text(tr(c, '¿Guardar los cambios?')),
+        content: Text(tr(c, 'Tienes cambios sin guardar en este apunte.')),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(c),
+            child: Text(tr(c, 'Seguir editando')),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(c, 'discard'),
+            child: Text(tr(c, 'Descartar')),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(c, 'save'),
+            child: Text(tr(c, 'Guardar')),
+          ),
+        ],
+      ),
+    );
+    if (!mounted || decision == null) return false;
+    if (decision == 'save') return _flush();
+    final oldIds = committed.attachments.map((a) => a.id).toSet();
+    for (final a in note.attachments.where((a) => !oldIds.contains(a.id))) {
+      await ref.read(mediaPort).delete(a);
+    }
+    if (!mounted) return false;
+    title.removeListener(_changed);
+    topic.removeListener(_changed);
+    editor.removeListener(_changed);
+    final oldEditor = editor;
+    setState(() {
+      note = committed;
+      title.text = note.title;
+      topic.text = note.topic;
+      editor = _controller(note);
+      editor.readOnly = !editing;
+      dirty = false;
+      lastSignature = _signature();
+    });
+    title.addListener(_changed);
+    topic.addListener(_changed);
+    editor.addListener(_changed);
+    WidgetsBinding.instance.addPostFrameCallback((_) => oldEditor.dispose());
+    return true;
+  }
+
   Future<void> _back() async {
-    if (!await _flush() || !mounted) {
+    if (closing || saving || aiBusy) return;
+    if (reading) {
+      setState(() => reading = false);
       return;
     }
-    if (!mounted) return;
+    closing = true;
+    if (!await _resolveChanges() || !mounted) {
+      closing = false;
+      return;
+    }
     setState(() => allowPop = true);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) Navigator.pop(context);
     });
   }
 
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.inactive ||
-        state == AppLifecycleState.paused) {
-      _flush();
+  Future<void> _saveAndView() async {
+    if (saving) return;
+    if (dictating) {
+      await ref.read(speechPort).stop();
+      dictating = false;
     }
+    focus.unfocus();
+    editor.readOnly = true;
+    final saved = await _flush();
+    if (!mounted) return;
+    setState(() {
+      editing = !saved;
+      editor.readOnly = saved;
+    });
+    if (saved) message(context, tr(context, 'Cambios guardados.'));
+  }
+
+  Future<void> _newTopic() async {
+    var input = '';
+    final name = await showDialog<String>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: Text(tr(c, 'Añadir tema')),
+        content: TextField(
+          onChanged: (value) => input = value,
+          autofocus: true,
+          maxLength: 120,
+          decoration: InputDecoration(labelText: tr(c, 'Nombre del tema')),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(c),
+            child: Text(tr(c, 'Cancelar')),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (input.trim().isNotEmpty) {
+                Navigator.pop(c, input.trim());
+              }
+            },
+            child: Text(tr(c, 'Añadir')),
+          ),
+        ],
+      ),
+    );
+    if (!mounted || name == null) return;
+    final position = editor.document.length - 1;
+    final text = '\n$name\n\n';
+    editor.replaceText(
+      position,
+      0,
+      text,
+      TextSelection.collapsed(offset: position + text.length),
+    );
+    editor.formatText(position + 1, name.length, q.Attribute.h2);
+    focus.requestFocus();
   }
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    debounce?.cancel();
     if (dictating) {
       ref.read(speechPort).stop();
     }
@@ -233,22 +346,7 @@ class _NotePageState extends ConsumerState<NotePage>
               ),
             if (editing)
               TextButton(
-                onPressed: saving
-                    ? null
-                    : () async {
-                        if (await _flush() && mounted) {
-                          setState(() {
-                            editing = false;
-                            editor.readOnly = true;
-                          });
-                          if (context.mounted) {
-                            FocusScope.of(context).unfocus();
-                          }
-                          WidgetsBinding.instance.addPostFrameCallback((_) {
-                            if (mounted && scroll.hasClients) scroll.jumpTo(0);
-                          });
-                        }
-                      },
+                onPressed: saving ? null : _saveAndView,
                 child: Text(tr(context, 'Guardar')),
               ),
             if (editing)
@@ -315,7 +413,7 @@ class _NotePageState extends ConsumerState<NotePage>
                     }) => null,
                     style: Theme.of(context).textTheme.titleLarge,
                     decoration: InputDecoration(
-                      labelText: tr(context, 'Título de la sesión'),
+                      labelText: tr(context, 'Título del apunte'),
                     ),
                   )
                 else
@@ -323,15 +421,12 @@ class _NotePageState extends ConsumerState<NotePage>
                     title.text,
                     style: Theme.of(context).textTheme.titleLarge,
                   ),
-                SizedBox(height: 10),
-                Meta(
-                  tr(
-                    context,
-                    '${dateLabel(note.createdAt)} · ${_snapshot().words} palabras',
-                  ),
-                ),
                 SizedBox(height: 12),
-                if (editing)
+                if (editing &&
+                    !NoteDocument.delta(note).any(
+                      (o) =>
+                          [1, 2].contains((o['attributes'] as Map?)?['header']),
+                    ))
                   TextField(
                     controller: topic,
                     maxLength: 120,
@@ -340,7 +435,8 @@ class _NotePageState extends ConsumerState<NotePage>
                       hintText: tr(context, 'Ej. Geometría diferencial'),
                     ),
                   )
-                else if (topic.text.isNotEmpty)
+                else if (topic.text.isNotEmpty &&
+                    NoteSections.read(note).length <= 1)
                   Pill(topic.text),
                 SizedBox(height: 10),
                 if (editing && lib != null) _location(lib),
@@ -370,7 +466,23 @@ class _NotePageState extends ConsumerState<NotePage>
                     ),
                   ),
                 ],
+                if (editing)
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton.icon(
+                      onPressed: saving ? null : _newTopic,
+                      icon: const Icon(Icons.add, size: 18),
+                      label: Text(tr(context, 'Añadir tema')),
+                    ),
+                  ),
+                if (!editing &&
+                    NoteSections.read(note).every(
+                      (s) =>
+                          !note.document.contains(NoteSections.label(s.date)),
+                    ))
+                  Meta(NoteSections.label(note.updatedAt.toLocal())),
                 Surface(
+                  key: const ValueKey('note-document-surface'),
                   child: MediaQuery(
                     data: MediaQuery.of(context).copyWith(
                       textScaler: TextScaler.linear(
@@ -382,6 +494,7 @@ class _NotePageState extends ConsumerState<NotePage>
                       controller: editor,
                       focusNode: focus,
                       scrollController: editorScroll,
+                      key: const ValueKey('note-editor'),
                       config: q.QuillEditorConfig(
                         embedBuilders: [
                           NoteMediaEmbed(
@@ -581,11 +694,11 @@ class _NotePageState extends ConsumerState<NotePage>
     ),
   );
 
-  // Primary actions stay visible in the note and in reading mode.
+  // The normal note view keeps its actions; focused reading hides the bar.
   Widget _readingTools() => Row(
     children: [
       _tool(Icons.add, 'Nuevo', () async {
-        if (await _flush() && mounted) {
+        if (await _resolveChanges() && mounted) {
           if (context.mounted) {
             await createNote(context, ref, folderId: note.folderId);
           }
@@ -629,7 +742,7 @@ class _NotePageState extends ConsumerState<NotePage>
   }
 
   Future<void> _export() async {
-    if (await _flush() && mounted && context.mounted) {
+    if (mounted && context.mounted) {
       await exportMenu(context, ref, [_snapshot()]);
     }
   }
@@ -825,7 +938,6 @@ class _NotePageState extends ConsumerState<NotePage>
     }
     dirty = true;
     _changed();
-    await _flush();
     if (mounted) setState(() => inserting = false);
   }
 
@@ -873,7 +985,7 @@ class _NotePageState extends ConsumerState<NotePage>
       }
       if (!mounted) return;
     }
-    if (!await _flush() || !mounted) return;
+    if (!mounted) return;
     final selection = editor.selection;
     final full = editor.document.toPlainText();
     final start = selection.start.clamp(0, full.length);
@@ -1022,22 +1134,24 @@ class _NotePageState extends ConsumerState<NotePage>
           lastAiAt: DateTime.now().toUtc(),
         );
         dirty = true;
-        await _flush();
+        _changed();
       }
     });
     if (mounted) setState(() => aiBusy = false);
   }
 
   Future<void> _ai() async {
-    if (!await _flush() || !mounted) return;
+    if (!mounted) return;
     openPage(
       context,
       AiPage(
-        initialNotes: [_snapshot()],
+        initialNotes: [
+          NoteSections.stamp(_snapshot(), committed, DateTime.now()),
+        ],
         onInsert: (text, model) async {
           note = note.copyWith(summary: text, summaryModel: model);
           dirty = true;
-          await _flush();
+          _enterEdit();
           if (mounted) setState(() {});
         },
       ),
@@ -1045,9 +1159,7 @@ class _NotePageState extends ConsumerState<NotePage>
   }
 
   Future<void> _history() async {
-    if (!await _flush() || !mounted) {
-      return;
-    }
+    if (!await _resolveChanges() || !mounted) return;
     await runAction(context, () async {
       final history = await ref
           .read(controllerProvider.notifier)
@@ -1104,12 +1216,16 @@ class _NotePageState extends ConsumerState<NotePage>
       if (!mounted) return;
       setState(() {
         note = restored;
+        committed = restored;
         title.removeListener(_changed);
         topic.removeListener(_changed);
         editor.removeListener(_changed);
         title.text = note.title;
         topic.text = note.topic;
-        editor.dispose();
+        final oldEditor = editor;
+        WidgetsBinding.instance.addPostFrameCallback(
+          (_) => oldEditor.dispose(),
+        );
         editor = _controller(note);
         editor.readOnly = !editing;
         editor.addListener(_changed);
@@ -1156,9 +1272,9 @@ class _NotePageState extends ConsumerState<NotePage>
     if (action == 'ai') await _ai();
     if (action == 'edit') _enterEdit();
     if (action == 'history') await _history();
-    if (action == 'trash' && await _flush() && mounted) {
+    if (action == 'trash' && await _resolveChanges() && mounted) {
       await runAction(context, () async {
-        await ref.read(controllerProvider.notifier).trash(note);
+        await ref.read(controllerProvider.notifier).trash(committed);
         if (mounted) {
           setState(() => allowPop = true);
           WidgetsBinding.instance.addPostFrameCallback((_) {
