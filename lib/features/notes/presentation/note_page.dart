@@ -2,20 +2,28 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_quill/flutter_quill.dart' as q;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/presentation/design.dart';
 import '../domain/entities.dart';
 import 'controller.dart';
+import 'media_widgets.dart';
+import '../domain/note_document.dart';
+import '../../../core/presentation/strings.dart';
 import 'library_page.dart';
 import '../../ai/presentation/ai_pages.dart';
 
 class NotePage extends ConsumerStatefulWidget {
   final Note note;
   final bool edit;
-  const NotePage({super.key, required this.note, this.edit = false});
+  final List<PickedFile> pendingFiles;
+  const NotePage({
+    super.key,
+    required this.note,
+    this.edit = false,
+    this.pendingFiles = const [],
+  });
   @override
   ConsumerState<NotePage> createState() => _NotePageState();
 }
@@ -30,6 +38,7 @@ class _NotePageState extends ConsumerState<NotePage>
   final editorScroll = ScrollController();
   late String lastSignature;
   Timer? debounce;
+  late List<PickedFile> pendingFiles;
   bool editing = false,
       dirty = false,
       saving = false,
@@ -51,21 +60,11 @@ class _NotePageState extends ConsumerState<NotePage>
     topic.addListener(_changed);
     editor.addListener(_changed);
     lastSignature = _signature();
+    pendingFiles = List.of(widget.pendingFiles);
   }
 
   q.QuillController _controller(Note n) {
-    q.Document doc;
-    try {
-      doc = n.document.isEmpty
-          ? q.Document.fromJson([
-              {'insert': '${n.plainText}\n'},
-            ])
-          : q.Document.fromJson(jsonDecode(n.document) as List);
-    } catch (_) {
-      doc = q.Document.fromJson([
-        {'insert': '${n.plainText}\n'},
-      ]);
-    }
+    final doc = q.Document.fromJson(NoteDocument.delta(n));
     return q.QuillController(
       document: doc,
       selection: const TextSelection.collapsed(offset: 0),
@@ -95,7 +94,10 @@ class _NotePageState extends ConsumerState<NotePage>
     title: title.text.trim().isEmpty ? 'Sin título' : title.text,
     topic: topic.text,
     document: jsonEncode(editor.document.toDelta().toJson()),
-    plainText: editor.document.toPlainText().trimRight(),
+    plainText: editor.document
+        .toPlainText()
+        .replaceAll('\uFFFC', '')
+        .trimRight(),
     updatedAt: DateTime.now().toUtc(),
   );
   Future<bool> _flush() async {
@@ -183,7 +185,7 @@ class _NotePageState extends ConsumerState<NotePage>
   @override
   Widget build(BuildContext context) {
     final lib = ref.watch(libraryProvider).value;
-    final folder = lib?.folders.where((f) => f.id == note.folderId).firstOrNull;
+
     return PopScope(
       canPop: allowPop,
       onPopInvokedWithResult: (didPop, result) {
@@ -242,15 +244,9 @@ class _NotePageState extends ConsumerState<NotePage>
               controller: scroll,
               padding: const EdgeInsets.symmetric(vertical: 16),
               children: [
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    Pill(editing ? 'Modo borrador activo' : 'Apunte guardado'),
-                    Pill(status),
-                  ],
-                ),
-                const SizedBox(height: 14),
+                if (saving) const LinearProgressIndicator(),
+                if (dirty && !saving && status.startsWith('No se pudo'))
+                  Text(status),
                 if (editing)
                   TextField(
                     key: const Key('note-title'),
@@ -283,19 +279,34 @@ class _NotePageState extends ConsumerState<NotePage>
                 else if (topic.text.isNotEmpty)
                   Pill(topic.text),
                 const SizedBox(height: 10),
-                if (editing && lib != null)
-                  _location(lib)
-                else
-                  Text(
-                    'Guardado en ${folder?.name ?? 'tu biblioteca'}',
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
+                if (editing && lib != null) _location(lib),
                 const SizedBox(height: 16),
+                if (editing && pendingFiles.isNotEmpty) ...[
+                  const Text(
+                    'Toca una línea del texto y luego pulsa Insertar.',
+                  ),
+                  FilledButton.icon(
+                    onPressed: () async {
+                      final files = List<PickedFile>.of(pendingFiles);
+                      final insertion = editor.selection.extentOffset.clamp(
+                        0,
+                        editor.document.length - 1,
+                      );
+                      await runAction(context, () async {
+                        await _insertFiles(files, at: insertion);
+                        if (mounted) setState(() => pendingFiles = []);
+                      });
+                    },
+                    icon: const Icon(Icons.add_photo_alternate_outlined),
+                    label: Text('Insertar ${pendingFiles.length} archivos'),
+                  ),
+                ],
                 q.QuillEditor(
                   controller: editor,
                   focusNode: focus,
                   scrollController: editorScroll,
                   config: q.QuillEditorConfig(
+                    embedBuilders: [NoteMediaEmbed(note.attachments)],
                     scrollable: false,
                     autoFocus: false,
                     padding: const EdgeInsets.symmetric(vertical: 12),
@@ -304,25 +315,6 @@ class _NotePageState extends ConsumerState<NotePage>
                     minHeight: 220,
                   ),
                 ),
-                if (note.attachments.isNotEmpty)
-                  const SectionTitle('Imágenes y archivos'),
-                for (final a in note.attachments)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: AttachmentView(
-                      attachment: a,
-                      onRemove: !editing
-                          ? null
-                          : () => setState(() {
-                              note = note.copyWith(
-                                attachments: note.attachments
-                                    .where((v) => v.id != a.id)
-                                    .toList(),
-                              );
-                              _changed();
-                            }),
-                    ),
-                  ),
                 if (editing)
                   OutlinedButton.icon(
                     onPressed: () => _attach(CaptureSource.gallery),
@@ -459,36 +451,28 @@ class _NotePageState extends ConsumerState<NotePage>
       ),
     ),
   );
-  Widget _readingTools() => Row(
-    children: [
-      _tool(
-        Icons.add,
-        'Nuevo',
-        () => createNote(context, ref, folderId: note.folderId),
-      ),
-      _tool(
-        Icons.edit_outlined,
-        'Editar',
-        () => setState(() {
-          editing = true;
-          editor.readOnly = false;
-        }),
-      ),
-      _tool(
-        Icons.auto_stories_outlined,
-        'Lectura',
-        () => message(
-          context,
-          'Modo de solo lectura activo. Toca Editar para modificar el apunte.',
+  Widget _readingTools() => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        IconButton(
+          tooltip: tr(context, 'Volver'),
+          onPressed: _back,
+          icon: const Icon(Icons.arrow_back),
         ),
-      ),
-      _tool(
-        Icons.ios_share,
-        'Exportar',
-        () => exportMenu(context, ref, [_snapshot()]),
-      ),
-      _tool(Icons.more_horiz, 'Más', _more),
-    ],
+        FilledButton.icon(
+          onPressed: _ai,
+          icon: const Icon(Icons.auto_awesome),
+          label: const Text('IA'),
+        ),
+        IconButton(
+          tooltip: tr(context, 'Más'),
+          onPressed: _more,
+          icon: const Icon(Icons.more_horiz),
+        ),
+      ],
+    ),
   );
   Widget _editingTools() => Row(
     children: [
@@ -508,19 +492,76 @@ class _NotePageState extends ConsumerState<NotePage>
     ],
   );
   Future<void> _attach(CaptureSource source) async {
+    // Save selection before opening a native picker, which can move focus.
+    final insertion = editor.selection.extentOffset.clamp(
+      0,
+      editor.document.length - 1,
+    );
     await runAction(context, () async {
       final files = await ref.read(mediaPort).pick(source);
-      final added = <Attachment>[];
+      await _insertFiles(files, at: insertion);
+    });
+  }
+
+  Future<void> _insertFiles(List<PickedFile> files, {int? at}) async {
+    if (files.isEmpty) return;
+    final added = <Attachment>[];
+    try {
       for (final f in files) {
         added.add(await ref.read(mediaPort).store(f));
       }
-      if (!mounted) return;
-      setState(() {
-        note = note.copyWith(attachments: [...note.attachments, ...added]);
-        _changed();
-      });
-      await _flush();
-    });
+    } catch (_) {
+      for (final a in added) {
+        await ref.read(mediaPort).delete(a);
+      }
+      rethrow;
+    }
+    if (!mounted) return;
+    setState(
+      () => note = note.copyWith(attachments: [...note.attachments, ...added]),
+    );
+    var position = (at ?? editor.selection.extentOffset).clamp(
+      0,
+      editor.document.length - 1,
+    );
+    for (var i = 0; i < added.length; i++) {
+      final a = added[i];
+      if (files[i].mime == 'text/plain') {
+        final text = utf8.decode(files[i].bytes, allowMalformed: true);
+        editor.replaceText(
+          position,
+          0,
+          '$text\n',
+          TextSelection.collapsed(offset: position + text.length + 1),
+        );
+        position += text.length + 1;
+      } else {
+        editor.replaceText(
+          position,
+          0,
+          '\n',
+          TextSelection.collapsed(offset: position + 1),
+        );
+        position++;
+        editor.replaceText(
+          position,
+          0,
+          q.BlockEmbed(NoteDocument.mediaKey, a.id),
+          TextSelection.collapsed(offset: position + 1),
+        );
+        position++;
+        editor.replaceText(
+          position,
+          0,
+          '\n',
+          TextSelection.collapsed(offset: position + 1),
+        );
+        position++;
+      }
+    }
+    dirty = true;
+    _changed();
+    await _flush();
   }
 
   Future<void> _dictate() async {
@@ -563,7 +604,12 @@ class _NotePageState extends ConsumerState<NotePage>
     final full = editor.document.toPlainText();
     final start = selection.start.clamp(0, full.length);
     final end = selection.end.clamp(0, full.length);
-    final selected = start == end ? full : full.substring(start, end);
+    if (start == end) {
+      message(context, tr(context, 'Selecciona el texto que quieres mejorar.'));
+      return;
+    }
+    final originalSignature = jsonEncode(editor.document.toDelta().toJson());
+    final selected = full.substring(start, end);
     await runAction(context, () async {
       final result = await ref
           .read(controllerProvider.notifier)
@@ -602,11 +648,19 @@ class _NotePageState extends ConsumerState<NotePage>
         ),
       );
       if (accept == true && mounted) {
+        if (jsonEncode(editor.document.toDelta().toJson()) !=
+            originalSignature) {
+          message(
+            context,
+            tr(context, 'Contenido modificado. Vuelve a seleccionar el texto.'),
+          );
+          return;
+        }
         editor.replaceText(
-          start == end ? 0 : start,
-          start == end ? full.length - 1 : end - start,
+          start,
+          end - start,
           result,
-          const TextSelection.collapsed(offset: 0),
+          TextSelection.collapsed(offset: start + result.length),
         );
         await _flush();
       }
@@ -615,18 +669,43 @@ class _NotePageState extends ConsumerState<NotePage>
 
   Future<void> _ai() async {
     if (!await _flush() || !mounted) return;
+    final insertion = editor.selection.extentOffset.clamp(
+      0,
+      editor.document.length - 1,
+    );
     openPage(
       context,
       AiPage(
         initialNotes: [_snapshot()],
         onInsert: (text) async {
-          final end = editor.document.length - 1;
+          var position = insertion.clamp(0, editor.document.length - 1);
           editor.replaceText(
-            end,
+            position,
             0,
-            '\n$text\n',
-            TextSelection.collapsed(offset: end),
+            '\n',
+            TextSelection.collapsed(offset: ++position),
           );
+          for (final op in NoteDocument.formatted(text)) {
+            final value = op['insert'] as String;
+            editor.replaceText(
+              position,
+              0,
+              value,
+              TextSelection.collapsed(offset: position + value.length),
+            );
+            final attrs = op['attributes'];
+            if (attrs is Map && attrs['header'] is int) {
+              editor.formatText(
+                position,
+                1,
+                q.HeaderAttribute(level: attrs['header'] as int),
+              );
+            }
+            if (attrs is Map && attrs['list'] == 'bullet') {
+              editor.formatText(position, 1, q.Attribute.ul);
+            }
+            position += value.length;
+          }
           dirty = true;
           await _flush();
         },
@@ -760,81 +839,13 @@ class _NotePageState extends ConsumerState<NotePage>
   }
 }
 
-class AttachmentView extends ConsumerStatefulWidget {
+class AttachmentView extends StatelessWidget {
   final Attachment attachment;
   final VoidCallback? onRemove;
   const AttachmentView({super.key, required this.attachment, this.onRemove});
   @override
-  ConsumerState<AttachmentView> createState() => _AttachmentViewState();
-}
-
-class _AttachmentViewState extends ConsumerState<AttachmentView> {
-  late Future<Uint8List> bytes;
-  @override
-  void initState() {
-    super.initState();
-    bytes = ref.read(mediaPort).read(widget.attachment);
-  }
-
-  @override
-  Widget build(BuildContext context) => Surface(
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        if (widget.attachment.mime.startsWith('image/'))
-          FutureBuilder<Uint8List>(
-            future: bytes,
-            builder: (c, s) => s.hasError
-                ? const Text('No se pudo abrir la imagen.')
-                : s.hasData
-                ? InkWell(
-                    onTap: () => openPage(
-                      context,
-                      Scaffold(
-                        appBar: AppBar(title: Text(widget.attachment.name)),
-                        body: Center(
-                          child: InteractiveViewer(
-                            maxScale: 6,
-                            child: Image.memory(s.data!),
-                          ),
-                        ),
-                      ),
-                    ),
-                    child: Image.memory(
-                      s.data!,
-                      height: 200,
-                      fit: BoxFit.contain,
-                      errorBuilder: (_, _, _) =>
-                          const Text('Formato de imagen no compatible.'),
-                    ),
-                  )
-                : const SizedBox(
-                    height: 100,
-                    child: Center(child: CircularProgressIndicator()),
-                  ),
-          )
-        else
-          Icon(
-            widget.attachment.mime == 'application/pdf'
-                ? Icons.picture_as_pdf_outlined
-                : Icons.description_outlined,
-            size: 40,
-          ),
-        const SizedBox(height: 8),
-        Row(
-          children: [
-            Expanded(child: Meta(widget.attachment.name)),
-            if (widget.onRemove != null)
-              IconButton(
-                tooltip: 'Quitar adjunto',
-                onPressed: widget.onRemove,
-                icon: const Icon(Icons.close, size: 18),
-              ),
-          ],
-        ),
-      ],
-    ),
-  );
+  Widget build(BuildContext context) =>
+      EmbeddedMedia(attachment: attachment, gallery: [attachment]);
 }
 
 Future<void> exportMenu(

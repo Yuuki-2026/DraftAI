@@ -1,4 +1,7 @@
 import 'dart:io';
+
+import 'file_validation.dart';
+
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
@@ -32,6 +35,12 @@ class LocalMediaRepository implements MediaRepository {
           final bytes = await f.readAsBytes();
           files.add(PickedFile(f.name, _mime(f.name), bytes));
         }
+        for (final f in files) {
+          FileValidation.validate(f);
+        }
+        for (final f in files) {
+          FileValidation.validate(f);
+        }
         return files;
       }
       final picker = ImagePicker();
@@ -51,6 +60,9 @@ class LocalMediaRepository implements MediaRepository {
         files.add(
           PickedFile(image.name, _mime(image.name), await image.readAsBytes()),
         );
+      }
+      for (final f in files) {
+        FileValidation.validate(f);
       }
       return files;
     } on AppFailure {
@@ -81,6 +93,7 @@ class LocalMediaRepository implements MediaRepository {
     if (f.bytes.length > maxBytes) {
       throw const AppFailure('El archivo supera 15 MB.');
     }
+    FileValidation.validate(f);
     await directory.create(recursive: true);
     final a = Attachment(newId(), p.basename(f.name), f.mime);
     await _file(a).writeAsBytes(await cipher.encrypt(f.bytes), flush: true);
