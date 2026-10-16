@@ -216,20 +216,28 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
     final library = ref.watch(libraryProvider);
     return Scaffold(
       appBar: AppBar(
-        title: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Image.asset('assets/images/logo.png', width: 29, height: 29),
-            SizedBox(width: 8),
-            Flexible(
-              child: Text(
-                tr(context, tab == 3 ? 'Papelera' : 'DraftAI'),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+        title: tab == 3
+            ? Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Meta('DRAFTAI'),
+                  Text(tr(context, 'Papelera')),
+                ],
+              )
+            : Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Image.asset('assets/images/logo.png', width: 29, height: 29),
+                  SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      tr(context, tab == 3 ? 'Papelera' : 'DraftAI'),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
               ),
-            ),
-          ],
-        ),
         leading: tab == 3
             ? IconButton(
                 onPressed: () => setState(() {
@@ -248,19 +256,33 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
       ),
       body: SafeArea(
         top: false,
-        child: library.when(
-          data: (lib) => tab == 0
-              ? _home(lib)
-              : tab == 2
-              ? _all(lib)
-              : _trash(lib),
-          error: (e, _) => Center(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Text(tr(context, 'No se pudo abrir la biblioteca: $e')),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (selecting && tab != 3 && library.value != null)
+              _selectionBar(
+                count: selectedIds.length,
+                actions: _quickActions(library.value!),
+              ),
+            Expanded(
+              child: library.when(
+                data: (lib) => tab == 0
+                    ? _home(lib)
+                    : tab == 2
+                    ? _all(lib)
+                    : _trash(lib),
+                error: (e, _) => Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Text(
+                      tr(context, 'No se pudo abrir la biblioteca: $e'),
+                    ),
+                  ),
+                ),
+                loading: () => Center(child: CircularProgressIndicator()),
+              ),
             ),
-          ),
-          loading: () => Center(child: CircularProgressIndicator()),
+          ],
         ),
       ),
       bottomNavigationBar: SafeArea(
@@ -329,11 +351,6 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
     return ResponsiveBody(
       child: ListView(
         children: [
-          if (selecting)
-            _selectionBar(
-              count: selectedIds.length,
-              actions: _quickActions(lib),
-            ),
           SectionTitle(
             'Recientes',
             action: TextButton(
