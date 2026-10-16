@@ -32,6 +32,7 @@ class Note {
   final DateTime createdAt, updatedAt;
   final DateTime? deletedAt;
   final List<Attachment> attachments;
+  final int documentVersion;
   const Note({
     required this.id,
     required this.folderId,
@@ -42,6 +43,7 @@ class Note {
     this.plainText = '',
     this.document = '',
     this.summary = '',
+    this.documentVersion = 2,
     this.categoryId,
     this.deletedAt,
     this.attachments = const [],
@@ -54,6 +56,7 @@ class Note {
     String? plainText,
     String? document,
     String? summary,
+    int? documentVersion,
     String? categoryId,
     bool clearCategory = false,
     DateTime? updatedAt,
@@ -68,6 +71,7 @@ class Note {
     plainText: plainText ?? this.plainText,
     document: document ?? this.document,
     summary: summary ?? this.summary,
+    documentVersion: documentVersion ?? this.documentVersion,
     categoryId: clearCategory ? null : categoryId ?? this.categoryId,
     createdAt: createdAt,
     updatedAt: updatedAt ?? this.updatedAt,

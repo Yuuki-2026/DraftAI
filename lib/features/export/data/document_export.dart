@@ -10,6 +10,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:path/path.dart' as p;
 
 import '../../notes/domain/entities.dart';
+import '../../notes/domain/note_document.dart';
 import '../../notes/domain/ports.dart';
 import '../../notes/data/note_mapper.dart';
 
@@ -50,7 +51,7 @@ class DocumentExport implements ExportService {
       final text = notes
           .map(
             (n) =>
-                '${markdown ? '# ' : ''}${n.title}\n${n.topic}\n\n${n.plainText}',
+                '${markdown ? '# ' : ''}${n.title}\n${n.topic}\n\n${NoteDocument.parts(n).map((p) => p.attachmentId != null ? '[Adjunto]' : '${markdown && p.heading > 0 ? '#' * p.heading + ' ' : ''}${p.bullet ? '- ' : ''}${p.text}').join('\n')}',
           )
           .join('\n\n---\n\n');
       await _share(
@@ -75,20 +76,37 @@ class DocumentExport implements ExportService {
       ),
     );
     for (final note in notes) {
-      final images = <pw.Widget>[];
-      for (final a in note.attachments.where(
-        (a) => a.mime.startsWith('image/'),
-      )) {
-        images.add(
-          pw.Padding(
-            padding: const pw.EdgeInsets.only(top: 12),
-            child: pw.Image(
-              pw.MemoryImage(await media.read(a)),
-              height: 200,
-              fit: pw.BoxFit.contain,
-            ),
-          ),
-        );
+      final content = <pw.Widget>[];
+      for (final part in NoteDocument.parts(note)) {
+        if (part.attachmentId != null) {
+          final a = note.attachments
+              .where((a) => a.id == part.attachmentId)
+              .firstOrNull;
+          if (a != null && a.mime.startsWith('image/')) {
+            content.add(
+              pw.Padding(
+                padding: const pw.EdgeInsets.symmetric(vertical: 10),
+                child: pw.Image(
+                  pw.MemoryImage(await media.read(a)),
+                  height: 200,
+                  fit: pw.BoxFit.contain,
+                ),
+              ),
+            );
+          } else if (a != null) {
+            content.add(
+              pw.Paragraph(
+                text: a.mime == 'application/pdf' ? '[PDF]' : '[Documento]',
+              ),
+            );
+          }
+        } else if (part.heading > 0) {
+          content.add(pw.Header(level: part.heading, text: part.text));
+        } else {
+          content.add(
+            pw.Paragraph(text: '${part.bullet ? '• ' : ''}${part.text}'),
+          );
+        }
       }
       doc.addPage(
         pw.MultiPage(
@@ -109,10 +127,7 @@ class DocumentExport implements ExportService {
           build: (_) => [
             pw.Header(level: 0, text: note.title),
             if (note.topic.isNotEmpty) pw.Paragraph(text: note.topic),
-            ...note.plainText
-                .split('\n')
-                .map((s) => pw.Paragraph(text: s.isEmpty ? ' ' : s)),
-            ...images,
+            ...content,
           ],
         ),
       );
@@ -137,12 +152,27 @@ class DocumentExport implements ExportService {
     final rels = StringBuffer();
     var imageId = 0;
     for (final n in notes) {
-      for (final line in [n.title, n.topic, ...n.plainText.split('\n')]) {
-        body.write(
-          '<w:p><w:r><w:t xml:space="preserve">${_xml(line)}</w:t></w:r></w:p>',
-        );
+      body.write(
+        '<w:p><w:pPr><w:outlineLvl w:val="0"/></w:pPr><w:r><w:rPr><w:b/><w:sz w:val="36"/></w:rPr><w:t>${_xml(n.title)}</w:t></w:r></w:p>',
+      );
+      if (n.topic.isNotEmpty) {
+        body.write('<w:p><w:r><w:t>${_xml(n.topic)}</w:t></w:r></w:p>');
       }
-      for (final a in n.attachments.where((a) => a.mime.startsWith('image/'))) {
+      for (final part in NoteDocument.parts(n)) {
+        if (part.attachmentId == null) {
+          body.write(
+            '<w:p>${part.heading > 0 ? '<w:pPr><w:outlineLvl w:val="${part.heading - 1}"/></w:pPr>' : ''}<w:r>${part.heading > 0 ? '<w:rPr><w:b/><w:sz w:val="${32 - part.heading * 2}"/></w:rPr>' : ''}<w:t xml:space="preserve">${_xml('${part.bullet ? '• ' : ''}${part.text}')}</w:t></w:r></w:p>',
+          );
+          continue;
+        }
+        final a = n.attachments
+            .where((a) => a.id == part.attachmentId)
+            .firstOrNull;
+        if (a == null) continue;
+        if (!a.mime.startsWith('image/')) {
+          body.write('<w:p><w:r><w:t>[Documento adjunto]</w:t></w:r></w:p>');
+          continue;
+        }
         imageId++;
         var extension = a.mime == 'image/png' ? 'png' : 'jpg';
         var bytes = await media.read(a);

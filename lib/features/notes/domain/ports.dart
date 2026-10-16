@@ -62,3 +62,16 @@ abstract interface class IdentityService {
   Future<void> signOut();
   Future<String?> idToken();
 }
+
+/// Optional test connection. Provider credentials never cross this contract.
+abstract interface class AiConnection {
+  String get endpoint;
+  String get model;
+  Future<void> connect(String endpoint, String code);
+  Future<void> disconnect();
+}
+
+abstract interface class ExampleService {
+  Future<int> load();
+  Future<int> clear();
+}

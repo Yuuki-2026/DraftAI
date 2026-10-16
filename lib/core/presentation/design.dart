@@ -1,3 +1,5 @@
+import 'strings.dart';
+
 import 'package:flutter/material.dart';
 
 abstract final class AppColors {
@@ -5,9 +7,9 @@ abstract final class AppColors {
       low = Color(0xFF1C1B1B),
       mid = Color(0xFF201F1F),
       high = Color(0xFF2A2A2A),
-      line = Color(0xFF393939),
+      line = Color(0xFF4A4A4A),
       text = Color(0xFFF5F5F5),
-      muted = Color(0xFFA0A0A0);
+      muted = Color(0xFFB5B5B5);
 }
 
 ThemeData appTheme(Brightness brightness) {
@@ -19,9 +21,15 @@ ThemeData appTheme(Brightness brightness) {
       ).copyWith(
         primary: dark ? Colors.white : Colors.black,
         onPrimary: dark ? Colors.black : Colors.white,
-        surface: dark ? AppColors.background : const Color(0xFFF5F5F5),
-        onSurface: dark ? AppColors.text : const Color(0xFF181818),
-        outline: dark ? AppColors.line : const Color(0xFFCECECE),
+        surface: dark ? AppColors.background : const Color(0xFFFAFAFA),
+        onSurface: dark ? AppColors.text : const Color(0xFF171717),
+        onSurfaceVariant: dark
+            ? const Color(0xFFD0D0D0)
+            : const Color(0xFF424242),
+        outline: dark ? AppColors.line : const Color(0xFF8F8F8F),
+        outlineVariant: dark
+            ? const Color(0xFF393939)
+            : const Color(0xFFB0B0B0),
       );
   return ThemeData(
     useMaterial3: true,
@@ -48,7 +56,7 @@ ThemeData appTheme(Brightness brightness) {
       bodySmall: TextStyle(
         fontSize: 11,
         height: 1.5,
-        color: dark ? AppColors.muted : Colors.black54,
+        color: dark ? AppColors.muted : const Color(0xFF555555),
       ),
       titleLarge: TextStyle(
         fontSize: 23,
@@ -73,6 +81,13 @@ ThemeData appTheme(Brightness brightness) {
         ),
       ),
     ),
+    textButtonTheme: TextButtonThemeData(
+      style: TextButton.styleFrom(
+        foregroundColor: dark ? Colors.white : const Color(0xFF111111),
+        minimumSize: const Size(44, 44),
+        textStyle: const TextStyle(fontWeight: FontWeight.w600),
+      ),
+    ),
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: OutlinedButton.styleFrom(
         foregroundColor: scheme.onSurface,
@@ -91,6 +106,10 @@ ThemeData appTheme(Brightness brightness) {
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
         borderSide: BorderSide(color: scheme.outline),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: BorderSide(color: scheme.primary, width: 2),
       ),
       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
     ),
@@ -192,7 +211,10 @@ class SectionTitle extends StatelessWidget {
     child: Row(
       children: [
         Expanded(
-          child: Text(text, style: Theme.of(context).textTheme.titleMedium),
+          child: Text(
+            tr(context, text),
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
         ),
         ?action,
       ],
@@ -208,27 +230,29 @@ Future<void> runAction(
     await action();
   } catch (e) {
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(tr(context, '$e'))));
     }
   }
 }
 
 void message(BuildContext context, String text) =>
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(tr(context, text))));
 Future<bool> confirm(BuildContext context, String title, String text) async =>
     await showDialog<bool>(
       context: context,
       builder: (c) => AlertDialog(
-        title: Text(title),
-        content: Text(text),
+        title: Text(tr(context, title)),
+        content: Text(tr(context, text)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(c, false),
-            child: const Text('Cancelar'),
+            child: Text(tr(context, 'Cancelar')),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(c, true),
-            child: const Text('Confirmar'),
+            child: Text(tr(context, 'Confirmar')),
           ),
         ],
       ),

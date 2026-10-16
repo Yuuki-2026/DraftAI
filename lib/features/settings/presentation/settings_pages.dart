@@ -1,3 +1,6 @@
+import 'example_page.dart';
+import '../../../core/presentation/strings.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -43,55 +46,52 @@ class _WelcomePageState extends ConsumerState<WelcomePage> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 16),
-                const Text(
-                  'DraftAI',
+                SizedBox(height: 16),
+                Text(
+                  tr(context, 'DraftAI'),
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 28, fontWeight: FontWeight.w600),
                 ),
-                const SizedBox(height: 32),
+                SizedBox(height: 32),
                 Text(
-                  'Bienvenido',
+                  tr(context, 'Bienvenido'),
                   style: Theme.of(context).textTheme.titleLarge,
                 ),
-                const SizedBox(height: 9),
-                const Text(
-                  'Tus apuntes, imágenes y aprendizajes organizados en un solo espacio.',
+                SizedBox(height: 9),
+                Text(
+                  tr(
+                    context,
+                    'Tus apuntes, imágenes y aprendizajes organizados en un solo espacio.',
+                  ),
                   style: TextStyle(
                     fontSize: 14,
                     height: 1.6,
                     color: AppColors.muted,
                   ),
                 ),
-                const SizedBox(height: 24),
+                SizedBox(height: 24),
                 FilledButton.icon(
                   onPressed: busy ? null : () => _enter(true),
                   icon: const Icon(Icons.account_circle_outlined, size: 20),
-                  label: const Text('Iniciar sesión con Google'),
+                  label: Text(tr(context, 'Iniciar sesión con Google')),
                 ),
-                const SizedBox(height: 12),
+                SizedBox(height: 12),
                 OutlinedButton(
                   key: const Key('guest-enter'),
                   onPressed: busy ? null : () => _enter(false),
-                  child: const Text('Continuar sin cuenta'),
-                ),
-                const SizedBox(height: 20),
-                const Text(
-                  'Tus apuntes se guardan en este dispositivo.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 11, color: AppColors.muted),
+                  child: Text(tr(context, 'Continuar sin cuenta')),
                 ),
                 if (busy)
-                  const Padding(
+                  Padding(
                     padding: EdgeInsets.all(16),
                     child: Center(child: CircularProgressIndicator()),
                   ),
-                const SizedBox(height: 14),
+                SizedBox(height: 14),
                 TextButton(
                   onPressed: () =>
                       openPage(context, const InformationPage(kind: 'privacy')),
-                  child: const Text(
-                    'Privacidad',
+                  child: Text(
+                    tr(context, 'Privacidad'),
                     style: TextStyle(fontSize: 11),
                   ),
                 ),
@@ -111,13 +111,13 @@ class ProfilePage extends ConsumerWidget {
     final settings = ref.watch(controllerProvider).value;
     final identity = ref.read(identityPort);
     return Scaffold(
-      appBar: AppBar(title: const Text('Perfil')),
+      appBar: AppBar(title: Text(tr(context, 'Perfil'))),
       body: SafeArea(
         child: ResponsiveBody(
           maxWidth: 720,
           child: ListView(
             children: [
-              const SizedBox(height: 16),
+              SizedBox(height: 16),
               Surface(
                 child: Row(
                   children: [
@@ -133,7 +133,7 @@ class ProfilePage extends ConsumerWidget {
                         ),
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    SizedBox(width: 12),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -142,7 +142,7 @@ class ProfilePage extends ConsumerWidget {
                             identity.displayName ?? 'Modo invitado',
                             style: const TextStyle(fontWeight: FontWeight.w600),
                           ),
-                          const Meta('Datos en este dispositivo'),
+                          Meta(tr(context, 'Datos en este dispositivo')),
                         ],
                       ),
                     ),
@@ -150,35 +150,41 @@ class ProfilePage extends ConsumerWidget {
                   ],
                 ),
               ),
-              const SizedBox(height: 12),
+              SizedBox(height: 12),
               Surface(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
                       children: [
-                        const Expanded(child: Text('Acciones de IA')),
+                        Expanded(child: Text(tr(context, 'Acciones de IA'))),
                         Pill(
-                          '${settings?.used ?? 0} de ${settings?.pro == true ? 10 : 2} hoy',
+                          tr(
+                            context,
+                            '${settings?.used ?? 0} de ${settings?.pro == true ? 10 : 2} hoy',
+                          ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 12),
+                    SizedBox(height: 12),
                     LinearProgressIndicator(
                       value:
                           ((settings?.used ?? 0) /
                                   (settings?.pro == true ? 10 : 2))
                               .clamp(0, 1),
                     ),
-                    const SizedBox(height: 10),
-                    const Text(
-                      'Resúmenes y mejoras comparten el límite diario. El contador se renueva cada día.',
+                    SizedBox(height: 10),
+                    Text(
+                      tr(
+                        context,
+                        'Resúmenes y mejoras comparten el límite diario. El contador se renueva cada día.',
+                      ),
                       style: TextStyle(fontSize: 11, color: AppColors.muted),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: 16),
               _item(
                 context,
                 Icons.auto_awesome_outlined,
@@ -211,6 +217,13 @@ class ProfilePage extends ConsumerWidget {
               ),
               _item(
                 context,
+                Icons.science_outlined,
+                'Biblioteca de prueba',
+                'Cargar o eliminar ejemplos',
+                const ExamplePage(),
+              ),
+              _item(
+                context,
                 Icons.info_outline,
                 'Ayuda y acerca de',
                 'Guías, privacidad y licencias',
@@ -219,10 +232,9 @@ class ProfilePage extends ConsumerWidget {
               const Divider(),
               ListTile(
                 leading: const Icon(Icons.logout, size: 20),
-                title: const Text('Salir', style: TextStyle(fontSize: 13)),
-                subtitle: const Text(
-                  'Tus apuntes permanecen en este dispositivo.',
-                  style: TextStyle(fontSize: 11),
+                title: Text(
+                  tr(context, 'Salir'),
+                  style: TextStyle(fontSize: 13),
                 ),
                 onTap: () => runAction(context, () async {
                   await ref.read(controllerProvider.notifier).leave();
@@ -231,7 +243,7 @@ class ProfilePage extends ConsumerWidget {
                   }
                 }),
               ),
-              const SizedBox(height: 24),
+              SizedBox(height: 24),
             ],
           ),
         ),
@@ -251,8 +263,8 @@ class ProfilePage extends ConsumerWidget {
       padding: EdgeInsets.zero,
       child: ListTile(
         leading: Icon(icon, size: 21),
-        title: Text(title, style: const TextStyle(fontSize: 13)),
-        subtitle: Text(subtitle, style: const TextStyle(fontSize: 11)),
+        title: Text(tr(c, title), style: const TextStyle(fontSize: 13)),
+        subtitle: Text(tr(c, subtitle), style: const TextStyle(fontSize: 11)),
         trailing: const Icon(Icons.chevron_right, size: 18),
         onTap: () => openPage(c, page),
       ),
@@ -266,52 +278,55 @@ class PlansPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final pro = ref.watch(controllerProvider).value?.pro ?? false;
     return Scaffold(
-      appBar: AppBar(title: const Text('Suscripción')),
+      appBar: AppBar(title: Text(tr(context, 'Suscripción'))),
       body: SafeArea(
         child: ResponsiveBody(
           maxWidth: 640,
           child: ListView(
             children: [
-              const SizedBox(height: 18),
-              const Meta('PLAN ACTUAL'),
-              const SizedBox(height: 8),
+              SizedBox(height: 18),
+              Meta(tr(context, 'PLAN ACTUAL')),
+              SizedBox(height: 8),
               Text(
                 pro ? 'Pro · demostración' : 'Gratis',
                 style: Theme.of(context).textTheme.titleLarge,
               ),
-              const SizedBox(height: 8),
-              const Text(
-                'Explora las herramientas inteligentes. Los planes son demostrativos: no se realizan cobros.',
+              SizedBox(height: 8),
+              Text(
+                tr(
+                  context,
+                  'Explora las herramientas inteligentes. Los planes son demostrativos: no se realizan cobros.',
+                ),
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: 16),
               Surface(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Row(
+                    Row(
                       children: [
-                        Expanded(child: Meta('PLAN PRO')),
-                        Pill('Vista previa'),
+                        Expanded(child: Meta(tr(context, 'PLAN PRO'))),
+                        Pill(tr(context, 'Vista previa')),
                       ],
                     ),
-                    const SizedBox(height: 12),
-                    const Text(
-                      'Hasta 10 acciones de IA al día',
+                    SizedBox(height: 12),
+                    Text(
+                      tr(context, 'Hasta 10 acciones de IA al día'),
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    const SizedBox(height: 10),
-                    const Text(
-                      '\$4.99 / mes',
+                    SizedBox(height: 10),
+                    Text(
+                      tr(context, '\$4.99 / mes'),
                       style: TextStyle(
                         fontSize: 28,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    const Meta('Precio ilustrativo · sin facturación'),
-                    const SizedBox(height: 18),
+                    Meta(tr(context, 'Precio ilustrativo · sin facturación')),
+                    SizedBox(height: 18),
                     FilledButton.icon(
                       key: const Key('toggle-pro'),
                       onPressed: () => runAction(context, () async {
@@ -333,7 +348,7 @@ class PlansPage extends ConsumerWidget {
                   ],
                 ),
               ),
-              const SectionTitle('Comparativa de planes'),
+              SectionTitle('Comparativa de planes'),
               Surface(
                 padding: EdgeInsets.zero,
                 child: Table(
@@ -376,12 +391,15 @@ class PlansPage extends ConsumerWidget {
                   ],
                 ),
               ),
-              const SizedBox(height: 12),
-              const Text(
-                'Sin proveedor configurado, el resumen es una extracción local de frases y el OCR solo muestra un ejemplo editable. No se ejecuta OCR real.',
+              SizedBox(height: 12),
+              Text(
+                tr(
+                  context,
+                  'Sin proveedor configurado, el resumen es una extracción local de frases y el OCR solo muestra un ejemplo editable. No se ejecuta OCR real.',
+                ),
                 style: TextStyle(fontSize: 11, color: AppColors.muted),
               ),
-              const SizedBox(height: 28),
+              SizedBox(height: 28),
             ],
           ),
         ),
@@ -396,21 +414,40 @@ class PreferencesPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final settings = ref.watch(controllerProvider).value;
     return Scaffold(
-      appBar: AppBar(title: const Text('Preferencias')),
+      appBar: AppBar(title: Text(tr(context, 'Preferencias'))),
       body: SafeArea(
         child: ResponsiveBody(
           maxWidth: 640,
           child: ListView(
             children: [
-              const SectionTitle('Idioma del sistema'),
-              const Surface(
-                child: ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: Icon(Icons.translate),
-                  title: Text('Español (América Latina)'),
+              SectionTitle('Idioma'),
+              Surface(
+                padding: EdgeInsets.zero,
+                child: Column(
+                  children: [
+                    for (final language in [
+                      ('es', 'Español (América Latina)', 'ES'),
+                      ('en', 'English', 'EN'),
+                    ])
+                      ListTile(
+                        leading: const Icon(Icons.translate),
+                        title: Text(language.$2),
+                        trailing: Icon(
+                          (settings?.locale ?? 'es') == language.$1
+                              ? Icons.radio_button_checked
+                              : Icons.radio_button_unchecked,
+                        ),
+                        onTap: () => runAction(
+                          context,
+                          () => ref
+                              .read(controllerProvider.notifier)
+                              .locale(language.$1),
+                        ),
+                      ),
+                  ],
                 ),
               ),
-              const SectionTitle('Tema visual'),
+              SectionTitle('Tema visual'),
               Surface(
                 child: Column(
                   children: [
@@ -420,7 +457,7 @@ class PreferencesPage extends ConsumerWidget {
                       ('system', 'Automático', Icons.brightness_auto_outlined),
                     ])
                       ListTile(
-                        title: Text(v.$2),
+                        title: Text(tr(context, v.$2)),
                         leading: Icon(v.$3),
                         trailing: Icon(
                           (settings?.theme ?? 'dark') == v.$1
@@ -436,15 +473,7 @@ class PreferencesPage extends ConsumerWidget {
                   ],
                 ),
               ),
-              const SectionTitle('Captura y privacidad'),
-              const Surface(
-                child: Text(
-                  'La cámara y el micrófono se activan solo cuando pulsas su botón. Puedes revocar los permisos desde los ajustes de Android. El dictado puede usar el servicio de voz del dispositivo.',
-                ),
-              ),
-              const SizedBox(height: 12),
-              const Meta('Las preferencias se guardan automáticamente.'),
-              const SizedBox(height: 28),
+              SizedBox(height: 28),
             ],
           ),
         ),
@@ -477,13 +506,13 @@ class _StoragePageState extends ConsumerState<StoragePage> {
   Widget build(BuildContext context) {
     final lib = ref.watch(libraryProvider).value;
     return Scaffold(
-      appBar: AppBar(title: const Text('Almacenamiento')),
+      appBar: AppBar(title: Text(tr(context, 'Almacenamiento'))),
       body: SafeArea(
         child: ResponsiveBody(
           maxWidth: 640,
           child: ListView(
             children: [
-              const SectionTitle('Capacidad local'),
+              SectionTitle('Capacidad local'),
               Surface(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -495,15 +524,18 @@ class _StoragePageState extends ConsumerState<StoragePage> {
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    const Meta('Archivos adjuntos cifrados'),
-                    const SizedBox(height: 16),
+                    Meta(tr(context, 'Archivos adjuntos cifrados')),
+                    SizedBox(height: 16),
                     Text(
-                      '${lib?.active.length ?? 0} apuntes · ${lib?.folders.length ?? 0} carpetas · ${lib?.trash.length ?? 0} en papelera',
+                      tr(
+                        context,
+                        '${lib?.active.length ?? 0} apuntes · ${lib?.folders.length ?? 0} carpetas · ${lib?.trash.length ?? 0} en papelera',
+                      ),
                     ),
                   ],
                 ),
               ),
-              const SectionTitle('Acciones de mantenimiento'),
+              SectionTitle('Acciones de mantenimiento'),
               OutlinedButton.icon(
                 onPressed: busy
                     ? null
@@ -518,9 +550,9 @@ class _StoragePageState extends ConsumerState<StoragePage> {
                         await _refresh();
                       }),
                 icon: const Icon(Icons.cleaning_services_outlined, size: 18),
-                label: const Text('Limpiar caché de exportaciones'),
+                label: Text(tr(context, 'Limpiar caché de exportaciones')),
               ),
-              const SizedBox(height: 10),
+              SizedBox(height: 10),
               OutlinedButton.icon(
                 onPressed: busy || lib == null
                     ? null
@@ -544,18 +576,24 @@ class _StoragePageState extends ConsumerState<StoragePage> {
                   busy ? 'Preparando copia…' : 'Exportar copia local',
                 ),
               ),
-              const SizedBox(height: 16),
-              const Surface(
+              SizedBox(height: 16),
+              Surface(
                 child: Text(
-                  'Tus apuntes e imágenes permanecen cifrados en el almacenamiento privado de la app. La clave se protege con Keystore/Keychain. No existe sincronización entre dispositivos.',
+                  tr(
+                    context,
+                    'Tus apuntes e imágenes permanecen cifrados en el almacenamiento privado de la app. La clave se protege con Keystore/Keychain. No existe sincronización entre dispositivos.',
+                  ),
                 ),
               ),
-              const SizedBox(height: 12),
-              const Text(
-                'Desinstalar la app elimina sus datos y su clave. Exporta antes los apuntes que quieras conservar.',
+              SizedBox(height: 12),
+              Text(
+                tr(
+                  context,
+                  'Desinstalar la app elimina sus datos y su clave. Exporta antes los apuntes que quieras conservar.',
+                ),
                 style: TextStyle(fontSize: 11, color: AppColors.muted),
               ),
-              const SizedBox(height: 28),
+              SizedBox(height: 28),
             ],
           ),
         ),
@@ -568,13 +606,13 @@ class AboutPage extends StatelessWidget {
   const AboutPage({super.key});
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Acerca de DraftAI')),
+    appBar: AppBar(title: Text(tr(context, 'Acerca de DraftAI'))),
     body: SafeArea(
       child: ResponsiveBody(
         maxWidth: 640,
         child: ListView(
           children: [
-            const SizedBox(height: 20),
+            SizedBox(height: 20),
             Center(
               child: Image.asset(
                 'assets/images/logo.png',
@@ -582,27 +620,27 @@ class AboutPage extends StatelessWidget {
                 height: 70,
               ),
             ),
-            const SizedBox(height: 14),
-            const Center(
+            SizedBox(height: 14),
+            Center(
               child: Text(
-                'DraftAI',
+                tr(context, 'DraftAI'),
                 style: TextStyle(fontSize: 24, fontWeight: FontWeight.w600),
               ),
             ),
-            const Center(child: Meta('Versión 0.1.1 · Build 2')),
-            const SizedBox(height: 20),
-            const Surface(
+            Center(child: Meta(tr(context, 'Versión 0.2.0 · Build 3'))),
+            SizedBox(height: 20),
+            Surface(
               child: Wrap(
                 spacing: 12,
                 runSpacing: 12,
                 children: [
-                  Pill('Datos locales'),
-                  Pill('Almacén cifrado'),
-                  Pill('Android primero'),
+                  Pill(tr(context, 'Datos locales')),
+                  Pill(tr(context, 'Almacén cifrado')),
+                  Pill(tr(context, 'Android primero')),
                 ],
               ),
             ),
-            const SectionTitle('Información'),
+            SectionTitle('Información'),
             for (final item in [
               ('help', 'Centro de ayuda', Icons.help_outline),
               ('terms', 'Términos de uso', Icons.description_outlined),
@@ -610,23 +648,29 @@ class AboutPage extends StatelessWidget {
             ])
               ListTile(
                 leading: Icon(item.$3, size: 21),
-                title: Text(item.$2, style: const TextStyle(fontSize: 13)),
+                title: Text(
+                  tr(context, item.$2),
+                  style: const TextStyle(fontSize: 13),
+                ),
                 trailing: const Icon(Icons.chevron_right, size: 18),
                 onTap: () => openPage(context, InformationPage(kind: item.$1)),
               ),
             ListTile(
               leading: const Icon(Icons.code, size: 21),
-              title: const Text('Licencias', style: TextStyle(fontSize: 13)),
+              title: Text(
+                tr(context, 'Licencias'),
+                style: TextStyle(fontSize: 13),
+              ),
               trailing: const Icon(Icons.chevron_right, size: 18),
               onTap: () => showLicensePage(
                 context: context,
                 applicationName: 'DraftAI',
-                applicationVersion: '0.1.1',
+                applicationVersion: '0.2.0',
               ),
             ),
-            const SizedBox(height: 24),
-            const Center(child: Meta('TUS IDEAS, SIEMPRE A MANO')),
-            const SizedBox(height: 24),
+            SizedBox(height: 24),
+            Center(child: Meta(tr(context, 'TUS IDEAS, SIEMPRE A MANO'))),
+            SizedBox(height: 24),
           ],
         ),
       ),
@@ -708,10 +752,10 @@ class InformationPage extends StatelessWidget {
           child: ListView(
             children: [
               for (final s in sections) ...[
-                SectionTitle(s.$1),
-                Surface(child: SelectableText(s.$2)),
+                SectionTitle(tr(context, s.$1)),
+                Surface(child: SelectableText(tr(context, s.$2))),
               ],
-              const SizedBox(height: 28),
+              SizedBox(height: 28),
             ],
           ),
         ),

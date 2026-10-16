@@ -61,3 +61,7 @@ coverage/
 
 node_modules/
 !server/.env.example
+
+*.dpapi
+APIKey*.txt
+api_key*.txt

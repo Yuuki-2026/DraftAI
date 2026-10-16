@@ -4,6 +4,10 @@ import '../domain/entities.dart';
 import '../domain/ports.dart';
 import '../domain/use_cases.dart';
 
+final examplesPort = Provider<ExampleService>(
+  (ref) => throw UnimplementedError(),
+);
+
 final notesPort = Provider<NotesRepository>(
   (ref) => throw UnimplementedError(),
 );
@@ -25,12 +29,13 @@ final libraryProvider = StreamProvider<Library>(
 
 class Settings {
   final bool entered, pro;
-  final String theme;
+  final String theme, locale;
   final int used;
   const Settings({
     this.entered = false,
     this.pro = false,
     this.theme = 'dark',
+    this.locale = 'es',
     this.used = 0,
   });
 }
@@ -47,6 +52,7 @@ class AppController extends AsyncNotifier<Settings> {
     entered: await _repo.preference('entered') == 'true',
     pro: await ref.read(policyPort).pro,
     theme: await _repo.preference('theme') ?? 'dark',
+    locale: await _repo.preference('locale') ?? 'es',
     used: await ref.read(policyPort).used(),
   );
   Future<void> refresh() async {
@@ -75,7 +81,16 @@ class AppController extends AsyncNotifier<Settings> {
     await refresh();
   }
 
-  Future<Note> create(String folderId) => _actions.create(folderId);
+  Future<void> locale(String v) async {
+    await _repo.setPreference('locale', v);
+    await refresh();
+  }
+
+  Future<Note> create(
+    String folderId, {
+    String title = 'Sin título',
+    String? categoryId,
+  }) => _actions.create(folderId, title: title, categoryId: categoryId);
   Future<void> save(Note n, {String reason = 'Edición'}) =>
       _actions.save(n, reason: reason);
   Future<void> trash(Note n) => _actions.trash(n);
@@ -88,7 +103,17 @@ class AppController extends AsyncNotifier<Settings> {
         for (final a in revision.note.attachments) a.id: a,
     };
     await _repo.deletePermanently(n.id);
-    for (final a in attachments.values) {
+    final remaining = await _repo.load();
+    final referenced = <String>{};
+    for (final other in remaining.notes) {
+      referenced.addAll(other.attachments.map((a) => a.id));
+      for (final revision in await _repo.history(other.id)) {
+        referenced.addAll(revision.note.attachments.map((a) => a.id));
+      }
+    }
+    for (final a in attachments.values.where(
+      (a) => !referenced.contains(a.id),
+    )) {
       await ref.read(mediaPort).delete(a);
     }
   }

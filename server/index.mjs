@@ -1,3 +1,6 @@
+import {ProviderBudget} from './budget.mjs';
+import {homedir} from 'node:os';
+import {join} from 'node:path';
 import {createServer} from 'node:http';
 import {applicationDefault, initializeApp} from 'firebase-admin/app';
 import {getAuth} from 'firebase-admin/auth';
@@ -6,7 +9,8 @@ import {ServiceError, DailyQuota, executeAi} from './service.mjs';
 initializeApp({credential: applicationDefault(), projectId: process.env.FIREBASE_PROJECT_ID});
 const quota = new DailyQuota();
 const allowed = new Set((process.env.DEMO_PRO_UIDS ?? '').split(',').map(s => s.trim()).filter(Boolean));
-const config = {key: process.env.AI_API_KEY, model: process.env.AI_MODEL, url: process.env.AI_UPSTREAM_URL};
+const budget=new ProviderBudget(process.env.DRAFTAI_STATE_DIR??join(homedir(),'.draftai-server'));
+const config = {reserveProvider:()=>budget.reserve(),key: process.env.AI_API_KEY, model: process.env.AI_MODEL, url: process.env.AI_UPSTREAM_URL};
 const server = createServer(async (req, res) => {
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   res.setHeader('Cache-Control', 'no-store');

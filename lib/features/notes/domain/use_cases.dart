@@ -7,12 +7,17 @@ class NoteActions {
   final String Function() newId;
   NoteActions(this.repository, this.clock, this.newId);
 
-  Future<Note> create(String folderId) async {
+  Future<Note> create(
+    String folderId, {
+    String title = 'Sin título',
+    String? categoryId,
+  }) async {
     final now = clock().toUtc();
     final note = Note(
       id: newId(),
       folderId: folderId,
-      title: 'Sin título',
+      title: title.trim().isEmpty ? 'Sin título' : title.trim(),
+      categoryId: categoryId,
       createdAt: now,
       updatedAt: now,
     );

@@ -1,5 +1,9 @@
 import 'dart:io';
-import 'dart:typed_data';
+import 'dart:ui' as ui;
+
+import 'package:flutter/services.dart';
+
+import 'file_validation.dart';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:image_picker/image_picker.dart' hide PickedFile;
@@ -32,6 +36,9 @@ class LocalMediaRepository implements MediaRepository {
           final bytes = await f.readAsBytes();
           files.add(PickedFile(f.name, _mime(f.name), bytes));
         }
+        for (final f in files) {
+          FileValidation.validate(f);
+        }
         return files;
       }
       final picker = ImagePicker();
@@ -51,6 +58,9 @@ class LocalMediaRepository implements MediaRepository {
         files.add(
           PickedFile(image.name, _mime(image.name), await image.readAsBytes()),
         );
+      }
+      for (final f in files) {
+        FileValidation.validate(f);
       }
       return files;
     } on AppFailure {
@@ -80,6 +90,40 @@ class LocalMediaRepository implements MediaRepository {
   Future<Attachment> store(PickedFile f) async {
     if (f.bytes.length > maxBytes) {
       throw const AppFailure('El archivo supera 15 MB.');
+    }
+    FileValidation.validate(f);
+    if (f.mime.startsWith('image/')) {
+      final buffer = await ui.ImmutableBuffer.fromUint8List(f.bytes);
+      ui.ImageDescriptor? descriptor;
+      try {
+        descriptor = await ui.ImageDescriptor.encoded(buffer);
+        if (descriptor.width * descriptor.height > 24000000) {
+          throw const AppFailure('Imagen demasiado grande.');
+        }
+        final codec = await descriptor.instantiateCodec();
+        try {
+          final frame = await codec.getNextFrame();
+          frame.image.dispose();
+        } finally {
+          codec.dispose();
+        }
+      } catch (_) {
+        throw const AppFailure(
+          'La imagen está dañada o excede el tamaño permitido.',
+        );
+      } finally {
+        descriptor?.dispose();
+        buffer.dispose();
+      }
+    } else if (f.mime == 'application/pdf' && Platform.isAndroid) {
+      try {
+        await const MethodChannel('draftai/pdf')
+            .invokeMethod<int>('info', {'bytes': f.bytes});
+      } catch (_) {
+        throw const AppFailure(
+          'El PDF está dañado, protegido o no es compatible.',
+        );
+      }
     }
     await directory.create(recursive: true);
     final a = Attachment(newId(), p.basename(f.name), f.mime);

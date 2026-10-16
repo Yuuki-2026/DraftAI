@@ -37,6 +37,7 @@ Future<void> main() async {
     runApp(
       ProviderScope(
         overrides: [
+          examplesPort.overrideWithValue(sl<ExampleService>()),
           notesPort.overrideWithValue(sl<NotesRepository>()),
           mediaPort.overrideWithValue(sl<MediaRepository>()),
           exportPort.overrideWithValue(sl<ExportService>()),
@@ -96,7 +97,7 @@ class DraftApp extends ConsumerWidget {
           : theme == 'light'
           ? ThemeMode.light
           : ThemeMode.dark,
-      locale: const Locale('es'),
+      locale: Locale(settings.value?.locale ?? 'es'),
       supportedLocales: const [Locale('es'), Locale('en')],
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,

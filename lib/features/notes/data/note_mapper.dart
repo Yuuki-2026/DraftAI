@@ -4,7 +4,8 @@ import '../domain/entities.dart';
 
 class NoteMapper {
   static String encode(Note n) => jsonEncode({
-    'v': 1,
+    'v': 2,
+    'documentVersion': n.documentVersion,
     'id': n.id,
     'folderId': n.folderId,
     'categoryId': n.categoryId,
@@ -20,7 +21,9 @@ class NoteMapper {
   });
   static Note decode(String raw) {
     final j = jsonDecode(raw) as Map<String, dynamic>;
-    if (j['v'] != 1) throw const AppFailure('Formato de apunte no compatible.');
+    if (j['v'] != 1 && j['v'] != 2) {
+      throw const AppFailure('Formato de apunte no compatible.');
+    }
     return Note(
       id: j['id'] as String,
       folderId: j['folderId'] as String,
@@ -29,6 +32,7 @@ class NoteMapper {
       topic: j['topic'] as String,
       plainText: j['text'] as String,
       document: j['document'] as String,
+      documentVersion: j['documentVersion'] as int? ?? 1,
       summary: j['summary'] as String,
       createdAt: DateTime.parse(j['created'] as String),
       updatedAt: DateTime.parse(j['updated'] as String),
