@@ -1,7 +1,7 @@
 # Configuración de servicios
 
-## Prueba real de IA en 0.2.0
-El APK se conecta por dispositivo al servidor temporal del propietario sin Firebase ni Google. Ver [TEST_SERVER.md](TEST_SERVER.md) para URL/código, modelos exactos, cuotas e inicio/parada. Las claves de Groq/NVIDIA se conservan cifradas con Windows fuera del repositorio. NVIDIA queda en reserva; el flujo de prueba usa Groq. Qwen se ejecuta en Groq, no se instala ni se descarga en el teléfono o la computadora.
+## Prueba real de IA en 0.2.1
+El APK se conecta por dispositivo al servidor temporal del propietario sin Firebase ni Google. Ver [TEST_SERVER.md](TEST_SERVER.md) para URL/código, modelos exactos, cuotas e inicio/parada. Las claves de Groq, NVIDIA y OpenAI se conservan cifradas con Windows fuera del repositorio. Gratis usa Groq; Pro autorizado usa OpenAI gpt-5-nano-2025-08-07 y validaciones de seguridad Groq. NVIDIA queda en reserva. Los modelos se ejecutan remotamente, sin instalarse en el teléfono o la computadora.
 
 La sección de gateway Firebase de este documento describe otra opción de despliegue para una fase posterior. Google y los pagos reales siguen pendientes.
 
