@@ -4,141 +4,73 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/presentation/design.dart';
+import '../../../core/presentation/strings.dart';
 import '../../notes/domain/entities.dart';
 import '../../notes/domain/ports.dart';
+import '../../notes/domain/note_document.dart';
 import '../../notes/presentation/controller.dart';
 import '../../notes/presentation/note_page.dart';
-import '../../notes/presentation/library_page.dart';
 import '../../settings/presentation/settings_pages.dart';
 
 class CapturePage extends ConsumerStatefulWidget {
   final CaptureSource source;
   const CapturePage({super.key, this.source = CaptureSource.gallery});
   @override
-  ConsumerState<CapturePage> createState() => _CapturePageState();
+  ConsumerState<CapturePage> createState() => _CaptureState();
 }
 
-class _CapturePageState extends ConsumerState<CapturePage> {
+class _CaptureState extends ConsumerState<CapturePage> {
   List<PickedFile> files = [];
-  bool busy = false, analyzing = false;
-  String? folderId;
-  final perFile = <int, String>{};
-  final savedFiles = <PickedFile>{};
-  int? listeningFile;
-  late final SpeechService speech;
-  final perCategory = <int, String>{};
+  String? folderId, categoryId, noteId;
+  bool busy = false;
   @override
   void initState() {
     super.initState();
-    speech = ref.read(speechPort);
     WidgetsBinding.instance.addPostFrameCallback((_) => _pick(widget.source));
   }
 
-  String _normalized(String s) => s
-      .toLowerCase()
-      .replaceAll('á', 'a')
-      .replaceAll('é', 'e')
-      .replaceAll('í', 'i')
-      .replaceAll('ó', 'o')
-      .replaceAll('ú', 'u');
-  Future<void> _voiceAssign(int index, Library lib) async {
-    await runAction(context, () async {
-      if (listeningFile != null) {
-        await speech.stop();
-        if (mounted) setState(() => listeningFile = null);
-        return;
-      }
-      final available = await speech.listen((words) {
-        if (!mounted) return;
-        final value = _normalized(words);
-        final category = lib.categories
-            .where((c) => value.contains(_normalized(c.name)))
-            .firstOrNull;
-        final folder = lib.folders
-            .where((f) => value.contains(_normalized(f.name)))
-            .firstOrNull;
-        if (category != null || folder != null) {
-          setState(() {
-            perFile[index] = category?.folderId ?? folder!.id;
-            if (category != null) {
-              perCategory[index] = category.id;
-            } else {
-              perCategory.remove(index);
-            }
-            listeningFile = null;
-          });
-          speech.stop();
-        }
-      });
-      if (!mounted) return;
-      setState(() => listeningFile = available ? index : null);
-      if (!available) {
-        message(
-          context,
-          'No se pudo activar el micrófono. Elige la carpeta o categoría por su nombre.',
-        );
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    if (listeningFile != null) speech.stop();
-    super.dispose();
-  }
-
   Future<void> _pick(CaptureSource source) async {
+    if (busy) return;
     setState(() => busy = true);
     await runAction(context, () async {
       final picked = await ref.read(mediaPort).pick(source);
-      if (mounted) {
-        setState(() => files = [...files, ...picked].take(20).toList());
+      if (files.length + picked.length > 20) {
+        throw const AppFailure('El lote admite hasta 20 archivos.');
       }
+      if (mounted) setState(() => files = [...files, ...picked]);
     });
     if (mounted) setState(() => busy = false);
   }
 
-  Future<String> _defaultFolder(Library lib) async {
-    if (folderId != null) return folderId!;
-    if (lib.folders.isNotEmpty) return lib.folders.first.id;
-    final ctrl = ref.read(controllerProvider.notifier);
-    final folder = Folder(ctrl.newId(), 'Mis apuntes', 0xFFFFFFFF);
-    await ctrl.folder(folder);
-    return folder.id;
-  }
-
   Future<void> _save(Library lib) async {
+    if (busy || files.isEmpty) return;
     setState(() => busy = true);
     await runAction(context, () async {
-      final defaultId = await _defaultFolder(lib);
-      Note? first;
-      for (var i = 0; i < files.length; i++) {
-        final f = files[i];
-        if (savedFiles.contains(f)) continue;
-        final attachment = await ref.read(mediaPort).store(f);
-        final ctrl = ref.read(controllerProvider.notifier);
-        final now = DateTime.now().toUtc();
-        final note = Note(
-          id: ctrl.newId(),
-          folderId: perFile[i] ?? defaultId,
-          categoryId: perCategory[i],
-          title: f.name,
-          plainText: f.mime == 'text/plain'
-              ? utf8.decode(f.bytes, allowMalformed: true)
-              : '',
-          attachments: [attachment],
-          createdAt: now,
-          updatedAt: now,
-        );
-        await ctrl.save(note, reason: 'Importación');
-        savedFiles.add(f);
-        first ??= note;
+      final ctrl = ref.read(controllerProvider.notifier);
+      Note? destination = lib.active.where((n) => n.id == noteId).firstOrNull;
+      if (destination == null) {
+        var folder = folderId ?? lib.folders.firstOrNull?.id;
+        if (folder == null) {
+          final f = Folder(
+            ctrl.newId(),
+            tr(context, 'Mis apuntes'),
+            0xFFFFFFFF,
+          );
+          await ctrl.folder(f);
+          folder = f.id;
+        }
+        destination = (await ctrl.create(folder))
+            .copyWith(categoryId: categoryId);
+        if (categoryId != null) await ctrl.save(destination);
       }
-      if (mounted && first != null) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute<void>(builder: (_) => NotePage(note: first!)),
-        );
-      }
+      if (!mounted) return;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute<void>(
+          builder: (_) =>
+              NotePage(note: destination!, edit: true, pendingFiles: files),
+        ),
+      );
     });
     if (mounted) setState(() => busy = false);
   }
@@ -148,255 +80,187 @@ class _CapturePageState extends ConsumerState<CapturePage> {
       openPage(context, const PlansPage());
       return;
     }
-    if (ref.read(aiPort).configured &&
-        !await confirm(
-          context,
-          'Enviar imágenes a la IA',
-          'Se enviarán los archivos seleccionados y los nombres de tus carpetas y categorías para proponer su organización. El guardado solo ocurre cuando confirmes.',
-        )) {
+    if (files.isEmpty) return;
+    if (files.length > 5 || files.any((f) => !f.mime.startsWith('image/'))) {
+      message(context, 'Selecciona hasta 5 imágenes para su lectura.');
+      return;
+    }
+    if (!await confirm(
+      context,
+      'Analizar imágenes',
+      'Se enviarán las imágenes al proveedor para transcribir su contenido. Revisarás la propuesta antes de guardar.',
+    )) {
       return;
     }
     if (!mounted) return;
-    setState(() {
-      busy = true;
-      analyzing = true;
-    });
+    setState(() => busy = true);
     await runAction(context, () async {
       final proposal = await ref
           .read(controllerProvider.notifier)
           .analyze(files, lib);
-      if (!mounted) return;
-      openPage(context, ProposalPage(files: files, proposal: proposal));
+      if (mounted) {
+        openPage(context, ProposalPage(files: files, proposal: proposal));
+      }
     });
-    if (mounted) {
-      setState(() {
-        busy = false;
-        analyzing = false;
-      });
-    }
+    if (mounted) setState(() => busy = false);
   }
 
   @override
   Widget build(BuildContext context) {
     final lib = ref.watch(libraryProvider).value ?? const Library([], [], []);
-    final pro = ref.watch(controllerProvider).value?.pro ?? false;
+    final currentFolder = folderId ?? lib.folders.firstOrNull?.id;
+    final notes = lib.active.where((n) => n.folderId == currentFolder).toList();
     return Scaffold(
-      appBar: AppBar(title: const Text('¿Dónde irán tus fotos?')),
+      appBar: AppBar(title: Text(tr(context, '¿Dónde irán tus fotos?'))),
       body: SafeArea(
         child: ResponsiveBody(
           maxWidth: 760,
           child: ListView(
             children: [
               const SizedBox(height: 16),
-              Text(
-                'Captura y organización',
-                style: Theme.of(context).textTheme.titleLarge,
+              if (files.isNotEmpty)
+                SizedBox(
+                  height: 230,
+                  child: PageView.builder(
+                    itemCount: files.length,
+                    itemBuilder: (context, i) => Stack(
+                      children: [
+                        Center(
+                          child: files[i].mime.startsWith('image/')
+                              ? Image.memory(
+                                  files[i].bytes,
+                                  fit: BoxFit.contain,
+                                )
+                              : const Icon(
+                                  Icons.picture_as_pdf_outlined,
+                                  size: 56,
+                                ),
+                        ),
+                        Positioned(
+                          top: 0,
+                          right: 0,
+                          child: IconButton(
+                            tooltip: tr(context, 'Quitar adjunto'),
+                            onPressed: busy
+                                ? null
+                                : () => setState(() => files.removeAt(i)),
+                            icon: const Icon(Icons.close),
+                          ),
+                        ),
+                        Positioned(
+                          bottom: 0,
+                          right: 0,
+                          child: Pill('${i + 1} / ${files.length}'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<String>(
+                initialValue: currentFolder,
+                isExpanded: true,
+                decoration: InputDecoration(
+                  labelText: tr(context, 'Tus carpetas'),
+                ),
+                items: lib.folders
+                    .map(
+                      (f) => DropdownMenuItem(value: f.id, child: Text(f.name)),
+                    )
+                    .toList(),
+                onChanged: busy
+                    ? null
+                    : (v) => setState(() {
+                        folderId = v;
+                        categoryId = null;
+                        noteId = null;
+                      }),
               ),
-              const SizedBox(height: 6),
-              const Text(
-                'Revisa cada archivo antes de incorporarlo a tus apuntes.',
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                key: ValueKey('category-$currentFolder'),
+                initialValue: categoryId ?? '',
+                isExpanded: true,
+                decoration: InputDecoration(labelText: tr(context, 'Tema')),
+                items: [
+                  DropdownMenuItem(
+                    value: '',
+                    child: Text(tr(context, 'Sin categoría')),
+                  ),
+                  ...lib.categories
+                      .where((c) => c.folderId == currentFolder)
+                      .map(
+                        (c) =>
+                            DropdownMenuItem(value: c.id, child: Text(c.name)),
+                      ),
+                ],
+                onChanged: busy
+                    ? null
+                    : (v) => setState(() => categoryId = v == '' ? null : v),
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                key: ValueKey('note-$currentFolder'),
+                initialValue: noteId ?? '',
+                isExpanded: true,
+                decoration: InputDecoration(
+                  labelText: tr(context, 'Nota de destino'),
+                ),
+                items: [
+                  DropdownMenuItem(
+                    value: '',
+                    child: Text(tr(context, 'Crear una nota nueva')),
+                  ),
+                  ...notes.map(
+                    (n) => DropdownMenuItem(
+                      value: n.id,
+                      child: Text(
+                        n.title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ),
+                ],
+                onChanged: busy
+                    ? null
+                    : (v) => setState(() => noteId = v == '' ? null : v),
+              ),
+              const SizedBox(height: 20),
+              FilledButton.icon(
+                onPressed: busy || files.isEmpty ? null : () => _save(lib),
+                icon: const Icon(Icons.edit_note),
+                label: Text(tr(context, 'Continuar en el editor')),
+              ),
+              const SizedBox(height: 10),
+              OutlinedButton.icon(
+                onPressed: busy || files.isEmpty ? null : () => _analyze(lib),
+                icon: const Icon(Icons.auto_awesome),
+                label: Text(tr(context, 'Analizar imágenes')),
               ),
               const SizedBox(height: 12),
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
                 children: [
-                  OutlinedButton.icon(
-                    onPressed: busy ? null : () => _pick(CaptureSource.camera),
-                    icon: const Icon(Icons.camera_alt_outlined, size: 18),
-                    label: const Text('Cámara'),
-                  ),
-                  OutlinedButton.icon(
+                  TextButton.icon(
                     onPressed: busy ? null : () => _pick(CaptureSource.gallery),
-                    icon: const Icon(Icons.photo_library_outlined, size: 18),
-                    label: const Text('Imágenes'),
+                    icon: const Icon(Icons.add_photo_alternate_outlined),
+                    label: Text(tr(context, 'Añadir otra')),
                   ),
-                  OutlinedButton.icon(
+                  TextButton.icon(
                     onPressed: busy ? null : () => _pick(CaptureSource.files),
-                    icon: const Icon(Icons.attach_file, size: 18),
-                    label: const Text('Archivos'),
+                    icon: const Icon(Icons.attach_file),
+                    label: Text(tr(context, 'Archivos')),
+                  ),
+                  TextButton(
+                    onPressed: busy ? null : () => Navigator.pop(context),
+                    child: Text(tr(context, 'Descartar lote')),
                   ),
                 ],
               ),
-              SectionTitle('${files.length} archivos seleccionados'),
-              if (busy)
-                Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    children: [
-                      const LinearProgressIndicator(),
-                      const SizedBox(height: 8),
-                      Text(
-                        analyzing
-                            ? 'Analizando archivos…'
-                            : 'Preparando archivos…',
-                      ),
-                      if (analyzing)
-                        TextButton(
-                          onPressed: () => ref.read(aiPort).cancel(),
-                          child: const Text('Cancelar análisis'),
-                        ),
-                    ],
-                  ),
-                ),
-              if (files.isEmpty && !busy)
-                const Surface(
-                  child: Text(
-                    'Añade imágenes, PDF o texto. Cada archivo puede pesar hasta 15 MB; máximo 20 por lote.',
-                  ),
-                ),
-              for (var i = 0; i < files.length; i++)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: Surface(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        if (files[i].mime.startsWith('image/'))
-                          Image.memory(
-                            files[i].bytes,
-                            height: 160,
-                            fit: BoxFit.contain,
-                            errorBuilder: (_, _, _) => const Icon(
-                              Icons.image_not_supported_outlined,
-                              size: 48,
-                            ),
-                          ),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                files[i].name,
-                                style: const TextStyle(fontSize: 12),
-                              ),
-                            ),
-                            IconButton(
-                              tooltip: 'Quitar archivo',
-                              onPressed: busy
-                                  ? null
-                                  : () => setState(() {
-                                      files.removeAt(i);
-                                      perFile.clear();
-                                      perCategory.clear();
-                                    }),
-                              icon: const Icon(Icons.close, size: 18),
-                            ),
-                          ],
-                        ),
-                        Meta(byteLabel(files[i].bytes.length)),
-                        TextButton.icon(
-                          onPressed: busy ? null : () => _voiceAssign(i, lib),
-                          icon: Icon(
-                            listeningFile == i
-                                ? Icons.stop_circle_outlined
-                                : Icons.mic_none,
-                            size: 18,
-                          ),
-                          label: Text(
-                            listeningFile == i
-                                ? 'Escuchando · detener'
-                                : 'Asignar carpeta o categoría por voz',
-                          ),
-                        ),
-
-                        if (lib.folders.isNotEmpty)
-                          DropdownButtonFormField<String>(
-                            key: ValueKey('folder_${i}_${perFile[i]}'),
-                            initialValue: perFile[i] ?? lib.folders.first.id,
-                            decoration: const InputDecoration(
-                              labelText: 'Carpeta',
-                            ),
-                            items: lib.folders
-                                .map(
-                                  (f) => DropdownMenuItem(
-                                    value: f.id,
-                                    child: Text(
-                                      f.name,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                )
-                                .toList(),
-                            onChanged: busy
-                                ? null
-                                : (v) => setState(() {
-                                    perFile[i] = v!;
-                                    perCategory.remove(i);
-                                  }),
-                          ),
-                        if (lib.categories
-                            .where(
-                              (c) =>
-                                  c.folderId ==
-                                  (perFile[i] ?? lib.folders.firstOrNull?.id),
-                            )
-                            .isNotEmpty) ...[
-                          const SizedBox(height: 8),
-                          DropdownButtonFormField<String>(
-                            key: ValueKey('cat_${i}_${perFile[i]}'),
-                            initialValue: perCategory[i] ?? '',
-                            decoration: const InputDecoration(
-                              labelText: 'Categoría',
-                            ),
-                            items: [
-                              const DropdownMenuItem(
-                                value: '',
-                                child: Text('Sin categoría'),
-                              ),
-                              ...lib.categories
-                                  .where(
-                                    (c) =>
-                                        c.folderId ==
-                                        (perFile[i] ??
-                                            lib.folders.firstOrNull?.id),
-                                  )
-                                  .map(
-                                    (c) => DropdownMenuItem(
-                                      value: c.id,
-                                      child: Text(c.name),
-                                    ),
-                                  ),
-                            ],
-                            onChanged: busy
-                                ? null
-                                : (v) => setState(() {
-                                    if (v == '') {
-                                      perCategory.remove(i);
-                                    } else {
-                                      perCategory[i] = v!;
-                                    }
-                                  }),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ),
-              TextButton.icon(
-                onPressed: busy ? null : () => editFolder(context, ref),
-                icon: const Icon(Icons.create_new_folder_outlined, size: 18),
-                label: const Text('Crear otra carpeta'),
-              ),
-              if (files.isNotEmpty) ...[
-                const SectionTitle('¿Cómo quieres continuar?'),
-                FilledButton.icon(
-                  onPressed: busy ? null : () => _save(lib),
-                  icon: const Icon(Icons.save_outlined, size: 18),
-                  label: const Text('Hazlo tú · guardar sin OCR'),
-                ),
-                const SizedBox(height: 10),
-                OutlinedButton.icon(
-                  onPressed: busy ? null : () => _analyze(lib),
-                  icon: const Icon(Icons.auto_awesome_outlined, size: 18),
-                  label: Text(pro ? 'Déjalo a la IA' : 'Déjalo a la IA · Pro'),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  pro ? 'La clasificación siempre requiere tu revisión.' : 'Gratis conserva las imágenes como adjuntos. No extrae texto.',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ],
-              const SizedBox(height: 28),
+              if (busy) const LinearProgressIndicator(),
+              const SizedBox(height: 24),
             ],
           ),
         ),
@@ -480,6 +344,7 @@ class _ProposalPageState extends ConsumerState<ProposalPage> {
         title: title.text.trim(),
         topic: topic.text,
         plainText: text.text,
+        document: jsonEncode(NoteDocument.formatted(text.text)),
         summary: summary.text,
         attachments: attachments,
         createdAt: now,

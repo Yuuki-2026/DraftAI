@@ -89,7 +89,7 @@ abstract final class NoteDocument {
             final attrs = op['attributes'] is Map
                 ? op['attributes'] as Map
                 : const {};
-            if (text.isNotEmpty)
+            if (text.isNotEmpty) {
               result.add(
                 DocumentPart(
                   text: text,
@@ -97,6 +97,7 @@ abstract final class NoteDocument {
                   bullet: attrs['list'] == 'bullet',
                 ),
               );
+            }
             text = '';
           }
         }
