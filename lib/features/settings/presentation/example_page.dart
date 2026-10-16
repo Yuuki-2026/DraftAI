@@ -61,7 +61,7 @@ class _ExampleState extends ConsumerState<ExamplePage> {
               Text(
                 tr(
                   context,
-                  'Carga 20 notas ficticias en 4 carpetas, con imágenes, PDF y textos para probar edición, lectura, IA y exportación. La instalación inicial permanece vacía hasta que lo solicites.',
+                  'Carga 120 notas ficticias en 8 carpetas, 24 temas y fechas de los últimos ocho meses, con imágenes, PDF y textos para probar edición, lectura, IA y exportación. La instalación inicial permanece vacía hasta que lo solicites.',
                 ),
               ),
               const SizedBox(height: 20),

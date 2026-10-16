@@ -17,6 +17,7 @@ class GatewayAi implements AiService, AiConnection {
     _endpoint =
         await secure.read('test_ai_endpoint') ??
         const String.fromEnvironment('AI_BASE_URL');
+    _model = await secure.read('test_ai_model') ?? _model;
     final token = await secure.read('test_ai_device_token') ?? '';
     if (_endpoint.isNotEmpty && token.isNotEmpty) {
       _remote = RemoteAi(Uri.parse(_endpoint), _DeviceIdentity(token), client);
@@ -70,7 +71,12 @@ class GatewayAi implements AiService, AiConnection {
       await secure.write('test_ai_endpoint', base.toString());
       await secure.write('test_ai_device_token', token);
       _endpoint = base.toString();
-      _model = value['model'] is String ? value['model'] as String : _model;
+      _model = value['proModel'] is String
+          ? '${value['model']} · Pro: ${value['proModel']}'
+          : value['model'] is String
+          ? value['model'] as String
+          : _model;
+      await secure.write('test_ai_model', _model);
       _remote = RemoteAi(base, _DeviceIdentity(token), client);
     } on AppFailure {
       rethrow;

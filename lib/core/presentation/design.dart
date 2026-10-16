@@ -7,9 +7,9 @@ abstract final class AppColors {
       low = Color(0xFF1C1B1B),
       mid = Color(0xFF201F1F),
       high = Color(0xFF2A2A2A),
-      line = Color(0xFF4A4A4A),
+      line = Color(0xFF393939),
       text = Color(0xFFF5F5F5),
-      muted = Color(0xFFB5B5B5);
+      muted = Color(0xFFA0A0A0);
 }
 
 ThemeData appTheme(Brightness brightness) {
@@ -21,6 +21,20 @@ ThemeData appTheme(Brightness brightness) {
       ).copyWith(
         primary: dark ? Colors.white : Colors.black,
         onPrimary: dark ? Colors.black : Colors.white,
+        secondary: dark ? Colors.white : Colors.black,
+        onSecondary: dark ? Colors.black : Colors.white,
+        secondaryContainer: dark ? AppColors.high : const Color(0xFFEEEEEE),
+        onSecondaryContainer: dark ? AppColors.text : const Color(0xFF171717),
+        tertiary: dark ? Colors.white : Colors.black,
+        onTertiary: dark ? Colors.black : Colors.white,
+        surfaceTint: Colors.transparent,
+        surfaceContainerLowest: dark ? AppColors.background : Colors.white,
+        surfaceContainerLow: dark ? AppColors.low : const Color(0xFFF5F5F5),
+        surfaceContainer: dark ? AppColors.mid : const Color(0xFFF0F0F0),
+        surfaceContainerHigh: dark ? AppColors.high : const Color(0xFFEAEAEA),
+        surfaceContainerHighest: dark
+            ? const Color(0xFF353534)
+            : const Color(0xFFE2E2E2),
         surface: dark ? AppColors.background : const Color(0xFFFAFAFA),
         onSurface: dark ? AppColors.text : const Color(0xFF171717),
         onSurfaceVariant: dark
@@ -36,7 +50,7 @@ ThemeData appTheme(Brightness brightness) {
     colorScheme: scheme,
     fontFamily: 'Inter',
     scaffoldBackgroundColor: scheme.surface,
-    dividerColor: scheme.outline,
+    dividerColor: scheme.outlineVariant,
     appBarTheme: AppBarTheme(
       backgroundColor: scheme.surface,
       foregroundColor: scheme.onSurface,
@@ -114,6 +128,7 @@ ThemeData appTheme(Brightness brightness) {
       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
     ),
     bottomSheetTheme: BottomSheetThemeData(
+      surfaceTintColor: Colors.transparent,
       backgroundColor: dark ? AppColors.low : Colors.white,
       showDragHandle: true,
       shape: const RoundedRectangleBorder(
@@ -121,6 +136,7 @@ ThemeData appTheme(Brightness brightness) {
       ),
     ),
     dialogTheme: DialogThemeData(
+      surfaceTintColor: Colors.transparent,
       backgroundColor: dark ? AppColors.low : Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
     ),
@@ -270,3 +286,25 @@ String byteLabel(int b) => b < 1024
     : b < 1024 * 1024
     ? '${(b / 1024).toStringAsFixed(1)} KB'
     : '${(b / 1024 / 1024).toStringAsFixed(1)} MB';
+
+/// Filled folder colour with a visible outline even for white on light surfaces.
+class FolderGlyph extends StatelessWidget {
+  final int color;
+  final double size;
+  const FolderGlyph(this.color, {super.key, this.size = 22});
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    width: size,
+    height: size,
+    child: Stack(
+      children: [
+        Icon(Icons.folder, color: Color(color), size: size),
+        Icon(
+          Icons.folder_outlined,
+          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: .38),
+          size: size,
+        ),
+      ],
+    ),
+  );
+}

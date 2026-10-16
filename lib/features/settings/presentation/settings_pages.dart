@@ -627,7 +627,7 @@ class AboutPage extends StatelessWidget {
                 style: TextStyle(fontSize: 24, fontWeight: FontWeight.w600),
               ),
             ),
-            Center(child: Meta(tr(context, 'Versión 0.2.0 · Build 3'))),
+            Center(child: Meta(tr(context, 'Versión 0.2.1 · Build 4'))),
             SizedBox(height: 20),
             Surface(
               child: Wrap(
@@ -665,7 +665,7 @@ class AboutPage extends StatelessWidget {
               onTap: () => showLicensePage(
                 context: context,
                 applicationName: 'DraftAI',
-                applicationVersion: '0.2.0',
+                applicationVersion: '0.2.1',
               ),
             ),
             SizedBox(height: 24),
@@ -711,7 +711,7 @@ class InformationPage extends StatelessWidget {
         ? [
             (
               'Uso de DraftAI',
-              'DraftAI permite crear y organizar notas con texto e imágenes guardadas en el dispositivo. Puedes agruparlas en carpetas y categorías, buscar su contenido y exportarlas para compartir. Los planes y precios son demostrativos; no se procesan pagos.',
+              'DraftAI permite crear y organizar notas con texto e imágenes guardadas en el dispositivo. Puedes agruparlas en carpetas, buscar su contenido y exportarlas para compartir. Los planes y precios son demostrativos; no se procesan pagos.',
             ),
             (
               'Revisión del contenido',
@@ -729,7 +729,7 @@ class InformationPage extends StatelessWidget {
             ),
             (
               'Añadir imágenes y PDF',
-              'Usa + Nuevo para cámara, imágenes o archivos. Revisa cada elemento y elige carpeta/categoría. Gratis guarda las imágenes sin OCR. Puedes añadir archivos también desde el editor.',
+              'Usa + Nuevo para cámara, imágenes o archivos. Revisa cada elemento y elige carpeta. Gratis guarda las imágenes sin OCR. Puedes añadir archivos también desde el editor.',
             ),
             (
               'Revisar cambios',

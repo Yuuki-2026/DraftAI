@@ -173,9 +173,7 @@ class RemoteAi implements AiService {
       'folders': library.folders
           .map((f) => {'id': f.id, 'name': f.name})
           .toList(),
-      'categories': library.categories
-          .map((c) => {'id': c.id, 'folderId': c.folderId, 'name': c.name})
-          .toList(),
+      'categories': <Map<String, String>>[],
     });
     if ([
       'text',

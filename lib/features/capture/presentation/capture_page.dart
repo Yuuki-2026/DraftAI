@@ -21,7 +21,7 @@ class CapturePage extends ConsumerStatefulWidget {
 
 class _CaptureState extends ConsumerState<CapturePage> {
   List<PickedFile> files = [];
-  String? folderId, categoryId, noteId;
+  String? folderId, noteId;
   bool busy = false;
   @override
   void initState() {
@@ -59,9 +59,7 @@ class _CaptureState extends ConsumerState<CapturePage> {
           await ctrl.folder(f);
           folder = f.id;
         }
-        destination = (await ctrl.create(folder))
-            .copyWith(categoryId: categoryId);
-        if (categoryId != null) await ctrl.save(destination);
+        destination = await ctrl.create(folder);
       }
       if (!mounted) return;
       Navigator.pushReplacement(
@@ -174,33 +172,8 @@ class _CaptureState extends ConsumerState<CapturePage> {
                     ? null
                     : (v) => setState(() {
                         folderId = v;
-                        categoryId = null;
                         noteId = null;
                       }),
-              ),
-              SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                key: ValueKey('category-$currentFolder'),
-                initialValue: categoryId ?? '',
-                isExpanded: true,
-                decoration: InputDecoration(
-                  labelText: tr(context, 'Categoría'),
-                ),
-                items: [
-                  DropdownMenuItem(
-                    value: '',
-                    child: Text(tr(context, 'Sin categoría')),
-                  ),
-                  ...lib.categories
-                      .where((c) => c.folderId == currentFolder)
-                      .map(
-                        (c) =>
-                            DropdownMenuItem(value: c.id, child: Text(c.name)),
-                      ),
-                ],
-                onChanged: busy
-                    ? null
-                    : (v) => setState(() => categoryId = v == '' ? null : v),
               ),
               SizedBox(height: 12),
               DropdownButtonFormField<String>(
@@ -282,7 +255,7 @@ class ProposalPage extends ConsumerStatefulWidget {
 }
 
 class _ProposalPageState extends ConsumerState<ProposalPage> {
-  late TextEditingController title, topic, text, summary, folder, category;
+  late TextEditingController title, topic, text, summary, folder;
   bool busy = false;
   @override
   void initState() {
@@ -293,12 +266,11 @@ class _ProposalPageState extends ConsumerState<ProposalPage> {
     text = TextEditingController(text: p.text);
     summary = TextEditingController(text: p.summary);
     folder = TextEditingController(text: p.folderName);
-    category = TextEditingController(text: p.categoryName);
   }
 
   @override
   void dispose() {
-    for (final c in [title, topic, text, summary, folder, category]) {
+    for (final c in [title, topic, text, summary, folder]) {
       c.dispose();
     }
     super.dispose();
@@ -322,20 +294,6 @@ class _ProposalPageState extends ConsumerState<ProposalPage> {
         f = Folder(ctrl.newId(), folder.text.trim(), 0xFFFFFFFF);
         await ctrl.folder(f);
       }
-      Category? cat;
-      if (category.text.trim().isNotEmpty) {
-        cat = lib.categories
-            .where(
-              (c) =>
-                  c.folderId == f!.id &&
-                  c.name.toLowerCase() == category.text.trim().toLowerCase(),
-            )
-            .firstOrNull;
-        if (cat == null) {
-          cat = Category(ctrl.newId(), f.id, category.text.trim());
-          await ctrl.category(cat);
-        }
-      }
       final attachments = <Attachment>[];
       for (final file in widget.files) {
         attachments.add(await ref.read(mediaPort).store(file));
@@ -344,7 +302,6 @@ class _ProposalPageState extends ConsumerState<ProposalPage> {
       final note = Note(
         id: ctrl.newId(),
         folderId: f.id,
-        categoryId: cat?.id,
         title: title.text.trim(),
         topic: topic.text,
         plainText: text.text,
@@ -395,7 +352,6 @@ class _ProposalPageState extends ConsumerState<ProposalPage> {
               (title, 'Título'),
               (topic, 'Tema'),
               (folder, 'Carpeta existente o nueva'),
-              (category, 'Categoría existente o nueva'),
             ])
               Padding(
                 padding: const EdgeInsets.only(bottom: 12),

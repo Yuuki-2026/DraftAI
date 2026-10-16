@@ -9,6 +9,7 @@ import '../../../core/presentation/design.dart';
 import '../domain/entities.dart';
 import 'controller.dart';
 import 'media_widgets.dart';
+import 'note_format_bar.dart';
 import '../domain/note_document.dart';
 import '../../../core/presentation/strings.dart';
 import 'library_page.dart';
@@ -40,6 +41,8 @@ class _NotePageState extends ConsumerState<NotePage>
   Timer? debounce;
   late List<PickedFile> pendingFiles;
   bool inserting = false;
+  bool reading = false;
+  double readingScale = 1;
   bool editing = false,
       dirty = false,
       saving = false,
@@ -205,12 +208,25 @@ class _NotePageState extends ConsumerState<NotePage>
             children: [
               Meta(tr(context, 'DraftAI')),
               Text(
-                tr(context, editing ? 'Editar apunte' : 'Vista del apunte'),
+                tr(
+                  context,
+                  editing
+                      ? 'Editar apunte'
+                      : reading
+                      ? 'Modo lectura'
+                      : 'Vista del apunte',
+                ),
                 style: const TextStyle(fontSize: 16),
               ),
             ],
           ),
           actions: [
+            if (editing)
+              IconButton(
+                tooltip: tr(context, 'Insertar'),
+                onPressed: _insertMenu,
+                icon: const Icon(Icons.add_photo_alternate_outlined, size: 22),
+              ),
             if (editing)
               TextButton(
                 onPressed: saving
@@ -247,6 +263,38 @@ class _NotePageState extends ConsumerState<NotePage>
               controller: scroll,
               padding: const EdgeInsets.symmetric(vertical: 16),
               children: [
+                if (!editing)
+                  Row(
+                    children: [
+                      TextButton.icon(
+                        onPressed: () => setState(() => reading = !reading),
+                        icon: Icon(
+                          reading ? Icons.menu_book : Icons.menu_book_outlined,
+                          size: 18,
+                        ),
+                        label: Text(
+                          tr(context, reading ? 'Lectura activa' : 'Lectura'),
+                        ),
+                      ),
+                      const Spacer(),
+                      if (reading) ...[
+                        IconButton(
+                          tooltip: tr(context, 'Reducir texto'),
+                          onPressed: readingScale <= .85
+                              ? null
+                              : () => setState(() => readingScale -= .1),
+                          icon: const Icon(Icons.text_decrease, size: 20),
+                        ),
+                        IconButton(
+                          tooltip: tr(context, 'Ampliar texto'),
+                          onPressed: readingScale >= 1.65
+                              ? null
+                              : () => setState(() => readingScale += .1),
+                          icon: const Icon(Icons.text_increase, size: 20),
+                        ),
+                      ],
+                    ],
+                  ),
                 if (saving) const LinearProgressIndicator(),
                 if (dirty && !saving && status.startsWith('No se pudo'))
                   Text(status),
@@ -255,6 +303,12 @@ class _NotePageState extends ConsumerState<NotePage>
                     key: const Key('note-title'),
                     controller: title,
                     maxLength: 200,
+                    buildCounter: (
+                      _, {
+                      required currentLength,
+                      required isFocused,
+                      maxLength,
+                    }) => null,
                     style: Theme.of(context).textTheme.titleLarge,
                     decoration: InputDecoration(
                       labelText: tr(context, 'Título de la sesión'),
@@ -294,58 +348,88 @@ class _NotePageState extends ConsumerState<NotePage>
                       'Toca una línea del texto y luego pulsa Insertar.',
                     ),
                   ),
-                  FilledButton.icon(
-                    onPressed: () async {
-                      final files = List<PickedFile>.of(pendingFiles);
-                      final insertion = editor.selection.extentOffset.clamp(
-                        0,
-                        editor.document.length - 1,
-                      );
-                      await runAction(context, () async {
-                        await _insertFiles(files, at: insertion);
-                        if (mounted) setState(() => pendingFiles = []);
-                      });
-                    },
+                  TextButton.icon(
+                    onPressed: inserting
+                        ? null
+                        : () async {
+                            final files = List<PickedFile>.of(pendingFiles);
+                            final insertion = editor.selection.extentOffset
+                                .clamp(0, editor.document.length - 1);
+                            await runAction(context, () async {
+                              await _insertFiles(files, at: insertion);
+                              if (mounted) setState(() => pendingFiles = []);
+                            });
+                          },
                     icon: const Icon(Icons.add_photo_alternate_outlined),
                     label: Text(
                       tr(context, 'Insertar ${pendingFiles.length} archivos'),
                     ),
                   ),
                 ],
-                q.QuillEditor(
-                  controller: editor,
-                  focusNode: focus,
-                  scrollController: editorScroll,
-                  config: q.QuillEditorConfig(
-                    embedBuilders: [
-                      NoteMediaEmbed(
-                        note.attachments
-                            .where(
-                              (a) => NoteDocument.references(
-                                jsonEncode(editor.document.toDelta().toJson()),
-                              ).contains(a.id),
-                            )
-                            .toList(),
+                Surface(
+                  child: MediaQuery(
+                    data: MediaQuery.of(context).copyWith(
+                      textScaler: TextScaler.linear(
+                        MediaQuery.textScalerOf(context)
+                            .scale(reading ? readingScale : 1),
                       ),
-                    ],
-                    scrollable: false,
-                    autoFocus: false,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    placeholder: 'Escribe tus ideas aquí…',
-                    expands: false,
-                    minHeight: 220,
+                    ),
+                    child: q.QuillEditor(
+                      controller: editor,
+                      focusNode: focus,
+                      scrollController: editorScroll,
+                      config: q.QuillEditorConfig(
+                        embedBuilders: [
+                          NoteMediaEmbed(
+                            note.attachments
+                                .where(
+                                  (a) => NoteDocument.references(
+                                    jsonEncode(
+                                      editor.document.toDelta().toJson(),
+                                    ),
+                                  ).contains(a.id),
+                                )
+                                .toList(),
+                          ),
+                        ],
+                        scrollable: false,
+                        autoFocus: false,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        placeholder: tr(context, 'Escribe tus ideas aquí…'),
+                        expands: false,
+                        minHeight: 220,
+                      ),
+                    ),
                   ),
                 ),
-                if (editing)
-                  OutlinedButton.icon(
-                    onPressed: () => _attach(CaptureSource.gallery),
-                    icon: const Icon(Icons.add_photo_alternate_outlined),
-                    label: Text(tr(context, 'Añadir imágenes')),
-                  ),
                 if (note.summary.isNotEmpty) ...[
                   SectionTitle('Resumen interno'),
                   Surface(child: SelectableText(note.summary)),
                 ],
+                if (lib != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 14),
+                    child: Row(
+                      children: [
+                        Meta(tr(context, 'Guardado en')),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            lib.folders
+                                    .where((f) => f.id == note.folderId)
+                                    .firstOrNull
+                                    ?.name ??
+                                '',
+                            textAlign: TextAlign.right,
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 SizedBox(height: 24),
               ],
             ),
@@ -355,6 +439,9 @@ class _NotePageState extends ConsumerState<NotePage>
           top: false,
           child: Container(
             decoration: BoxDecoration(
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? AppColors.low
+                  : Colors.white,
               border: Border(
                 top: BorderSide(color: Theme.of(context).dividerColor),
               ),
@@ -363,27 +450,7 @@ class _NotePageState extends ConsumerState<NotePage>
                 ? Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      q.QuillSimpleToolbar(
-                        controller: editor,
-                        config: const q.QuillSimpleToolbarConfig(
-                          multiRowsDisplay: false,
-                          showFontFamily: true,
-                          showFontSize: true,
-                          showColorButton: true,
-                          showBackgroundColorButton: false,
-                          showSearchButton: false,
-                          showLink: false,
-                          showCodeBlock: false,
-                          showInlineCode: false,
-                          showQuote: true,
-                          showIndent: false,
-                          showSubscript: false,
-                          showSuperscript: false,
-                          showListCheck: true,
-                          showClearFormat: true,
-                          showAlignmentButtons: false,
-                        ),
-                      ),
+                      NoteFormatBar(controller: editor, onFormula: _formula),
                       _editingTools(),
                     ],
                   )
@@ -394,110 +461,107 @@ class _NotePageState extends ConsumerState<NotePage>
     );
   }
 
-  Widget _location(Library lib) => Wrap(
-    spacing: 12,
-    runSpacing: 8,
-    children: [
-      DropdownButton<String>(
-        value: note.folderId,
-        isDense: true,
-        items: lib.folders
-            .map(
-              (f) => DropdownMenuItem(
-                value: f.id,
-                child: SizedBox(
-                  width: 160,
+  Widget _location(Library lib) => DropdownButtonFormField<String>(
+    initialValue: note.folderId,
+    isExpanded: true,
+    decoration: InputDecoration(
+      labelText: tr(context, 'Carpeta'),
+      isDense: true,
+    ),
+    items: lib.folders
+        .map(
+          (f) => DropdownMenuItem(
+            value: f.id,
+            child: Row(
+              children: [
+                FolderGlyph(f.color, size: 18),
+                const SizedBox(width: 8),
+                Expanded(
                   child: Text(
                     f.name,
+                    maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(fontSize: 12),
                   ),
                 ),
-              ),
-            )
-            .toList(),
-        onChanged: (id) {
-          if (id != null) {
-            setState(() {
-              note = note.copyWith(folderId: id, clearCategory: true);
-              _changed();
-            });
-          }
-        },
-      ),
-      DropdownButton<String>(
-        value: note.categoryId ?? '',
-        isDense: true,
-        items: [
-          DropdownMenuItem(
-            value: '',
-            child: Text(
-              tr(context, 'Sin categoría'),
-              style: TextStyle(fontSize: 12),
+              ],
             ),
           ),
-          ...lib.categories
-              .where((c) => c.folderId == note.folderId)
-              .map(
-                (c) => DropdownMenuItem(
-                  value: c.id,
-                  child: Text(c.name, style: const TextStyle(fontSize: 12)),
+        )
+        .toList(),
+    onChanged: (id) {
+      if (id != null) {
+        setState(() => note = note.copyWith(folderId: id, clearCategory: true));
+        _changed();
+      }
+    },
+  );
+
+  Widget _tool(
+    IconData icon,
+    String label,
+    VoidCallback action, {
+    bool primary = false,
+  }) => Expanded(
+    child: Tooltip(
+      message: tr(context, label),
+      child: InkWell(
+        onTap: action,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 2),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: EdgeInsets.all(primary ? 7 : 4),
+                decoration: primary
+                    ? BoxDecoration(
+                        color: Theme.of(context).colorScheme.primary,
+                        borderRadius: BorderRadius.circular(12),
+                      )
+                    : null,
+                child: Icon(
+                  icon,
+                  size: primary ? 22 : 20,
+                  color: primary
+                      ? Theme.of(context).colorScheme.onPrimary
+                      : Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ),
-        ],
-        onChanged: (id) => setState(() {
-          note = note.copyWith(categoryId: id, clearCategory: id == '');
-          _changed();
-        }),
+              const SizedBox(height: 4),
+              Text(
+                tr(context, label),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 10,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
-      TextButton(
-        onPressed: () {
-          final f = lib.folders.firstWhere((f) => f.id == note.folderId);
-          editCategory(context, ref, f);
-        },
-        child: Text(tr(context, '+ Categoría')),
-      ),
+    ),
+  );
+
+  // Primary actions stay visible in the note and in reading mode.
+  Widget _readingTools() => Row(
+    children: [
+      _tool(Icons.add, 'Nuevo', () async {
+        if (await _flush() && mounted) {
+          if (context.mounted) {
+            await createNote(context, ref, folderId: note.folderId);
+          }
+        }
+      }),
+      _tool(Icons.edit_outlined, 'Editar', _enterEdit),
+      _tool(Icons.auto_awesome_outlined, 'IA', _ai, primary: true),
+      _tool(Icons.ios_share_outlined, 'Exportar', _export),
+      _tool(Icons.more_vert, 'Más', _more),
     ],
   );
-  Widget _tool(IconData icon, String label, VoidCallback action) => Expanded(
-    child: InkWell(
-      onTap: action,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 2),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 20),
-            SizedBox(height: 5),
-            Text(tr(context, label), style: const TextStyle(fontSize: 10)),
-          ],
-        ),
-      ),
-    ),
-  );
-  Widget _readingTools() => Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-    child: Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        IconButton(
-          tooltip: tr(context, 'Volver'),
-          onPressed: _back,
-          icon: const Icon(Icons.arrow_back),
-        ),
-        FilledButton.icon(
-          onPressed: _ai,
-          icon: const Icon(Icons.auto_awesome),
-          label: Text(tr(context, 'IA')),
-        ),
-        IconButton(
-          tooltip: tr(context, 'Más'),
-          onPressed: _more,
-          icon: const Icon(Icons.more_horiz),
-        ),
-      ],
-    ),
-  );
+
   Widget _editingTools() => Row(
     children: [
       _tool(
@@ -511,10 +575,144 @@ class _NotePageState extends ConsumerState<NotePage>
         () => _attach(CaptureSource.camera),
       ),
       _tool(Icons.auto_awesome_outlined, 'Mejorar', _improve),
-      _tool(Icons.psychology_outlined, 'IA', _ai),
-      _tool(Icons.attach_file, 'Archivos', () => _attach(CaptureSource.files)),
+      _tool(Icons.edit_outlined, 'Tipos', _types),
     ],
   );
+
+  void _enterEdit() {
+    setState(() {
+      editing = true;
+      reading = false;
+      editor.readOnly = false;
+    });
+    focus.requestFocus();
+  }
+
+  Future<void> _export() async {
+    if (await _flush() && mounted && context.mounted) {
+      await exportMenu(context, ref, [_snapshot()]);
+    }
+  }
+
+  Future<void> _insertMenu() async {
+    final source = await showModalBottomSheet<CaptureSource>(
+      context: context,
+      builder: (c) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(title: Text(tr(c, 'Insertar'))),
+            for (final item in [
+              (
+                CaptureSource.gallery,
+                Icons.photo_library_outlined,
+                'Añadir imágenes',
+              ),
+              (CaptureSource.camera, Icons.camera_alt_outlined, 'Cámara'),
+              (CaptureSource.files, Icons.attach_file, 'Archivos'),
+            ])
+              ListTile(
+                leading: Icon(item.$2),
+                title: Text(tr(c, item.$3)),
+                onTap: () => Navigator.pop(c, item.$1),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (source != null && mounted) await _attach(source);
+  }
+
+  Future<void> _types() => showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    builder: (c) => SafeArea(
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text(tr(c, 'Tipos y formato')),
+                trailing: IconButton(
+                  tooltip: tr(c, 'Cerrar'),
+                  onPressed: () => Navigator.pop(c),
+                  icon: const Icon(Icons.close),
+                ),
+              ),
+              q.QuillSimpleToolbar(
+                controller: editor,
+                config: const q.QuillSimpleToolbarConfig(
+                  multiRowsDisplay: true,
+                  showFontFamily: true,
+                  showFontSize: true,
+                  showColorButton: true,
+                  showBackgroundColorButton: false,
+                  showBoldButton: false,
+                  showItalicButton: false,
+                  showSearchButton: false,
+                  showLink: false,
+                  showCodeBlock: false,
+                  showInlineCode: false,
+                  showIndent: false,
+                  showSubscript: false,
+                  showSuperscript: false,
+                  showUndo: false,
+                  showRedo: false,
+                  showAlignmentButtons: true,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
+
+  Future<void> _formula() async {
+    final input = TextEditingController();
+    final selection = editor.selection;
+    final value = await showDialog<String>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: Text(tr(c, 'Fórmula')),
+        content: TextField(
+          controller: input,
+          autofocus: true,
+          minLines: 1,
+          maxLines: 4,
+          decoration: const InputDecoration(
+            hintText: '∮ F · dr = ∬ (∇ × F) · n dS',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(c),
+            child: Text(tr(c, 'Cancelar')),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(c, input.text.trim()),
+            child: Text(tr(c, 'Insertar')),
+          ),
+        ],
+      ),
+    );
+    input.dispose();
+    if (value == null || value.isEmpty || !mounted) return;
+    final start = selection.start.clamp(0, editor.document.length - 1);
+    final length =
+        selection.end.clamp(start, editor.document.length - 1) - start;
+    editor.replaceText(
+      start,
+      length,
+      value,
+      TextSelection.collapsed(offset: start + value.length),
+    );
+  }
+
   Future<void> _attach(CaptureSource source) async {
     // Save selection before opening a native picker, which can move focus.
     final insertion = editor.selection.extentOffset.clamp(
@@ -863,12 +1061,7 @@ class _NotePageState extends ConsumerState<NotePage>
     );
     if (!mounted) return;
     if (action == 'ai') await _ai();
-    if (action == 'edit') {
-      setState(() {
-        editing = true;
-        editor.readOnly = false;
-      });
-    }
+    if (action == 'edit') _enterEdit();
     if (action == 'history') await _history();
     if (action == 'trash' && await _flush() && mounted) {
       await runAction(context, () async {

@@ -270,7 +270,7 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
               size: 21,
               color: tab == index
                   ? Theme.of(context).colorScheme.onSurface
-                  : AppColors.muted,
+                  : Theme.of(context).colorScheme.onSurfaceVariant,
             ),
             SizedBox(height: 5),
             Text(
@@ -279,7 +279,7 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
                 fontSize: 10,
                 color: tab == index
                     ? Theme.of(context).colorScheme.onSurface
-                    : AppColors.muted,
+                    : Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ),
           ],
@@ -311,13 +311,13 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
             )
           else
             SizedBox(
-              height: scaler.scale(180).clamp(180.0, 236.0).toDouble(),
+              height: scaler.scale(148).clamp(148.0, 220.0).toDouble(),
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 itemCount: recent.length,
                 separatorBuilder: (_, _) => SizedBox(width: 11),
                 itemBuilder: (c, i) => SizedBox(
-                  width: 196,
+                  width: scaler.scale(144).clamp(144.0, 190.0).toDouble(),
                   child: InkWell(
                     onTap: () => openPage(context, NotePage(note: recent[i])),
                     child: Surface(
@@ -346,7 +346,7 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
               ),
             ),
           SizedBox(height: 12),
-          FilledButton.icon(
+          OutlinedButton.icon(
             key: const Key('new-note'),
             onPressed: () => createNote(context, ref),
             icon: const Icon(Icons.add, size: 18),
@@ -388,7 +388,7 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
                 () => ref.read(controllerProvider.notifier).loadExamples(),
               ),
               icon: const Icon(Icons.auto_stories_outlined, size: 18),
-              label: Text(tr(context, 'Cargar ejemplos del mockup')),
+              label: Text(tr(context, 'Cargar biblioteca de ejemplo')),
             ),
           ],
           SizedBox(height: 24),
@@ -399,175 +399,129 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
 
   Widget _folder(Folder f, Library lib) {
     final notes = lib.active.where((n) => n.folderId == f.id).toList();
-    final categories = lib.categories
-        .where((category) => category.folderId == f.id)
-        .toList();
-    final folderColor = Color(f.color);
-    final bright =
-        ThemeData.estimateBrightnessForColor(folderColor) == Brightness.light;
-    final foreground = bright ? const Color(0xFF1B1B1B) : Colors.white;
-    final subtle = bright
-        ? Colors.black.withValues(alpha: .07)
-        : Colors.white.withValues(alpha: .12);
-    final stackActions = MediaQuery.textScalerOf(context).scale(11) > 14;
-    final categoryAction = OutlinedButton.icon(
-      onPressed: () => editCategory(context, ref, f),
-      style: OutlinedButton.styleFrom(
-        foregroundColor: foreground,
-        side: BorderSide(color: foreground.withValues(alpha: .38)),
-        minimumSize: const Size(44, 44),
-        padding: const EdgeInsets.symmetric(horizontal: 6),
-      ),
-      icon: const Icon(Icons.sell_outlined, size: 15),
-      label: Text(
-        tr(context, 'Nueva categoría'),
-        style: TextStyle(fontSize: 11),
-      ),
-    );
-    final addNoteAction = FilledButton.tonalIcon(
-      onPressed: () => createNote(context, ref, folderId: f.id),
-      style: FilledButton.styleFrom(
-        foregroundColor: foreground,
-        backgroundColor: subtle,
-        minimumSize: const Size(44, 44),
-        padding: const EdgeInsets.symmetric(horizontal: 6),
-      ),
-      icon: const Icon(Icons.add, size: 15),
-      label: Text(
-        tr(context, 'Agregar apunte'),
-        style: TextStyle(fontSize: 11),
-      ),
-    );
-    return Container(
+    final theme = Theme.of(context);
+    final dark = theme.brightness == Brightness.dark;
+    return Surface(
       padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: folderColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: bright
-              ? Theme.of(context).colorScheme.outline
-              : Colors.white.withValues(alpha: .18),
-        ),
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
             children: [
-              Icon(Icons.folder, color: foreground, size: 23),
-              SizedBox(width: 8),
+              FolderGlyph(f.color),
+              const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   f.name,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
-                  ).copyWith(color: foreground),
+                  ),
                 ),
               ),
               IconButton(
-                tooltip: tr(context, 'Editar carpeta'),
+                tooltip: tr(context, 'Renombrar carpeta'),
                 onPressed: () => editFolder(context, ref, folder: f),
-                icon: Icon(Icons.edit_outlined, size: 17, color: foreground),
+                icon: const Icon(Icons.edit_outlined, size: 16),
               ),
-            ],
-          ),
-          if (categories.isNotEmpty) ...[
-            SizedBox(height: 4),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: [
-                for (final category in categories)
-                  Container(
+              Tooltip(
+                message: tr(context, 'Color de carpeta'),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(6),
+                  onTap: () =>
+                      editFolder(context, ref, folder: f, colorOnly: true),
+                  child: Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 5,
+                      horizontal: 7,
+                      vertical: 8,
                     ),
                     decoration: BoxDecoration(
-                      color: subtle,
-                      borderRadius: BorderRadius.circular(20),
+                      color: dark ? AppColors.mid : const Color(0xFFF3F3F3),
+                      borderRadius: BorderRadius.circular(6),
                       border: Border.all(
-                        color: foreground.withValues(alpha: .16),
+                        color: theme.colorScheme.outlineVariant,
                       ),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.sell_outlined, size: 13, color: foreground),
-                        SizedBox(width: 5),
-                        ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 150),
-                          child: Text(
-                            category.name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: foreground,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600,
+                        Container(
+                          width: 10,
+                          height: 10,
+                          decoration: BoxDecoration(
+                            color: Color(f.color),
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: theme.colorScheme.outline,
                             ),
+                          ),
+                        ),
+                        const SizedBox(width: 5),
+                        Text(
+                          _folderHex(f.color),
+                          style: TextStyle(
+                            fontFamily: 'JetBrainsMono',
+                            fontSize: 9,
+                            color: theme.colorScheme.onSurfaceVariant,
                           ),
                         ),
                       ],
                     ),
                   ),
-              ],
-            ),
-          ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 5),
           if (notes.isEmpty)
             Padding(
-              padding: const EdgeInsets.symmetric(vertical: 12),
+              padding: const EdgeInsets.symmetric(vertical: 14),
               child: Text(
                 tr(context, 'Aún no hay apuntes en esta carpeta.'),
-                style: TextStyle(color: foreground),
+                style: theme.textTheme.bodySmall,
               ),
             ),
           for (final n in notes.take(6))
             Padding(
               padding: const EdgeInsets.only(bottom: 6),
-              child: InkWell(
-                onTap: () => openPage(context, NotePage(note: n)),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 9,
-                    vertical: 13,
-                  ),
-                  decoration: BoxDecoration(
-                    color: subtle,
-                    border: Border.all(
-                      color: foreground.withValues(alpha: .16),
+              child: Material(
+                color: dark ? AppColors.mid : const Color(0xFFF7F7F7),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(6),
+                  side: BorderSide(color: theme.colorScheme.outlineVariant),
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: InkWell(
+                  onTap: () => openPage(context, NotePage(note: n)),
+                  onLongPress: () {
+                    setState(() => tab = 2);
+                    _toggleSelection(n.id);
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 9,
+                      vertical: 13,
                     ),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.description, size: 16, color: foreground),
-                      SizedBox(width: 9),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              n.title,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(fontSize: 11, color: foreground),
-                            ),
-                            if (n.categoryId != null)
-                              Text(
-                                '${tr(context, "Categoría")} · ${categories.where((category) => category.id == n.categoryId).firstOrNull?.name ?? tr(context, "Sin categoría")}',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  color: foreground.withValues(alpha: .78),
-                                  fontSize: 10,
-                                ),
-                              ),
-                          ],
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.description_outlined,
+                          size: 16,
+                          color: theme.colorScheme.onSurfaceVariant,
                         ),
-                      ),
-                    ],
+                        const SizedBox(width: 9),
+                        Expanded(
+                          child: Text(
+                            n.title,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontSize: 11),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -575,23 +529,18 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
           if (notes.length > 6)
             TextButton(
               onPressed: () => openPage(context, SearchPage(folderId: f.id)),
-              child: Text(
-                tr(context, 'Ver ${notes.length} apuntes'),
-                style: TextStyle(color: foreground),
-              ),
+              child: Text(tr(context, 'Ver ${notes.length} apuntes')),
             ),
-          if (stackActions) ...[
-            SizedBox(width: double.infinity, child: categoryAction),
-            SizedBox(height: 8),
-            SizedBox(width: double.infinity, child: addNoteAction),
-          ] else
-            Row(
-              children: [
-                Expanded(child: categoryAction),
-                SizedBox(width: 8),
-                Expanded(child: addNoteAction),
-              ],
+          OutlinedButton.icon(
+            onPressed: () => createNote(context, ref, folderId: f.id),
+            icon: const Icon(Icons.add, size: 16),
+            label: Text(tr(context, 'Agregar apunte')),
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size(44, 40),
+              side: BorderSide(color: theme.colorScheme.outlineVariant),
+              textStyle: const TextStyle(fontSize: 11),
             ),
+          ),
         ],
       ),
     );
@@ -755,7 +704,7 @@ class NoteTile extends StatelessWidget {
               size: 20,
               color: selected
                   ? Theme.of(context).colorScheme.primary
-                  : AppColors.muted,
+                  : Theme.of(context).colorScheme.onSurfaceVariant,
             ),
             SizedBox(width: 12),
             Expanded(
@@ -897,27 +846,18 @@ Future<void> createNote(
         : folders.first.id;
     final title = TextEditingController();
     String? selectedFolder = initialFolder;
-    String? selectedCategory;
     if (!context.mounted) return;
     final result = await showDialog<_NoteFormResult>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (dialogContext, setDialogState) {
-          final categories = library.categories
-              .where((category) => category.folderId == selectedFolder)
-              .toList();
-          if (!categories.any((category) => category.id == selectedCategory)) {
-            selectedCategory = null;
-          }
           return AlertDialog(
-            title: Text(tr(context, 'Añadir apunte')),
+            title: Text(tr(context, 'Nuevo apunte')),
             content: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text(tr(context, 'Elige dónde guardar este apunte.')),
-                  SizedBox(height: 14),
                   TextField(
                     controller: title,
                     maxLength: 200,
@@ -941,10 +881,7 @@ Future<void> createNote(
                           value: folder.id,
                           child: Row(
                             children: [
-                              Icon(
-                                Icons.folder,
-                                color: _folderForeground(Color(folder.color)),
-                              ),
+                              FolderGlyph(folder.color),
                               SizedBox(width: 9),
                               Expanded(
                                 child: Text(
@@ -959,40 +896,8 @@ Future<void> createNote(
                     ],
                     onChanged: (value) => setDialogState(() {
                       selectedFolder = value;
-                      selectedCategory = null;
                     }),
                   ),
-                  if (categories.isNotEmpty) ...[
-                    SizedBox(height: 10),
-                    DropdownButtonFormField<String>(
-                      key: ValueKey(
-                        'note-category-$selectedFolder-$selectedCategory',
-                      ),
-                      initialValue: selectedCategory ?? '',
-                      isExpanded: true,
-                      decoration: InputDecoration(
-                        labelText: tr(context, 'Categoría (opcional)'),
-                      ),
-                      items: [
-                        DropdownMenuItem(
-                          value: '',
-                          child: Text(tr(context, 'Sin categoría')),
-                        ),
-                        for (final category in categories)
-                          DropdownMenuItem(
-                            value: category.id,
-                            child: Text(
-                              category.name,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                      ],
-                      onChanged: (value) => setDialogState(
-                        () => selectedCategory = value == '' ? null : value,
-                      ),
-                    ),
-                  ],
                 ],
               ),
             ),
@@ -1008,7 +913,7 @@ Future<void> createNote(
                         dialogContext,
                         _NoteFormResult(
                           folderId: selectedFolder!,
-                          categoryId: selectedCategory,
+                          categoryId: null,
                           title: title.text.trim(),
                         ),
                       ),
@@ -1111,155 +1016,123 @@ Future<void> editFolder(
   BuildContext context,
   WidgetRef ref, {
   Folder? folder,
+  bool colorOnly = false,
 }) async {
-  final name = TextEditingController(text: folder?.name);
-  final original = folder?.color ?? 0xFFFFFFFF;
-  var color = original;
+  final name = TextEditingController(text: folder?.name ?? '');
+  var color = folder?.color ?? 0xFFFFFFFF;
+  final original = color;
   final hex = TextEditingController(text: _folderHex(color));
-  final palette = <int>[
-    0xFFFFFFFF,
-    0xFFF1F5F9,
-    0xFFDCE8F1,
-    0xFFB8D4EA,
-    0xFFE9DDF7,
-    0xFFECCFD8,
-    0xFFF2D7B8,
-    0xFFF0E6A9,
-    0xFFD4E8BD,
-    0xFFB9DDD7,
-    0xFFDBE7C5,
-    0xFFCBD6F0,
-  ];
   final result = await showDialog<Folder>(
     context: context,
-    builder: (dialogContext) => StatefulBuilder(
-      builder: (dialogContext, setDialogState) {
-        final foreground = _folderForeground(Color(color));
-        return AlertDialog(
-          title: Text(folder == null ? 'Nueva carpeta' : 'Editar carpeta'),
-          content: SingleChildScrollView(
+    builder: (dialog) => StatefulBuilder(
+      builder: (dialog, set) => AlertDialog(
+        title: Text(
+          tr(
+            dialog,
+            colorOnly
+                ? 'Color de carpeta'
+                : folder == null
+                ? 'Nueva carpeta'
+                : 'Renombrar carpeta',
+          ),
+        ),
+        content: SizedBox(
+          width: 320,
+          child: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                TextField(
-                  controller: name,
-                  maxLength: 80,
-                  autofocus: true,
-                  onChanged: (_) => setDialogState(() {}),
-                  decoration: InputDecoration(
-                    labelText: tr(context, 'Nombre de la carpeta'),
-                  ),
-                ),
-                SizedBox(height: 14),
-                SectionTitle('Previsualización'),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 14,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Color(color),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color: Theme.of(dialogContext).colorScheme.outline,
+                if (!colorOnly)
+                  TextField(
+                    controller: name,
+                    autofocus: true,
+                    maxLength: 80,
+                    onChanged: (_) => set(() {}),
+                    decoration: InputDecoration(
+                      labelText: tr(dialog, 'Nombre de la carpeta'),
                     ),
                   ),
-                  child: Row(
+                if (colorOnly) ...[
+                  Row(
                     children: [
-                      Icon(Icons.folder, color: foreground),
-                      SizedBox(width: 10),
+                      FolderGlyph(color, size: 30),
+                      const SizedBox(width: 12),
                       Expanded(
                         child: Text(
-                          name.text.trim().isEmpty
-                              ? 'Nombre de carpeta'
-                              : name.text.trim(),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: foreground,
-                            fontWeight: FontWeight.w600,
-                          ),
+                          folder!.name,
+                          style: const TextStyle(fontWeight: FontWeight.w600),
                         ),
                       ),
                     ],
                   ),
-                ),
-                SectionTitle('Tono'),
-                Slider(
-                  value: HSVColor.fromColor(Color(color)).hue
-                      .clamp(0.0, 360.0)
-                      .toDouble(),
-                  min: 0,
-                  max: 360,
-                  divisions: 360,
-                  label: '${HSVColor.fromColor(Color(color)).hue.round()}°',
-                  onChanged: (hue) => setDialogState(() {
-                    final hsv = HSVColor.fromColor(Color(color));
-                    color = HSVColor.fromAHSV(
-                      1,
-                      hue,
-                      hsv.saturation < .12 ? .7 : hsv.saturation,
-                      hsv.value < .2 ? .92 : hsv.value,
-                    ).toColor().toARGB32();
-                    hex.text = _folderHex(color);
-                  }),
-                ),
-                SizedBox(
-                  height: 140,
-                  child: _ColorSpectrum(
-                    color: Color(color),
-                    onChanged: (next) => setDialogState(() {
-                      color = next.toARGB32();
+                  const SizedBox(height: 18),
+                  SizedBox(
+                    height: 140,
+                    child: _ColorSpectrum(
+                      color: Color(color),
+                      onChanged: (next) => set(() {
+                        color = next.toARGB32();
+                        hex.text = _folderHex(color);
+                      }),
+                    ),
+                  ),
+                  Slider(
+                    value: HSVColor.fromColor(Color(color)).hue,
+                    min: 0,
+                    max: 360,
+                    onChanged: (hue) => set(() {
+                      final hsv = HSVColor.fromColor(Color(color));
+                      color = HSVColor.fromAHSV(
+                        1,
+                        hue,
+                        hsv.saturation < .1 ? .65 : hsv.saturation,
+                        hsv.value < .1 ? .85 : hsv.value,
+                      ).toColor().toARGB32();
                       hex.text = _folderHex(color);
                     }),
                   ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: hex,
-                  textCapitalization: TextCapitalization.characters,
-                  decoration: InputDecoration(
-                    labelText: tr(context, 'HEX'),
-                    prefixIcon: Icon(Icons.tag),
-                    hintText: tr(context, '#DCE8F1'),
+                  TextField(
+                    controller: hex,
+                    decoration: const InputDecoration(
+                      labelText: 'HEX',
+                      hintText: '#FFFFFF',
+                    ),
+                    onChanged: (value) {
+                      final parsed = _parseFolderHex(value);
+                      if (parsed != null) set(() => color = parsed);
+                    },
                   ),
-                  onChanged: (value) {
-                    final parsed = _parseFolderHex(value);
-                    if (parsed != null) setDialogState(() => color = parsed);
-                  },
-                ),
-                SectionTitle('Colores recomendados'),
-                Wrap(
-                  spacing: 9,
-                  runSpacing: 9,
-                  children: [
-                    for (final value in palette)
-                      Semantics(
-                        label: 'Color ${_folderHex(value)}',
-                        selected: color == value,
-                        button: true,
-                        child: InkWell(
-                          customBorder: const CircleBorder(),
-                          onTap: () => setDialogState(() {
+                  const SizedBox(height: 14),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      for (final value in [
+                        0xFFFFFFFF,
+                        0xFF9E9E9E,
+                        0xFF333333,
+                        0xFF84B6E8,
+                        0xFFA9CDA4,
+                        0xFFD6B0DC,
+                        0xFFE0B78B,
+                        0xFFE7D28D,
+                      ])
+                        InkWell(
+                          onTap: () => set(() {
                             color = value;
                             hex.text = _folderHex(value);
                           }),
+                          customBorder: const CircleBorder(),
                           child: Container(
-                            width: 38,
-                            height: 38,
+                            width: 36,
+                            height: 36,
                             decoration: BoxDecoration(
                               color: Color(value),
                               shape: BoxShape.circle,
                               border: Border.all(
-                                width: color == value ? 2.5 : 1,
-                                color: color == value
-                                    ? Theme.of(dialogContext)
-                                          .colorScheme
-                                          .primary
-                                    : Theme.of(dialogContext)
-                                          .colorScheme
-                                          .outline,
+                                color: Theme.of(dialog).colorScheme.outline,
+                                width: color == value ? 2 : 1,
                               ),
                             ),
                             child: color == value
@@ -1271,83 +1144,80 @@ Future<void> editFolder(
                                 : null,
                           ),
                         ),
-                      ),
-                  ],
-                ),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: TextButton.icon(
-                    onPressed: () => setDialogState(() {
-                      color = original;
-                      hex.text = _folderHex(original);
-                    }),
-                    icon: const Icon(Icons.restart_alt, size: 17),
-                    label: Text(tr(context, 'Restaurar original')),
+                    ],
                   ),
-                ),
+                  TextButton(
+                    onPressed: () => set(() {
+                      color = original;
+                      hex.text = _folderHex(color);
+                    }),
+                    child: Text(tr(dialog, 'Restaurar original')),
+                  ),
+                ],
               ],
             ),
           ),
-          actions: [
-            if (folder != null)
-              TextButton.icon(
-                style: TextButton.styleFrom(
-                  foregroundColor: Theme.of(dialogContext).colorScheme.error,
-                ),
-                onPressed: () async {
-                  final library = ref.read(libraryProvider).value;
-                  if (library?.notes.any(
-                        (note) => note.folderId == folder.id,
-                      ) ??
-                      false) {
-                    message(
-                      context,
+        ),
+        actions: [
+          if (folder != null && !colorOnly)
+            TextButton(
+              onPressed: () async {
+                final library = ref.read(libraryProvider).value;
+                if (library?.notes.any((n) => n.folderId == folder.id) ??
+                    false) {
+                  message(
+                    dialog,
+                    tr(
+                      dialog,
                       'Mueve o elimina los apuntes de esta carpeta primero.',
-                    );
-                    return;
-                  }
-                  if (!await confirm(
-                    context,
-                    'Eliminar carpeta',
-                    'También se eliminarán sus categorías. Esta acción no se puede deshacer.',
-                  )) {
-                    return;
-                  }
-                  if (!dialogContext.mounted) return;
-                  Navigator.pop(dialogContext);
+                    ),
+                  );
+                  return;
+                }
+                if (!await confirm(
+                  dialog,
+                  'Eliminar carpeta',
+                  'Esta acción no se puede deshacer.',
+                )) {
+                  return;
+                }
+                if (!dialog.mounted) return;
+                Navigator.pop(dialog);
+                if (context.mounted) {
                   await runAction(
                     context,
                     () => ref
                         .read(controllerProvider.notifier)
                         .deleteFolder(folder.id),
                   );
-                },
-                icon: const Icon(Icons.delete_outline, size: 17),
-                label: Text(tr(context, 'Eliminar')),
+                }
+              },
+              child: Text(
+                tr(dialog, 'Eliminar'),
+                style: TextStyle(color: Theme.of(dialog).colorScheme.error),
               ),
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: Text(tr(context, 'Cancelar')),
             ),
-            FilledButton.icon(
-              onPressed:
-                  name.text.trim().isEmpty || _parseFolderHex(hex.text) == null
-                  ? null
-                  : () => Navigator.pop(
-                      dialogContext,
-                      Folder(
-                        folder?.id ??
-                            ref.read(controllerProvider.notifier).newId(),
-                        name.text.trim(),
-                        color,
-                      ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialog),
+            child: Text(tr(dialog, 'Cancelar')),
+          ),
+          FilledButton(
+            onPressed:
+                name.text.trim().isEmpty || _parseFolderHex(hex.text) == null
+                ? null
+                : () => Navigator.pop(
+                    dialog,
+                    Folder(
+                      folder?.id ??
+                          ref.read(controllerProvider.notifier).newId(),
+                      name.text.trim(),
+                      color,
                     ),
-              icon: const Icon(Icons.check, size: 17),
-              label: Text(tr(context, 'Confirmar')),
-            ),
-          ],
-        );
-      },
+                  ),
+            child: Text(tr(dialog, colorOnly ? 'Aplicar' : 'Guardar')),
+          ),
+        ],
+      ),
     ),
   );
   name.dispose();
@@ -1356,105 +1226,6 @@ Future<void> editFolder(
     await runAction(
       context,
       () => ref.read(controllerProvider.notifier).folder(result),
-    );
-  }
-}
-
-Future<void> editCategory(
-  BuildContext context,
-  WidgetRef ref,
-  Folder folder,
-) async {
-  final name = TextEditingController();
-  final result = await showDialog<String>(
-    context: context,
-    builder: (dialogContext) => StatefulBuilder(
-      builder: (dialogContext, setDialogState) => AlertDialog(
-        title: Text(tr(context, 'Nueva categoría')),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                tr(
-                  context,
-                  'La categoría organizará apuntes de ${folder.name}.',
-                ),
-              ),
-              SizedBox(height: 14),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 12,
-                ),
-                decoration: BoxDecoration(
-                  color: Theme.of(dialogContext)
-                      .colorScheme
-                      .surfaceContainerLow,
-                  borderRadius: BorderRadius.circular(9),
-                  border: Border.all(
-                    color: Theme.of(dialogContext).colorScheme.outlineVariant,
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.folder),
-                    SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        folder.name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontWeight: FontWeight.w600),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              SizedBox(height: 12),
-              TextField(
-                controller: name,
-                maxLength: 80,
-                autofocus: true,
-                onChanged: (_) => setDialogState(() {}),
-                decoration: InputDecoration(
-                  labelText: tr(context, 'Nombre de categoría'),
-                  hintText: tr(context, 'Ej. Exámenes'),
-                ),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: Text(tr(context, 'Cancelar')),
-          ),
-          FilledButton.icon(
-            onPressed: name.text.trim().isEmpty
-                ? null
-                : () => Navigator.pop(dialogContext, name.text.trim()),
-            icon: const Icon(Icons.sell_outlined, size: 17),
-            label: Text(tr(context, 'Crear categoría')),
-          ),
-        ],
-      ),
-    ),
-  );
-  name.dispose();
-  if (result != null && result.isNotEmpty && context.mounted) {
-    await runAction(
-      context,
-      () => ref
-          .read(controllerProvider.notifier)
-          .category(
-            Category(
-              ref.read(controllerProvider.notifier).newId(),
-              folder.id,
-              result,
-            ),
-          ),
     );
   }
 }

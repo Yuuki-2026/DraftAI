@@ -52,6 +52,20 @@ class EmbeddedMedia extends ConsumerWidget {
                   );
                 }
                 return GestureDetector(
+                  onDoubleTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute<void>(
+                      builder: (_) => ImageGallery(
+                        images: gallery.isEmpty
+                            ? [attachment]
+                            : gallery
+                                  .where((a) => a.mime.startsWith('image/'))
+                                  .toList(),
+                        initialId: attachment.id,
+                        initialZoom: true,
+                      ),
+                    ),
+                  ),
                   onTap: () => Navigator.push(
                     context,
                     MaterialPageRoute<void>(
@@ -105,10 +119,12 @@ class EmbeddedMedia extends ConsumerWidget {
 class ImageGallery extends ConsumerStatefulWidget {
   final List<Attachment> images;
   final String initialId;
+  final bool initialZoom;
   const ImageGallery({
     super.key,
     required this.images,
     required this.initialId,
+    this.initialZoom = false,
   });
   @override
   ConsumerState<ImageGallery> createState() => _GalleryState();
@@ -154,6 +170,7 @@ class _GalleryState extends ConsumerState<ImageGallery> {
             builder: (context, s) => s.hasData
                 ? _ZoomImage(
                     bytes: s.data!,
+                    startZoomed: widget.initialZoom && a.id == widget.initialId,
                     onZoom: (value) {
                       if (i == index && value != zoomed) {
                         setState(() => zoomed = value);
@@ -175,13 +192,41 @@ class _GalleryState extends ConsumerState<ImageGallery> {
 class _ZoomImage extends StatefulWidget {
   final Uint8List bytes;
   final ValueChanged<bool> onZoom;
-  const _ZoomImage({required this.bytes, required this.onZoom});
+  final bool startZoomed;
+  const _ZoomImage({
+    required this.bytes,
+    required this.onZoom,
+    this.startZoomed = false,
+  });
   @override
   State<_ZoomImage> createState() => _ZoomImageState();
 }
 
 class _ZoomImageState extends State<_ZoomImage> {
   final transform = TransformationController();
+  Offset tap = Offset.zero;
+  @override
+  void initState() {
+    super.initState();
+    if (widget.startZoomed) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          final size = context.size;
+          if (size != null) _zoom(Offset(size.width / 2, size.height / 2));
+        }
+      });
+    }
+  }
+
+  void _zoom(Offset point) {
+    final zooming = transform.value.getMaxScaleOnAxis() <= 1.01;
+    transform.value = zooming
+        ? (Matrix4.diagonal3Values(3, 3, 1)
+            ..setTranslationRaw(-point.dx * 2, -point.dy * 2, 0))
+        : Matrix4.identity();
+    widget.onZoom(zooming);
+  }
+
   @override
   void dispose() {
     transform.dispose();
@@ -190,10 +235,8 @@ class _ZoomImageState extends State<_ZoomImage> {
 
   @override
   Widget build(BuildContext context) => GestureDetector(
-    onDoubleTap: () {
-      transform.value = Matrix4.identity();
-      widget.onZoom(false);
-    },
+    onDoubleTapDown: (details) => tap = details.localPosition,
+    onDoubleTap: () => _zoom(tap),
     child: InteractiveViewer(
       transformationController: transform,
       minScale: 1,

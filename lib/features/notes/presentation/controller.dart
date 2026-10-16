@@ -124,64 +124,7 @@ class AppController extends AsyncNotifier<Settings> {
   Future<void> deleteFolder(String id) => _repo.deleteFolder(id);
   String newId() => ref.read(idPort)();
   Future<void> loadExamples() async {
-    final lib = await _repo.load();
-    if (lib.notes.isNotEmpty) {
-      throw const AppFailure(
-        'Los ejemplos solo se cargan en una biblioteca vacía.',
-      );
-    }
-    final folder1 = Folder(newId(), 'Facultad de Ingeniería', 0xFFFFFFFF);
-    final folder2 = Folder(newId(), 'Proyectos Personales', 0xFF9E9E9E);
-    await folder(folder1);
-    await folder(folder2);
-    final examples = [
-      (
-        'Cálculo Vectorial: Teorema de Stokes',
-        'Geometría diferencial',
-        'El teorema de Stokes establece una relación fundamental entre la integral de línea de un campo vectorial y la integral de superficie del rotacional sobre una superficie orientada.\n\nFormulación integral general\n∮ F · dr = ∬ (∇ × F) · n dS\n\nLa orientación positiva queda determinada por la regla de la mano derecha.\n\nNotas y condiciones de frontera\n• El campo debe tener derivadas parciales continuas.\n• La curva cerrada define el contorno de la superficie.',
-      ),
-      (
-        'Física General: Movimiento parabólico',
-        'Cinemática',
-        'La pendiente de una gráfica de posición representa la velocidad. En un movimiento parabólico, la componente horizontal de la velocidad permanece constante y la vertical cambia por efecto de la gravedad.\n\nx = v₀ cos(θ) t\ny = v₀ sen(θ) t − ½ g t²',
-      ),
-      (
-        'Química Orgánica: Hidrocarburos',
-        'Química',
-        'Los alcanos presentan enlaces sencillos; alquenos y alquinos incorporan enlaces múltiples.\n\nSerie de alcanos: CₙH₂ₙ₊₂\n\nLa longitud y las ramificaciones determinan el nombre base.',
-      ),
-      (
-        'Álgebra Lineal: Transformaciones',
-        'Espacios vectoriales',
-        'Una transformación lineal conserva sumas y multiplicaciones por escalares. Cada columna de su matriz muestra la imagen de un vector unitario.',
-      ),
-      (
-        'Ideas de Aplicaciones',
-        'Proyecto',
-        'Convertir cada idea prioritaria en una tarea breve y enlazarla con sus referencias.',
-      ),
-      (
-        'Lecturas Pendientes',
-        'Investigación',
-        'Necesidades y contexto\nArquitectura de información\nPrototipos y pruebas',
-      ),
-    ];
-    for (var i = 0; i < examples.length; i++) {
-      final e = examples[i];
-      final now = DateTime.now().toUtc().subtract(Duration(minutes: i));
-      await save(
-        Note(
-          id: newId(),
-          folderId: i < 4 ? folder1.id : folder2.id,
-          title: e.$1,
-          topic: e.$2,
-          plainText: e.$3,
-          createdAt: now,
-          updatedAt: now,
-        ),
-        reason: 'Ejemplo del mockup',
-      );
-    }
+    await ref.read(examplesPort).load();
   }
 
   Future<String> transform(String text, AiAction action) async {

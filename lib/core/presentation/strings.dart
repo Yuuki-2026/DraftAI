@@ -5,6 +5,18 @@ String tr(BuildContext context, String es) =>
     ? english[es] ?? extraEnglish[es] ?? _dynamicEnglish(es)
     : es;
 const english = <String, String>{
+  'Modo lectura': 'Reading mode',
+  'Lectura activa': 'Reading active',
+  'Reducir texto': 'Decrease text size',
+  'Ampliar texto': 'Increase text size',
+  'Tipos': 'Styles',
+  'Tipos y formato': 'Styles and formatting',
+  'Fórmula': 'Formula',
+  'Insertar': 'Insert',
+  'Color de carpeta': 'Folder color',
+  'Renombrar carpeta': 'Rename folder',
+  'Guardado en': 'Saved in',
+
   'Volver': 'Back',
   'Guardar': 'Save',
   'Cancelar': 'Cancel',
@@ -93,7 +105,7 @@ const extraEnglish = <String, String>{
   'ejemplos cargados': 'samples loaded',
   'ejemplos eliminados': 'samples removed',
   'Se eliminarán solo las notas de ejemplo, incluidos los cambios que les hayas hecho. Tus notas propias se conservan.': 'Only sample notes, including your changes to them, will be removed. Your own notes are preserved.',
-  'Carga 20 notas ficticias en 4 carpetas, con imágenes, PDF y textos para probar edición, lectura, IA y exportación. La instalación inicial permanece vacía hasta que lo solicites.': 'Load 20 fictional notes in 4 folders, including images, PDF and text to try editing, reading, AI and export. New installations remain empty until you request samples.',
+  'Carga 120 notas ficticias en 8 carpetas, 24 temas y fechas de los últimos ocho meses, con imágenes, PDF y textos para probar edición, lectura, IA y exportación. La instalación inicial permanece vacía hasta que lo solicites.': 'Load 120 fictional notes in 8 folders, with 24 topics and dates across eight months, including images, PDF and text to try editing, reading, AI and export. New installations remain empty until you request samples.',
   'Categoría': 'Category',
   'el inicio': 'the beginning',
   'hoy': 'today',
