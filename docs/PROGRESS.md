@@ -101,3 +101,5 @@ Próximo: el propietario prueba esta entrega en el teléfono y comunica diferenc
 
 ## Corrección del servidor: contenido académico y acceso de prueba
 Se exige explicación académica en español en lugar de descripción visual, traducción del contenido y ausencia de anotaciones de imagen. Rechazos no académicos/ilegibles vacían destinos en servidor; catálogo completo sin forzar única carpeta. Diez cupos, cuotas y presupuesto global intactos. Gratis mantiene Groq para selección/resumen; Pro OpenAI para fuentes. Sin cambios Flutter ni APK. Validación: sintaxis Node y comprobaciones locales del contrato; sin llamadas de pago ni pruebas Android.
+
+Aclaración posterior: texto, resumen y mejora conservan el idioma predominante de la fuente; no se traduce automáticamente. Los avisos de revisión siguen en español. Se comprobó sintaxis, sin llamadas de pago.
