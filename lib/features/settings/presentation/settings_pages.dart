@@ -363,7 +363,11 @@ class PlansPage extends ConsumerWidget {
                       ['Funciones', 'Gratis', 'Pro demo'],
                       ['Apuntes e imágenes', 'Sí', 'Sí'],
                       ['Acciones IA al día', '2', '10'],
-                      ['OCR remoto', 'No', 'Preparado'],
+                      [
+                        'Lectura de fuentes con IA',
+                        'No',
+                        'Acceso Pro autorizado',
+                      ],
                       ['Exportar PDF, Word, texto', 'Sí', 'Sí'],
                       ['Contexto para IA externa', 'Sí', 'Sí'],
                       ['Almacenamiento local', 'Sí', 'Sí'],
@@ -395,7 +399,7 @@ class PlansPage extends ConsumerWidget {
               Text(
                 tr(
                   context,
-                  'Sin proveedor configurado, el resumen es una extracción local de frases y el OCR solo muestra un ejemplo editable. No se ejecuta OCR real.',
+                  'La IA necesita conexión. Gratis usa Groq; Pro autorizado usa GPT-5 nano para texto, imágenes, PDF y TXT/MD. Cada resultado indica el modelo utilizado. Los planes no procesan pagos.',
                 ),
                 style: TextStyle(fontSize: 11, color: AppColors.muted),
               ),
@@ -627,7 +631,7 @@ class AboutPage extends StatelessWidget {
                 style: TextStyle(fontSize: 24, fontWeight: FontWeight.w600),
               ),
             ),
-            Center(child: Meta(tr(context, 'Versión 0.2.1 · Build 4'))),
+            Center(child: Meta(tr(context, 'Versión 0.2.2 · Build 5'))),
             SizedBox(height: 20),
             Surface(
               child: Wrap(
@@ -665,7 +669,7 @@ class AboutPage extends StatelessWidget {
               onTap: () => showLicensePage(
                 context: context,
                 applicationName: 'DraftAI',
-                applicationVersion: '0.2.1',
+                applicationVersion: '0.2.2',
               ),
             ),
             SizedBox(height: 24),

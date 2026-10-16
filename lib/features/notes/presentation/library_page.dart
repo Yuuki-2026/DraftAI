@@ -399,130 +399,64 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
 
   Widget _folder(Folder f, Library lib) {
     final notes = lib.active.where((n) => n.folderId == f.id).toList();
-    final theme = Theme.of(context);
-    final dark = theme.brightness == Brightness.dark;
     return Surface(
-      padding: const EdgeInsets.all(10),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              FolderGlyph(f.color),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  f.name,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
+      padding: EdgeInsets.zero,
+      child: ExpansionTile(
+        key: PageStorageKey('folder-${f.id}'),
+        initiallyExpanded: true,
+        tilePadding: const EdgeInsets.symmetric(horizontal: 10),
+        childrenPadding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
+        leading: FolderGlyph(f.color),
+        title: Text(
+          f.name,
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+        ),
+        subtitle: Meta('${notes.length} ${tr(context, 'apuntes')}'),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              tooltip: tr(context, 'Renombrar carpeta'),
+              onPressed: () => editFolder(context, ref, folder: f),
+              icon: const Icon(Icons.edit_outlined, size: 16),
+            ),
+            InkWell(
+              onTap: () => editFolder(context, ref, folder: f, colorOnly: true),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+                decoration: BoxDecoration(
+                  border: Border.all(
+                    color: Theme.of(context).colorScheme.outlineVariant,
                   ),
-                ),
-              ),
-              IconButton(
-                tooltip: tr(context, 'Renombrar carpeta'),
-                onPressed: () => editFolder(context, ref, folder: f),
-                icon: const Icon(Icons.edit_outlined, size: 16),
-              ),
-              Tooltip(
-                message: tr(context, 'Color de carpeta'),
-                child: InkWell(
                   borderRadius: BorderRadius.circular(6),
-                  onTap: () =>
-                      editFolder(context, ref, folder: f, colorOnly: true),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 7,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: dark ? AppColors.mid : const Color(0xFFF3F3F3),
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(
-                        color: theme.colorScheme.outlineVariant,
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          width: 10,
-                          height: 10,
-                          decoration: BoxDecoration(
-                            color: Color(f.color),
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: theme.colorScheme.outline,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 5),
-                        Text(
-                          _folderHex(f.color),
-                          style: TextStyle(
-                            fontFamily: 'JetBrainsMono',
-                            fontSize: 9,
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ],
-                    ),
+                ),
+                child: Text(
+                  _folderHex(f.color),
+                  style: const TextStyle(
+                    fontSize: 9,
+                    fontFamily: 'JetBrainsMono',
                   ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 5),
-          if (notes.isEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              child: Text(
-                tr(context, 'Aún no hay apuntes en esta carpeta.'),
-                style: theme.textTheme.bodySmall,
               ),
             ),
+          ],
+        ),
+        children: [
           for (final n in notes.take(6))
             Padding(
               padding: const EdgeInsets.only(bottom: 6),
-              child: Material(
-                color: dark ? AppColors.mid : const Color(0xFFF7F7F7),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(6),
-                  side: BorderSide(color: theme.colorScheme.outlineVariant),
+              child: OutlinedButton.icon(
+                onPressed: () => openPage(context, NotePage(note: n)),
+                style: OutlinedButton.styleFrom(
+                  alignment: Alignment.centerLeft,
+                  minimumSize: const Size(double.infinity, 44),
                 ),
-                clipBehavior: Clip.antiAlias,
-                child: InkWell(
-                  onTap: () => openPage(context, NotePage(note: n)),
-                  onLongPress: () {
-                    setState(() => tab = 2);
-                    _toggleSelection(n.id);
-                  },
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 9,
-                      vertical: 13,
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.description_outlined,
-                          size: 16,
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                        const SizedBox(width: 9),
-                        Expanded(
-                          child: Text(
-                            n.title,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(fontSize: 11),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                icon: const Icon(Icons.description_outlined, size: 16),
+                label: Text(
+                  n.title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 11),
                 ),
               ),
             ),
@@ -536,9 +470,7 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
             icon: const Icon(Icons.add, size: 16),
             label: Text(tr(context, 'Agregar apunte')),
             style: OutlinedButton.styleFrom(
-              minimumSize: const Size(44, 40),
-              side: BorderSide(color: theme.colorScheme.outlineVariant),
-              textStyle: const TextStyle(fontSize: 11),
+              minimumSize: const Size(double.infinity, 40),
             ),
           ),
         ],
@@ -864,6 +796,10 @@ Future<void> createNote(
                     autofocus: true,
                     decoration: InputDecoration(
                       labelText: tr(context, 'Título del apunte'),
+                      helperText: tr(
+                        context,
+                        'Un nombre claro ayuda a la IA a elegir este apunte.',
+                      ),
                       hintText: tr(context, 'Ej. Cálculo diferencial'),
                     ),
                   ),

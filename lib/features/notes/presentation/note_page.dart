@@ -10,6 +10,9 @@ import '../domain/entities.dart';
 import 'controller.dart';
 import 'media_widgets.dart';
 import 'note_format_bar.dart';
+import 'rich_ai_text.dart';
+import '../domain/ports.dart';
+import '../../ai/presentation/connection_dialog.dart';
 import '../domain/note_document.dart';
 import '../../../core/presentation/strings.dart';
 import 'library_page.dart';
@@ -41,6 +44,7 @@ class _NotePageState extends ConsumerState<NotePage>
   Timer? debounce;
   late List<PickedFile> pendingFiles;
   bool inserting = false;
+  bool aiBusy = false;
   bool reading = false;
   double readingScale = 1;
   bool editing = false,
@@ -295,7 +299,7 @@ class _NotePageState extends ConsumerState<NotePage>
                       ],
                     ],
                   ),
-                if (saving) const LinearProgressIndicator(),
+                if (saving || aiBusy) const LinearProgressIndicator(),
                 if (dirty && !saving && status.startsWith('No se pudo'))
                   Text(status),
                 if (editing)
@@ -402,9 +406,36 @@ class _NotePageState extends ConsumerState<NotePage>
                     ),
                   ),
                 ),
+                if (note.lastAiModel.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 12),
+                    child: Meta(
+                      '${tr(context, 'Texto mejorado por IA')} · ${note.lastAiModel}',
+                    ),
+                  ),
                 if (note.summary.isNotEmpty) ...[
-                  SectionTitle('Resumen interno'),
-                  Surface(child: SelectableText(note.summary)),
+                  SectionTitle(
+                    note.summaryModel.isNotEmpty
+                        ? 'Resumen generado por IA'
+                        : 'Resumen',
+                  ),
+                  Surface(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Meta(
+                          note.summaryModel.isEmpty
+                              ? tr(
+                                  context,
+                                  'Modelo no registrado en esta versión anterior',
+                                )
+                              : note.summaryModel,
+                        ),
+                        const SizedBox(height: 8),
+                        RichAiText(note.summary),
+                      ],
+                    ),
+                  ),
                 ],
                 if (lib != null)
                   Padding(
@@ -435,28 +466,33 @@ class _NotePageState extends ConsumerState<NotePage>
             ),
           ),
         ),
-        bottomNavigationBar: SafeArea(
-          top: false,
-          child: Container(
-            decoration: BoxDecoration(
-              color: Theme.of(context).brightness == Brightness.dark
-                  ? AppColors.low
-                  : Colors.white,
-              border: Border(
-                top: BorderSide(color: Theme.of(context).dividerColor),
+        bottomNavigationBar: reading
+            ? null
+            : SafeArea(
+                top: false,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? AppColors.low
+                        : Colors.white,
+                    border: Border(
+                      top: BorderSide(color: Theme.of(context).dividerColor),
+                    ),
+                  ),
+                  child: editing
+                      ? Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            NoteFormatBar(
+                              controller: editor,
+                              onFormula: _formula,
+                            ),
+                            _editingTools(),
+                          ],
+                        )
+                      : _readingTools(),
+                ),
               ),
-            ),
-            child: editing
-                ? Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      NoteFormatBar(controller: editor, onFormula: _formula),
-                      _editingTools(),
-                    ],
-                  )
-                : _readingTools(),
-          ),
-        ),
       ),
     );
   }
@@ -574,7 +610,11 @@ class _NotePageState extends ConsumerState<NotePage>
         'Cámara',
         () => _attach(CaptureSource.camera),
       ),
-      _tool(Icons.auto_awesome_outlined, 'Mejorar', _improve),
+      _tool(
+        aiBusy ? Icons.hourglass_empty : Icons.auto_awesome_outlined,
+        aiBusy ? 'Procesando…' : 'Mejorar',
+        _improve,
+      ),
       _tool(Icons.edit_outlined, 'Tipos', _types),
     ],
   );
@@ -824,6 +864,15 @@ class _NotePageState extends ConsumerState<NotePage>
   }
 
   Future<void> _improve() async {
+    if (aiBusy) return;
+    final service = ref.read(aiPort);
+    if (!service.configured) {
+      if (service is! AiConnection ||
+          !await connectAiDialog(context, service as AiConnection)) {
+        return;
+      }
+      if (!mounted) return;
+    }
     if (!await _flush() || !mounted) return;
     final selection = editor.selection;
     final full = editor.document.toPlainText();
@@ -848,41 +897,94 @@ class _NotePageState extends ConsumerState<NotePage>
       return;
     }
     if (!mounted) return;
+    setState(() => aiBusy = true);
     await runAction(context, () async {
       final result = await ref
           .read(controllerProvider.notifier)
           .transform(selected, AiAction.improve);
       if (!mounted) return;
-      final accept = await showDialog<bool>(
+      final model = aiModelLabel(ref.read(aiPort));
+      final unchanged = result.trim() == selected.trim();
+      var showOriginal = false;
+      final accept = await showModalBottomSheet<bool>(
         context: context,
-        builder: (c) => AlertDialog(
-          title: Text(
-            ref.read(aiPort).configured
-                ? 'Texto mejorado'
-                : 'Demostración · limpieza de texto',
-          ),
-          content: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Meta(tr(context, 'ORIGINAL')),
-                SelectableText(selected),
-                const Divider(),
-                Meta(tr(context, 'PROPUESTA')),
-                SelectableText(result),
-              ],
+        isScrollControlled: true,
+        useSafeArea: true,
+        builder: (c) => StatefulBuilder(
+          builder: (c, set) => SizedBox(
+            height: MediaQuery.sizeOf(c).height * .84,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          tr(c, 'Texto mejorado por IA'),
+                          style: Theme.of(c).textTheme.titleMedium,
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.pop(c, false),
+                        icon: const Icon(Icons.close),
+                      ),
+                    ],
+                  ),
+                  Align(alignment: Alignment.centerLeft, child: Meta(model)),
+                  const SizedBox(height: 12),
+                  if (unchanged)
+                    Text(
+                      tr(
+                        c,
+                        'El modelo no propuso cambios para esta selección.',
+                      ),
+                    ),
+                  Row(
+                    children: [
+                      ChoiceChip(
+                        label: Text(tr(c, 'Propuesta')),
+                        selected: !showOriginal,
+                        onSelected: (_) => set(() => showOriginal = false),
+                      ),
+                      const SizedBox(width: 8),
+                      ChoiceChip(
+                        label: Text(tr(c, 'Original')),
+                        selected: showOriginal,
+                        onSelected: (_) => set(() => showOriginal = true),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      child: RichAiText(showOriginal ? selected : result),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => Navigator.pop(c, false),
+                          child: Text(tr(c, 'Descartar')),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: FilledButton(
+                          onPressed: unchanged
+                              ? null
+                              : () => Navigator.pop(c, true),
+                          child: Text(tr(c, 'Mantener')),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(c, false),
-              child: Text(tr(context, 'Descartar')),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(c, true),
-              child: Text(tr(context, 'Reemplazar texto')),
-            ),
-          ],
         ),
       );
       if (accept == true && mounted) {
@@ -915,37 +1017,28 @@ class _NotePageState extends ConsumerState<NotePage>
             TextSelection.collapsed(offset: start + result.length),
           );
         }
+        note = note.copyWith(
+          lastAiModel: model,
+          lastAiAt: DateTime.now().toUtc(),
+        );
+        dirty = true;
         await _flush();
       }
     });
+    if (mounted) setState(() => aiBusy = false);
   }
 
   Future<void> _ai() async {
     if (!await _flush() || !mounted) return;
-    final insertion = editor.selection.extentOffset.clamp(
-      0,
-      editor.document.length - 1,
-    );
     openPage(
       context,
       AiPage(
         initialNotes: [_snapshot()],
-        onInsert: (text) async {
-          final position = insertion.clamp(0, editor.document.length - 1);
-          final delta = q.Document.fromJson(NoteDocument.formatted('\n$text'))
-              .toDelta();
-          editor.replaceText(position, 0, delta, null);
-          editor.updateSelection(
-            TextSelection.collapsed(
-              offset: (position + delta.length).clamp(
-                0,
-                editor.document.length - 1,
-              ),
-            ),
-            q.ChangeSource.local,
-          );
+        onInsert: (text, model) async {
+          note = note.copyWith(summary: text, summaryModel: model);
           dirty = true;
           await _flush();
+          if (mounted) setState(() {});
         },
       ),
     );

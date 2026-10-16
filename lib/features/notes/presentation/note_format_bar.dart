@@ -56,46 +56,84 @@ class NoteFormatBar extends StatelessWidget {
         );
       }
 
-      return Row(
+      return Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          button(
-            'Negrita',
-            const Text('B', style: TextStyle(fontWeight: FontWeight.w700)),
-            () => toggle(q.Attribute.bold),
-            attribute: q.Attribute.bold,
+          Row(
+            children: [
+              button(
+                'Negrita',
+                const Text('B', style: TextStyle(fontWeight: FontWeight.w700)),
+                () => toggle(q.Attribute.bold),
+                attribute: q.Attribute.bold,
+              ),
+              button(
+                'Cursiva',
+                const Text('I', style: TextStyle(fontStyle: FontStyle.italic)),
+                () => toggle(q.Attribute.italic),
+                attribute: q.Attribute.italic,
+              ),
+              button(
+                'Encabezado',
+                const Text('H1', style: TextStyle(fontSize: 12)),
+                () => toggle(q.Attribute.h1),
+                attribute: q.Attribute.h1,
+              ),
+              button(
+                'Lista',
+                const Icon(Icons.format_list_bulleted, size: 18),
+                () => toggle(q.Attribute.ul),
+                attribute: q.Attribute.ul,
+              ),
+              button(
+                'Fórmula',
+                const Text('ƒx', style: TextStyle(fontStyle: FontStyle.italic)),
+                onFormula,
+              ),
+              button(
+                'Deshacer',
+                const Icon(Icons.undo, size: 20),
+                () => controller.undo(),
+              ),
+              button(
+                'Rehacer',
+                const Icon(Icons.redo, size: 20),
+                () => controller.redo(),
+              ),
+            ],
           ),
-          button(
-            'Cursiva',
-            const Text('I', style: TextStyle(fontStyle: FontStyle.italic)),
-            () => toggle(q.Attribute.italic),
-            attribute: q.Attribute.italic,
-          ),
-          button(
-            'Encabezado',
-            const Text('H1', style: TextStyle(fontSize: 12)),
-            () => toggle(q.Attribute.h1),
-            attribute: q.Attribute.h1,
-          ),
-          button(
-            'Lista',
-            const Icon(Icons.format_list_bulleted, size: 18),
-            () => toggle(q.Attribute.ul),
-            attribute: q.Attribute.ul,
-          ),
-          button(
-            'Fórmula',
-            const Text('ƒx', style: TextStyle(fontStyle: FontStyle.italic)),
-            onFormula,
-          ),
-          button(
-            'Deshacer',
-            const Icon(Icons.undo, size: 20),
-            () => controller.undo(),
-          ),
-          button(
-            'Rehacer',
-            const Icon(Icons.redo, size: 20),
-            () => controller.redo(),
+          SizedBox(
+            height: 42,
+            child: q.QuillSimpleToolbar(
+              controller: controller,
+              config: const q.QuillSimpleToolbarConfig(
+                multiRowsDisplay: false,
+                showDividers: false,
+                showFontFamily: true,
+                showFontSize: true,
+                showBoldButton: false,
+                showItalicButton: false,
+                showUnderLineButton: true,
+                showStrikeThrough: true,
+                showColorButton: true,
+                showBackgroundColorButton: false,
+                showClearFormat: true,
+                showHeaderStyle: false,
+                showListNumbers: false,
+                showListBullets: false,
+                showListCheck: false,
+                showCodeBlock: false,
+                showInlineCode: false,
+                showQuote: false,
+                showIndent: false,
+                showLink: false,
+                showUndo: false,
+                showRedo: false,
+                showSearchButton: false,
+                showSubscript: false,
+                showSuperscript: false,
+              ),
+            ),
           ),
         ],
       );

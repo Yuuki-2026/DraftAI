@@ -21,6 +21,8 @@ ThemeData appTheme(Brightness brightness) {
       ).copyWith(
         primary: dark ? Colors.white : Colors.black,
         onPrimary: dark ? Colors.black : Colors.white,
+        primaryContainer: dark ? AppColors.high : const Color(0xFFEEEEEE),
+        onPrimaryContainer: dark ? AppColors.text : const Color(0xFF171717),
         secondary: dark ? Colors.white : Colors.black,
         onSecondary: dark ? Colors.black : Colors.white,
         secondaryContainer: dark ? AppColors.high : const Color(0xFFEEEEEE),
@@ -138,7 +140,7 @@ ThemeData appTheme(Brightness brightness) {
     dialogTheme: DialogThemeData(
       surfaceTintColor: Colors.transparent,
       backgroundColor: dark ? AppColors.low : Colors.white,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
     ),
     snackBarTheme: const SnackBarThemeData(behavior: SnackBarBehavior.floating),
   );
@@ -173,10 +175,12 @@ class ResponsiveBody extends StatelessWidget {
 class Surface extends StatelessWidget {
   final Widget child;
   final EdgeInsetsGeometry padding;
+  final double radius;
   const Surface({
     super.key,
     required this.child,
     this.padding = const EdgeInsets.all(13),
+    this.radius = 8,
   });
   @override
   Widget build(BuildContext context) => Material(
@@ -184,7 +188,7 @@ class Surface extends StatelessWidget {
         ? AppColors.low
         : Colors.white,
     shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(radius),
       side: BorderSide(color: Theme.of(context).colorScheme.outline),
     ),
     clipBehavior: Clip.antiAlias,

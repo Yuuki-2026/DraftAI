@@ -41,6 +41,10 @@ Future<bool> connectAiDialog(
                   enableSuggestions: false,
                   decoration: InputDecoration(
                     labelText: tr(dialog, 'Código de conexión'),
+                    helperText: tr(
+                      dialog,
+                      'Usa el código Pro de prueba para analizar fuentes.',
+                    ),
                   ),
                 ),
                 if (error != null)

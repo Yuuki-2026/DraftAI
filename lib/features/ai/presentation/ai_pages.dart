@@ -6,13 +6,14 @@ import '../../../core/presentation/design.dart';
 import '../../../core/presentation/strings.dart';
 import '../../notes/domain/ports.dart';
 import 'connection_dialog.dart';
+import '../../notes/presentation/rich_ai_text.dart';
 import '../../notes/domain/entities.dart';
 import '../../notes/domain/use_cases.dart';
 import '../../notes/presentation/controller.dart';
 
 class AiPage extends ConsumerStatefulWidget {
   final List<Note> initialNotes;
-  final Future<void> Function(String)? onInsert;
+  final Future<void> Function(String, String)? onInsert;
   const AiPage({super.key, this.initialNotes = const [], this.onInsert});
   @override
   ConsumerState<AiPage> createState() => _AiPageState();
@@ -24,6 +25,7 @@ class _AiPageState extends ConsumerState<AiPage> {
   bool byDates = false, external = false, busy = false;
   String instruction = 'Genera un mapa mental en Markdown y Mermaid.',
       result = '';
+  String resultModel = '';
   @override
   void initState() {
     super.initState();
@@ -59,6 +61,14 @@ class _AiPageState extends ConsumerState<AiPage> {
       message(context, 'La fecha inicial debe ser anterior a la fecha final.');
       return;
     }
+    if (!external && !ref.read(aiPort).configured) {
+      final service = ref.read(aiPort);
+      if (service is! AiConnection ||
+          !await connectAiDialog(context, service as AiConnection)) {
+        return;
+      }
+      if (!mounted) return;
+    }
     final notes = _notes(lib);
     if (notes.isEmpty) {
       message(context, 'Selecciona al menos un apunte con texto.');
@@ -83,7 +93,12 @@ class _AiPageState extends ConsumerState<AiPage> {
       final value = await ref
           .read(controllerProvider.notifier)
           .transform(text, AiAction.summarize);
-      if (mounted) setState(() => result = value);
+      if (mounted) {
+        setState(() {
+          result = value;
+          resultModel = aiModelLabel(ref.read(aiPort));
+        });
+      }
     });
     if (mounted) setState(() => busy = false);
   }
@@ -232,20 +247,46 @@ class _AiPageState extends ConsumerState<AiPage> {
                     child: Text(tr(context, 'Todos / ninguno')),
                   ),
                 ),
-                for (final n in lib.active)
-                  CheckboxListTile(
-                    dense: true,
-                    contentPadding: EdgeInsets.zero,
-                    title: Text(n.title, style: const TextStyle(fontSize: 12)),
-                    subtitle: Meta(
-                      tr(context, '${n.topic} · ${n.words} palabras'),
-                    ),
-                    value: selected.contains(n.id),
-                    onChanged: (v) => setState(() {
-                      v == true ? selected.add(n.id) : selected.remove(n.id);
-                      result = '';
-                    }),
+                ExpansionTile(
+                  title: Text(
+                    '${selected.length} ${tr(context, 'seleccionados')} / ${lib.active.length}',
                   ),
+                  subtitle: Text(
+                    tr(
+                      context,
+                      'Despliega o contrae la lista para revisar los apuntes',
+                    ),
+                  ),
+                  children: [
+                    SizedBox(
+                      height: 320,
+                      child: ListView.builder(
+                        itemCount: lib.active.length,
+                        itemBuilder: (c, i) {
+                          final n = lib.active[i];
+                          return CheckboxListTile(
+                            title: Text(
+                              n.title,
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                            subtitle: Meta(
+                              '${n.topic} · ${n.words} ${tr(context, 'palabras')}',
+                            ),
+                            value: selected.contains(n.id),
+                            onChanged: busy
+                                ? null
+                                : (v) => setState(() {
+                                    v == true
+                                        ? selected.add(n.id)
+                                        : selected.remove(n.id);
+                                    result = '';
+                                  }),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
               ],
               if (external) ...[
                 SectionTitle('Añadir instrucción'),
@@ -275,7 +316,7 @@ class _AiPageState extends ConsumerState<AiPage> {
                     child: Text(
                       tr(
                         context,
-                        'Modo demostrativo: se extraen frases del texto local. No se consulta un modelo de IA.',
+                        'Conecta la IA para resumir tus apuntes. No se generará un resultado simulado.',
                       ),
                     ),
                   ),
@@ -302,7 +343,23 @@ class _AiPageState extends ConsumerState<AiPage> {
                 SectionTitle(
                   external ? 'Prompt estructurado' : 'Resumen generado',
                 ),
-                Surface(child: SelectableText(result)),
+                Surface(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Meta(
+                        external
+                            ? tr(
+                                context,
+                                'Contexto preparado sin consultar un modelo',
+                              )
+                            : '${tr(context, 'Generado por IA')} · $resultModel',
+                      ),
+                      const SizedBox(height: 10),
+                      RichAiText(result),
+                    ],
+                  ),
+                ),
                 SizedBox(height: 12),
                 Wrap(
                   spacing: 8,
@@ -321,11 +378,11 @@ class _AiPageState extends ConsumerState<AiPage> {
                     if (!external && widget.onInsert != null)
                       FilledButton.icon(
                         onPressed: () => runAction(context, () async {
-                          await widget.onInsert!(result);
+                          await widget.onInsert!(result, resultModel);
                           if (context.mounted) Navigator.pop(context);
                         }),
                         icon: const Icon(Icons.vertical_align_bottom, size: 18),
-                        label: Text(tr(context, 'Insertar en apunte')),
+                        label: Text(tr(context, 'Añadir resumen al final')),
                       ),
                   ],
                 ),

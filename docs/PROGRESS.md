@@ -1,3 +1,13 @@
+# Continuidad 0.2.2
+
+Implementado: análisis real por fuente (imagen/PDF/TXT/MD), revisión manual o IA con carpeta y apunte, resumen al final y modelo, clasificación académica, grupos de cinco; corrección de Pro perdido al emparejar, reconexión y cuotas persistentes. Lectura sin barra inferior, formato de edición y carpetas/listas plegables. Revisados todos los 153 HTML: docs/MOCKUP_REVIEW_0.2.2.md.
+
+Comprobaciones breves: siete del servidor; operación real sintética de ocho segundos con OpenAI; análisis estático. No se ejecutó suite Flutter completa ni emulador. La revisión visual final en teléfono sigue pendiente del propietario.
+
+Versión 0.2.2+5. Publicación del APK y huella se registra al finalizar la entrega. Nunca publicar Contexto, credenciales ni códigos de conexión. Servidor privado de prueba con códigos separados Gratis/Pro. Ver docs/TEST_SERVER.md.
+
+---
+
 # Continuidad de DraftAI
 
 ## Objetivo y estado
