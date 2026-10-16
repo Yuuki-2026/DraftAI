@@ -75,12 +75,6 @@ class _WelcomePageState extends ConsumerState<WelcomePage> {
                   onPressed: busy ? null : () => _enter(false),
                   child: const Text('Continuar sin cuenta'),
                 ),
-                const SizedBox(height: 20),
-                const Text(
-                  'Tus apuntes se guardan en este dispositivo.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 11, color: AppColors.muted),
-                ),
                 if (busy)
                   const Padding(
                     padding: EdgeInsets.all(16),
@@ -220,10 +214,6 @@ class ProfilePage extends ConsumerWidget {
               ListTile(
                 leading: const Icon(Icons.logout, size: 20),
                 title: const Text('Salir', style: TextStyle(fontSize: 13)),
-                subtitle: const Text(
-                  'Tus apuntes permanecen en este dispositivo.',
-                  style: TextStyle(fontSize: 11),
-                ),
                 onTap: () => runAction(context, () async {
                   await ref.read(controllerProvider.notifier).leave();
                   if (context.mounted) {
@@ -402,12 +392,31 @@ class PreferencesPage extends ConsumerWidget {
           maxWidth: 640,
           child: ListView(
             children: [
-              const SectionTitle('Idioma del sistema'),
-              const Surface(
-                child: ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: Icon(Icons.translate),
-                  title: Text('Español (América Latina)'),
+              const SectionTitle('Idioma'),
+              Surface(
+                padding: EdgeInsets.zero,
+                child: Column(
+                  children: [
+                    for (final language in [
+                      ('es', 'Español (América Latina)', 'ES'),
+                      ('en', 'English', 'EN'),
+                    ])
+                      ListTile(
+                        leading: const Icon(Icons.translate),
+                        title: Text(language.$2),
+                        trailing: Icon(
+                          (settings?.locale ?? 'es') == language.$1
+                              ? Icons.radio_button_checked
+                              : Icons.radio_button_unchecked,
+                        ),
+                        onTap: () => runAction(
+                          context,
+                          () => ref
+                              .read(controllerProvider.notifier)
+                              .locale(language.$1),
+                        ),
+                      ),
+                  ],
                 ),
               ),
               const SectionTitle('Tema visual'),
@@ -436,14 +445,6 @@ class PreferencesPage extends ConsumerWidget {
                   ],
                 ),
               ),
-              const SectionTitle('Captura y privacidad'),
-              const Surface(
-                child: Text(
-                  'La cámara y el micrófono se activan solo cuando pulsas su botón. Puedes revocar los permisos desde los ajustes de Android. El dictado puede usar el servicio de voz del dispositivo.',
-                ),
-              ),
-              const SizedBox(height: 12),
-              const Meta('Las preferencias se guardan automáticamente.'),
               const SizedBox(height: 28),
             ],
           ),

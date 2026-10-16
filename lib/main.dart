@@ -96,7 +96,7 @@ class DraftApp extends ConsumerWidget {
           : theme == 'light'
           ? ThemeMode.light
           : ThemeMode.dark,
-      locale: const Locale('es'),
+      locale: Locale(settings.value?.locale ?? 'es'),
       supportedLocales: const [Locale('es'), Locale('en')],
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
