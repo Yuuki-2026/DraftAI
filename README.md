@@ -5,7 +5,9 @@ DraftAI es una aplicación para crear y organizar notas con texto e imágenes. G
 
 Notas con formato, imágenes y cámara, carpetas/categorías, búsqueda y voz, historial, papelera y exportación PDF/Word/TXT/Markdown. Datos cifrados localmente. Gratis permite resúmenes y mejoras limitadas. La IA de prueba se conecta por dispositivo a un servidor temporal, sin Google; las claves de proveedor permanecen fuera del APK. Los planes no procesan pagos.
 
-![Inicio del APK Android](docs/screenshots/android-release-home.png)
+![Inicio del APK Android de la versión 0.1.0](docs/screenshots/android-release-home.png)
+
+Captura de la primera entrega; en 0.2.0 se actualizó la interfaz y se omitieron nuevas capturas a petición del propietario.
 
 ## Entorno fijado
 - Flutter **3.47.2**, Dart **3.13.2**, Java **17**.
