@@ -114,3 +114,5 @@ Texto de fuente presentado como apuntes claros y resumen didáctico con definici
 Se elimina el bloqueo local duplicado cuando el servicio expone acceso remoto. El servidor es autoridad de usos; contador en Perfil e IA con actualización manual y tras operaciones, incluido fallo. Estado autenticado incluye usados/límite/presupuesto global persistente. Conexión expone errores seguros del servidor. Sin migraciones de notas. Verificación de compilación, análisis y firma; sin emulador ni capturas para agilizar según petición del usuario.
 
 Comprobaciones beta.3: Node --check correcto; presupuesto persistente 1 prueba aprobada sin llamadas externas. Flutter analyze terminó con 25 avisos de estilo/contexto (no se declara limpio). No se ejecutaron pruebas Flutter, emulador ni capturas para priorizar la entrega solicitada.
+
+Beta.3 publicada: https://github.com/Yuuki-2026/DraftAI/releases/tag/v0.2.3-beta.3 . APK firmado 84492431 bytes; SHA-256 36f76ea4d570909fe40cb67afc5b8e3cd07602fd331bf431477a1a5b5f5860f3. Digest y tamaño remoto verificados. Fuente edbcc280b8387f62755ebf5bba992b47961e5195. Se conserva firma, notas y endpoint; actualizar sin desinstalar.
