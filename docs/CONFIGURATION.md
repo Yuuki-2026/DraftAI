@@ -1,4 +1,9 @@
-# Configuración pendiente del propietario
+# Configuración de servicios
+
+## Prueba real de IA en 0.2.0
+El APK se conecta por dispositivo al servidor temporal del propietario sin Firebase ni Google. Ver [TEST_SERVER.md](TEST_SERVER.md) para URL/código, modelos exactos, cuotas e inicio/parada. Las claves de Groq/NVIDIA se conservan cifradas con Windows fuera del repositorio. NVIDIA queda en reserva; el flujo de prueba usa Groq. Qwen se ejecuta en Groq, no se instala ni se descarga en el teléfono o la computadora.
+
+La sección de gateway Firebase de este documento describe otra opción de despliegue para una fase posterior. Google y los pagos reales siguen pendientes.
 
 ## Qué funciona sin claves
 El APK entra como invitado y permite crear, editar y organizar notas locales, formato enriquecido, imágenes, búsquedas, historial, papelera y exportación. Pro es una vista previa sin compras. El resumen demostrativo extrae frases localmente; la mejora demostrativa normaliza espacios. El OCR demostrativo muestra un formulario editable y declara que no leyó las imágenes.
@@ -21,7 +26,7 @@ Las claves privadas se colocan **en server/.env, nunca en config/app.json ni en 
 
 Contrato propio: POST v1/transform recibe `{text, action: summarize|improve}` y devuelve `{text}`. POST v1/analyze recibe archivos y nombres de carpetas/categorías; devuelve `{text, summary, title, topic, folderName, categoryName}`. El adaptador actual del gateway acepta imágenes JPEG/PNG/WebP; PDF permanece como adjunto, sin OCR remoto en este adaptador. Se puede añadir otro adaptador sin cambiar Domain/Presentation.
 
-El gateway exige token Firebase, limita uso diario y rechaza contenido excesivo. La cuota de referencia está en memoria por instancia: para producción con múltiples instancias sustituirla por almacenamiento compartido, y reemplazar la lista demo por derechos de pago verificados. No hay pagos reales en esta entrega.
+El gateway exige token Firebase, limita uso diario y rechaza contenido excesivo. Las cuotas por usuario del gateway Firebase son de referencia y están en memoria por instancia; el presupuesto global del proveedor ya se persiste en disco. Para producción con múltiples instancias sustituir ambos por almacenamiento compartido y reemplazar la lista demo por derechos de pago verificados. No hay pagos reales en esta entrega.
 
 ## Firma Android
 La firma de esta entrega se conserva localmente en `android/draftai-release.jks`; las contraseñas están en `android/key.properties`, ambos ignorados por Git. Copiar ambos a un respaldo privado del propietario. Nunca adjuntarlos a una release. Se necesita la misma firma para actualizar una instalación existente.

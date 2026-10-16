@@ -16,4 +16,4 @@ El acceso real a IA requiere que la computadora y el túnel del propietario est�
 ## Verificación
 23 pruebas del bloque principal y 6 del servidor aprobadas. Solicitudes reales pequeñas: resumen correcto, solicitud dañina bloqueada, cuota Gratis aplicada y lectura de una imagen sintética con título/resumen. Analizador estático sin hallazgos. El bloque visual del colaborador se revisó por código; a petición del propietario no se ejecutó su matriz de pruebas ni se tomaron capturas nuevas.
 
-Android mínimo 8.0/API 26, target 36. Flutter 3.47.2, Dart 3.13.2 y Java 17. iOS 15 preparado, sin validación en macOS. APK firmado con el certificado existente y archivo SHA256SUMS.txt.
+Android mínimo 8.0/API 26, target 36. Flutter 3.47.2, Dart 3.13.2 y Java 17. iOS 15 preparado, sin validación en macOS. APK firmado con el certificado existente y archivo SHA256SUMS.txt. Instalación como actualización y arranque comprobados en Android 14/API 34; revisión del APK sin coincidencias con las claves de proveedor facilitadas. La revisión visual completa y las pruebas funcionales en un teléfono físico quedan pendientes de esta entrega de prueba.
