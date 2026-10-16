@@ -13,6 +13,7 @@ const persist=()=>{writeFileSync(file+'.tmp',JSON.stringify(state));renameSync(f
 const hash=s=>createHash('sha256').update(s).digest('hex');
 const safeEqual=(a,b)=>{const x=Buffer.from(a),y=Buffer.from(b);return x.length===y.length&&timingSafeEqual(x,y);};
 const fixedModels={model:'openai/gpt-oss-20b',guardModel:'openai/gpt-oss-20b',visionModel:'qwen/qwen3.8-27b'};
+const proModel='gpt-5-nano-2025-08-07';
 let pairCode=randomBytes(9).toString('hex'),pairExpires=Date.now()+24*3600000;
 writeFileSync(join(directory,'pair-code.txt'),pairCode,{mode:0o600});
 const day=()=>new Date().toISOString().slice(0,10);
@@ -27,7 +28,7 @@ async function readBody(req,max){const chunks=[];let size=0;for await(const c of
 const server=createServer(async(req,res)=>{
  res.setHeader('Content-Type','application/json; charset=utf-8');res.setHeader('Cache-Control','no-store');res.setHeader('X-Content-Type-Options','nosniff');let active=false;
  try{
-  if(req.method==='GET'&&req.url==='/health'){res.end(JSON.stringify({ready:true,...fixedModels}));return;}
+  if(req.method==='GET'&&req.url==='/health'){res.end(JSON.stringify({ready:true,...fixedModels,proModel,proReady:Boolean(process.env.AI_PRO_API_KEY)}));return;}
   if(req.method!=='POST'||!['/v1/pair','/v1/transform','/v1/analyze'].includes(req.url))throw new ServiceError(404,'Acción no disponible.');
   if(req.url==='/v1/pair'){
    burst('pair-global',6);const b=await readBody(req,1024);
@@ -35,7 +36,7 @@ const server=createServer(async(req,res)=>{
    // Pairing code stays local, authorizes up to four test devices, and never enters the APK.
    if(state.devices.filter(d=>d.expires>Date.now()).length>=4)throw new ServiceError(429,'Ya hay cuatro dispositivos de prueba.');
    const token=randomBytes(32).toString('hex');state.devices.push({hash:hash(token),expires:Date.now()+24*3600000,pro:false});persist();
-   res.end(JSON.stringify({token,...fixedModels,expires:Date.now()+24*3600000}));return;
+   res.end(JSON.stringify({token,...fixedModels,proModel,expires:Date.now()+24*3600000}));return;
   }
   state.devices=JSON.parse(readFileSync(file,'utf8')).devices;
   const bearer=/^Bearer ([a-f0-9]{64})$/.exec(req.headers.authorization??'')?.[1];
@@ -52,7 +53,11 @@ const server=createServer(async(req,res)=>{
   if(u.provider>57)throw new ServiceError(429,'El servidor alcanzó su límite global por hoy.','global_limit');
   u.operations[device.hash]=used+1;persist();inflight++;active=true;
   const abort=new AbortController();res.on('close',()=>{if(!res.writableEnded)abort.abort();});
-  const value=await executeAi(req.url,body,{...config,signal:abort.signal});if(!res.destroyed)res.end(JSON.stringify(value));
+  if(device.pro&&!process.env.AI_PRO_API_KEY)throw new ServiceError(503,'El servicio Pro todavía no está configurado.','pro_unavailable');
+  // The device entitlement is read from trusted local state; the client cannot select a provider or model.
+  const selected=device.pro?{...config,key:process.env.AI_PRO_API_KEY,url:'https://api.openai.com/v1/chat/completions',
+    model:proModel,visionModel:proModel,guardModel:fixedModels.guardModel,guardKey:config.key,guardUrl:config.url}:config;
+  const value=await executeAi(req.url,body,{...selected,signal:abort.signal});if(!res.destroyed)res.end(JSON.stringify(value));
  }catch(e){if(res.destroyed)return;res.writeHead(e instanceof ServiceError?e.status:502);res.end(JSON.stringify({error:e instanceof ServiceError?e.message:'No se pudo completar la solicitud.',code:e instanceof ServiceError?e.code:'provider_unavailable'}));}
  finally{if(active)inflight--;}
 });

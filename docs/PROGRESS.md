@@ -50,3 +50,11 @@ Servidor temporal de pruebas con claves DPAPI fuera de Git, emparejamiento sin G
 APK 0.2.0+3 compilado, firma v2 y certificado anterior verificados; mínimo API 26, target 36. Auditoría de todas las entradas del APK contra las claves proporcionadas: sin coincidencias. Tamaño 79121650 bytes; SHA-256 `a9248a93401dfb4972f09d9fba57e9c489669e7cf87b6bd658efa69692bd5502`. Código del APK: 9290b96.
 
 Instalado como actualización en Android 14/API 34, versión 0.2.0+3 confirmada por Android; actividad iniciada y proceso vivo sin excepción de arranque en el registro revisado. No se ejecutó una nueva prueba funcional completa ni se tomaron capturas. HTTPS del servidor temporal verificado. PR #3 fusionado en main (4fe4665); PR #1 y #2 figuran fusionados. Release v0.2.0 publicada como versión de pruebas con APK y SHA256SUMS.txt verificados. Auditoría adicional de 233 blobs de todas las referencias Git: sin coincidencias con las claves facilitadas. Servidor de prueba requiere computadora/túnel activos; no confundir con servicio productivo. Google/pagos/OpenAI de Pro siguen pendientes.
+
+
+## Corrección 0.2.1 en preparación
+Petición del propietario: corregir fidelidad al HTML/CSS y capturas del mockup y publicar rápidamente sin pruebas/capturas nuevas. Se corrigen carpetas, acciones visibles, modo lectura, dos barras del editor, inserción discreta y zoom real por doble toque. No se crean nuevas categorías; se conserva compatibilidad con las anteriores. Referencia PDF de requerimientos revisada como material de consulta; las indicaciones actuales del propietario prevalecen.
+
+Biblioteca opcional ampliada a 120 apuntes, 8 carpetas, 24 temas, fechas de ocho meses y adjuntos generados. Clave OpenAI actualizada y cifrada con DPAPI fuera del repositorio. Modelo económico comprobado en /v1/models: gpt-5-nano-2025-08-07. Precio de referencia oficial: input USD 0.05 / output USD 0.40 por millón de tokens. Figura como modelo antiguo en documentación, pero la cuenta conserva acceso. No hay sustitución automática por otro más caro. Pro usa OpenAI; guardas usan Groq; presupuesto global común.
+
+Pendiente: completar conexión Pro, compilación, auditoría y publicación de 0.2.1. No se ejecutará suite de pruebas ni capturas/emulador por solicitud del propietario.
