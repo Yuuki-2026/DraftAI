@@ -40,10 +40,10 @@ const server=createServer(async(req,res)=>{
    burst('pair-global',6);const b=await readBody(req,1024);
    const pro=typeof b.code==='string'&&safeEqual(hash(b.code),hash(proCode));
    if(typeof b.code!=='string'||Date.now()>pairExpires||(!pro&&!safeEqual(hash(b.code),hash(pairCode))))throw new ServiceError(401,'Código de conexión no válido o vencido.','invalid_pair');
-   // Pairing code stays local, authorizes up to four test devices, and never enters the APK.
+   // Pairing code stays local, authorizes up to ten test devices, and never enters the APK.
    state.devices=JSON.parse(readFileSync(file,'utf8')).devices;
    const previous=typeof b.previousToken==='string'&&/^[a-f0-9]{64}$/.test(b.previousToken)?state.devices.find(d=>d.expires>Date.now()&&safeEqual(d.hash,hash(b.previousToken))):null;
-   if(state.devices.filter(d=>d.expires>Date.now()&&d!==previous).length>=4)throw new ServiceError(429,'Ya hay cuatro dispositivos de prueba.');
+   if(state.devices.filter(d=>d.expires>Date.now()&&d!==previous).length>=10)throw new ServiceError(429,'Ya hay diez dispositivos de prueba.');
    const token=randomBytes(32).toString('hex');if(previous){const u=usage();u.operations[hash(token)]=u.operations[previous.hash]??0;}state.devices.push({hash:hash(token),expires:Date.now()+24*3600000,pro:pro||previous?.pro===true});if(previous){previous.expires=0;const disk=JSON.parse(readFileSync(file,'utf8'));disk.devices=disk.devices.filter(d=>d.hash!==previous.hash);writeFileSync(file+'.tmp',JSON.stringify(disk));renameSync(file+'.tmp',file);}persist();
    res.end(JSON.stringify({token,...fixedModels,model:pro||previous?.pro?proModel:fixedModels.model,pro:pro||previous?.pro===true,proModel,expires:Date.now()+24*3600000}));return;
   }

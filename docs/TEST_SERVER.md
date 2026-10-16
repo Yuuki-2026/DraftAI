@@ -5,7 +5,7 @@ Las claves se conservan cifradas por Windows en el perfil local del propietario,
 ## Iniciar
 Desde el proyecto: `pwsh -NoProfile -File server/local-start.ps1`. Escucha únicamente en 127.0.0.1:8787. El túnel cloudflared publica ese servicio mediante HTTPS. Para detenerlo, cerrar los procesos del servidor y el túnel. No se instala un servicio de Windows. La URL cambia si se reinicia el túnel.
 
-En el móvil: abrir un apunte → IA → Conectar IA de prueba; introducir URL HTTPS y código local. El código nunca se incluye en GitHub. Autoriza un máximo de cuatro dispositivos, con tokens separados guardados en el almacén seguro del teléfono y vencimiento de 24 horas. Puede actualizarse la URL sin recompilar.
+En el móvil: abrir un apunte → IA → Conectar IA de prueba; introducir URL HTTPS y código local. El código nunca se incluye en GitHub. Autoriza un máximo de diez dispositivos, con tokens separados guardados en el almacén seguro del teléfono y vencimiento de 24 horas. Puede actualizarse la URL sin recompilar.
 
 ## Modelos fijados y alcance
 - Gratis, texto: Groq `openai/gpt-oss-20b`.
@@ -41,3 +41,6 @@ Las notas permanecen locales. Solo se envía el material confirmado al servicio 
 El código Gratis está en `runtime/pair-code.txt`; el código Pro privado está en `runtime/pro-code.txt`, bajo la carpeta privada indicada arriba. Ambos cambian al reiniciar. El código Pro autoriza directamente pruebas de lectura de fuentes; no compartir públicamente. Reconectar al mismo servidor renueva el token y conserva permisos vigentes y consumo, sin ocupar otra plaza. `/v1/status` exige el token del dispositivo y devuelve permisos, modelo y acciones restantes. Las autorizaciones del operador sobreviven a nuevas conexiones.
 
 La clasificación recibe solo identificadores y títulos de carpetas/apuntes, además de las fuentes elegidas; no recibe el cuerpo de los apuntes existentes. Cada propuesta se revisa antes de guardarse. Material no académico se marca para revisión manual. El límite de cinco es una decisión de esta app, no un límite universal de OpenAI.
+
+## Análisis académico actualizado
+Gratis usa Groq openai/gpt-oss-20b para mejorar selecciones y resumir (2 acciones/día). Pro usa gpt-5-nano-2025-08-07 y permite fuentes (10 acciones/día). NVIDIA no está activo como proveedor alternativo: no se hacen llamadas ni cambios automáticos de proveedor. Hasta 10 conexiones de prueba simultáneamente autorizadas; presupuesto global de 60 llamadas/día conservado. El resumen explica conceptos del contenido en español; las fuentes no académicas o ilegibles no reciben destino.
