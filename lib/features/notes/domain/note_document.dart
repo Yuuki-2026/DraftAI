@@ -61,7 +61,28 @@ abstract final class NoteDocument {
     for (final line in text.replaceAll('\r\n', '\n').split('\n')) {
       final heading = RegExp(r'^(#{1,3})\s+(.+)$').firstMatch(line);
       final bullet = RegExp(r'^\s*[-*•]\s+(.+)$').firstMatch(line);
-      ops.add({'insert': heading?.group(2) ?? bullet?.group(1) ?? line});
+      final content = heading?.group(2) ?? bullet?.group(1) ?? line;
+      final marks = RegExp(r'\*\*([^*]+)\*\*|__([^_]+)__|\*([^*\n]+)\*');
+      var cursor = 0;
+      for (final match in marks.allMatches(content)) {
+        if (match.start > cursor) {
+          ops.add({'insert': content.substring(cursor, match.start)});
+        }
+        ops.add({
+          'insert': match.group(1) ?? match.group(2) ?? match.group(3) ?? '',
+          'attributes': {
+            if (match.group(1) != null || match.group(2) != null)
+              'bold': true
+            else
+              'italic': true,
+          },
+        });
+        cursor = match.end;
+      }
+      if (cursor < content.length) {
+        ops.add({'insert': content.substring(cursor)});
+      }
+
       ops.add({
         'insert': '\n',
         if (heading != null)
@@ -108,6 +129,30 @@ abstract final class NoteDocument {
       }
     }
     if (text.isNotEmpty) result.add(DocumentPart(text: text));
+    if (note.summary.isNotEmpty) {
+      result.add(
+        DocumentPart(
+          text: note.summaryModel.isEmpty
+              ? 'Resumen'
+              : 'Resumen generado por IA',
+          heading: 2,
+        ),
+      );
+      if (note.summaryModel.isNotEmpty) {
+        result.add(DocumentPart(text: note.summaryModel));
+      }
+      result.addAll(
+        parts(
+          note.copyWith(
+            document: jsonEncode(formatted(note.summary)),
+            documentVersion: 2,
+            plainText: note.summary,
+            summary: '',
+            attachments: [],
+          ),
+        ),
+      );
+    }
     return result;
   }
 }

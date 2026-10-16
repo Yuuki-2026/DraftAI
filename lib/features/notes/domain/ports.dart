@@ -35,8 +35,20 @@ abstract interface class SpeechService {
 }
 
 class AnalysisProposal {
-  final String text, summary, title, topic, folderName, categoryName;
-  final bool demonstration;
+  final String text,
+      summary,
+      title,
+      topic,
+      folderName,
+      categoryName,
+      model,
+      folderId,
+      noteId,
+      noteTitle,
+      reason;
+  final bool demonstration, academic, readable, partial;
+  final int sourceIndex;
+  final List<AnalysisProposal> items;
   const AnalysisProposal({
     required this.text,
     required this.summary,
@@ -44,9 +56,49 @@ class AnalysisProposal {
     required this.topic,
     required this.folderName,
     this.categoryName = '',
+    this.model = '',
+    this.folderId = '',
+    this.noteId = '',
+    this.noteTitle = '',
+    this.reason = '',
     this.demonstration = false,
+    this.academic = true,
+    this.readable = true,
+    this.partial = false,
+    this.sourceIndex = 0,
+    this.items = const [],
   });
 }
+
+class AiAccess {
+  final bool pro, vision;
+  final String model;
+  final int remaining;
+  const AiAccess({
+    required this.pro,
+    required this.vision,
+    required this.model,
+    required this.remaining,
+  });
+}
+
+abstract interface class AiAccessProvider {
+  Future<AiAccess> refreshAccess();
+}
+
+abstract interface class AiRunMetadata {
+  String get lastModel;
+  bool get lastWasDemonstration;
+}
+
+String aiModelLabel(AiService service) => service is AiRunMetadata
+    ? (service as AiRunMetadata).lastModel
+    : service.configured
+    ? 'Modelo no informado'
+    : 'Sin modelo · demostración local';
+bool aiWasDemo(AiService service) => service is AiRunMetadata
+    ? (service as AiRunMetadata).lastWasDemonstration
+    : !service.configured;
 
 abstract interface class AiService {
   void cancel();

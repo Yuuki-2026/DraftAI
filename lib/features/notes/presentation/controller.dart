@@ -127,7 +127,16 @@ class AppController extends AsyncNotifier<Settings> {
     await ref.read(examplesPort).load();
   }
 
+  Future<AiAccess?> syncAiAccess() async {
+    final service = ref.read(aiPort);
+    if (service is! AiAccessProvider) return null;
+    final access = await (service as AiAccessProvider).refreshAccess();
+    if (state.value?.pro != access.pro) await plan(access.pro);
+    return access;
+  }
+
   Future<String> transform(String text, AiAction action) async {
+    await syncAiAccess();
     await ref.read(policyPort).check();
     final result = await ref.read(aiPort).transform(text, action);
     await ref.read(policyPort).recordSuccess();
@@ -136,6 +145,12 @@ class AppController extends AsyncNotifier<Settings> {
   }
 
   Future<AnalysisProposal> analyze(List<PickedFile> files, Library lib) async {
+    final access = await syncAiAccess();
+    if (access != null && !access.vision) {
+      throw const AppFailure(
+        'Conectado como Gratis. Usa el código Pro de prueba para analizar imágenes o documentos.',
+      );
+    }
     await ref.read(policyPort).check(ocr: true);
     final result = await ref.read(aiPort).analyze(files, lib);
     await ref.read(policyPort).recordSuccess();

@@ -29,6 +29,8 @@ class Attachment {
 class Note {
   final String id, folderId, title, topic, plainText, document, summary;
   final String? categoryId;
+  final String summaryModel, lastAiModel;
+  final DateTime? lastAiAt;
   final DateTime createdAt, updatedAt;
   final DateTime? deletedAt;
   final List<Attachment> attachments;
@@ -43,6 +45,9 @@ class Note {
     this.plainText = '',
     this.document = '',
     this.summary = '',
+    this.summaryModel = '',
+    this.lastAiModel = '',
+    this.lastAiAt,
     this.documentVersion = 2,
     this.categoryId,
     this.deletedAt,
@@ -56,6 +61,9 @@ class Note {
     String? plainText,
     String? document,
     String? summary,
+    String? summaryModel,
+    String? lastAiModel,
+    DateTime? lastAiAt,
     int? documentVersion,
     String? categoryId,
     bool clearCategory = false,
@@ -71,6 +79,9 @@ class Note {
     plainText: plainText ?? this.plainText,
     document: document ?? this.document,
     summary: summary ?? this.summary,
+    summaryModel: summaryModel ?? this.summaryModel,
+    lastAiModel: lastAiModel ?? this.lastAiModel,
+    lastAiAt: lastAiAt ?? this.lastAiAt,
     documentVersion: documentVersion ?? this.documentVersion,
     categoryId: clearCategory ? null : categoryId ?? this.categoryId,
     createdAt: createdAt,

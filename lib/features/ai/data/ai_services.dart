@@ -48,7 +48,11 @@ class DemonstrationAi implements AiService {
 }
 
 /// Stable application contract: providers are replaced on the server, not in UI.
-class RemoteAi implements AiService {
+class RemoteAi implements AiService, AiRunMetadata, AiAccessProvider {
+  @override
+  String lastModel = '';
+  @override
+  bool get lastWasDemonstration => false;
   final Uri endpoint;
   final IdentityService identity;
   final http.Client client;
@@ -67,8 +71,9 @@ class RemoteAi implements AiService {
   bool get configured => true;
   Future<Map<String, dynamic>> _post(
     String path,
-    Map<String, dynamic> body,
-  ) async {
+    Map<String, dynamic> body, {
+    String method = 'POST',
+  }) async {
     final token = await identity.idToken();
     if (token == null) {
       throw const AppFailure(
@@ -83,7 +88,7 @@ class RemoteAi implements AiService {
       _abort = abort;
       final request =
           http.AbortableRequest(
-              'POST',
+              method,
               endpoint.resolve(path),
               abortTrigger: abort.future,
             )
@@ -91,8 +96,8 @@ class RemoteAi implements AiService {
             ..headers.addAll({
               'Content-Type': 'application/json',
               'Authorization': 'Bearer $token',
-            })
-            ..body = jsonEncode(body);
+            });
+      if (method != 'GET') request.body = jsonEncode(body);
       final response = await client
           .send(request)
           .then(http.Response.fromStream)
@@ -109,6 +114,15 @@ class RemoteAi implements AiService {
           error = jsonDecode(response.body) as Map<String, dynamic>;
         } catch (_) {}
         const allowed = {
+          'provider_configuration': 'El servidor no tiene permisos válidos con el proveedor. No es un problema de tu imagen.',
+          'provider_quota':
+              'La cuenta del proveedor no tiene saldo disponible.',
+          'pro_unavailable': 'Falta configurar la clave Pro en el servidor.',
+          'output_too_long': 'La fuente es demasiado extensa. Divide el documento o analiza menos fuentes juntas.',
+          'invalid_input':
+              'Revisa el grupo de fuentes y los límites de tamaño.',
+          'provider_unavailable': 'El proveedor no pudo leer esta fuente. Revisa el formato o inténtalo después.',
+
           'content_blocked': 'Esta función no puede crear o mejorar instrucciones para causar daño. Puedes trabajar con apuntes educativos seguros.',
           'daily_limit': 'Alcanzaste el límite diario. Vuelve mañana.',
           'global_limit': 'El servidor alcanzó su límite de pruebas por hoy.',
@@ -125,6 +139,7 @@ class RemoteAi implements AiService {
       }
       final value = jsonDecode(response.body);
       if (value is! Map<String, dynamic>) throw const FormatException();
+      if (value['model'] is String) lastModel = value['model'] as String;
       return value;
     } on AppFailure {
       rethrow;
@@ -174,23 +189,49 @@ class RemoteAi implements AiService {
           .map((f) => {'id': f.id, 'name': f.name})
           .toList(),
       'categories': <Map<String, String>>[],
+      'notes': library.active
+          .take(500)
+          .map((n) => {'id': n.id, 'folderId': n.folderId, 'title': n.title})
+          .toList(),
     });
-    if ([
-      'text',
-      'summary',
-      'title',
-      'topic',
-      'folderName',
-    ].any((k) => j[k] is! String)) {
-      throw const AppFailure('La propuesta de clasificación está incompleta.');
+    AnalysisProposal decode(
+      Map<String, dynamic> value, {
+      List<AnalysisProposal> items = const [],
+    }) => AnalysisProposal(
+      text: value['text'] as String? ?? '',
+      summary: value['summary'] as String? ?? '',
+      title: value['title'] as String? ?? '',
+      topic: value['topic'] as String? ?? '',
+      folderName: value['folderName'] as String? ?? '',
+      folderId: value['folderId'] as String? ?? '',
+      noteId: value['noteId'] as String? ?? '',
+      noteTitle: value['noteTitle'] as String? ?? '',
+      model: value['model'] as String? ?? lastModel,
+      reason: value['reason'] as String? ?? '',
+      academic: value['academic'] as bool? ?? true,
+      readable: value['readable'] as bool? ?? true,
+      partial: value['partial'] as bool? ?? false,
+      sourceIndex: value['sourceIndex'] as int? ?? 0,
+      items: items,
+    );
+    final items = (j['items'] as List? ?? [])
+        .whereType<Map>()
+        .map((v) => decode(Map<String, dynamic>.from(v)))
+        .toList();
+    if (items.isNotEmpty && items.length != files.length) {
+      throw const AppFailure('Faltan resultados de algunas fuentes.');
     }
-    return AnalysisProposal(
-      text: j['text'] as String,
-      summary: j['summary'] as String,
-      title: j['title'] as String,
-      topic: j['topic'] as String,
-      folderName: j['folderName'] as String,
-      categoryName: j['categoryName'] as String? ?? '',
+    return decode(j, items: items);
+  }
+
+  @override
+  Future<AiAccess> refreshAccess() async {
+    final j = await _post('v1/status', const {}, method: 'GET');
+    return AiAccess(
+      pro: j['pro'] == true,
+      vision: j['vision'] == true,
+      model: j['model'] as String? ?? '',
+      remaining: j['remaining'] as int? ?? 0,
     );
   }
 }

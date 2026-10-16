@@ -7,7 +7,8 @@ import '../../notes/domain/entities.dart';
 import '../../notes/domain/ports.dart';
 import 'ai_services.dart';
 
-class GatewayAi implements AiService, AiConnection {
+class GatewayAi
+    implements AiService, AiConnection, AiRunMetadata, AiAccessProvider {
   final SecureStore secure;
   final http.Client client;
   RemoteAi? _remote;
@@ -52,7 +53,11 @@ class GatewayAi implements AiService, AiConnection {
     final request = http.Request('POST', base.resolve('v1/pair'))
       ..followRedirects = false
       ..headers['Content-Type'] = 'application/json'
-      ..body = jsonEncode({'code': code.trim()});
+      ..body = jsonEncode({
+        'code': code.trim(),
+        if (Uri.tryParse(_endpoint)?.host == base.host)
+          'previousToken': await secure.read('test_ai_device_token') ?? '',
+      });
     try {
       final response = await client
           .send(request)
@@ -71,11 +76,7 @@ class GatewayAi implements AiService, AiConnection {
       await secure.write('test_ai_endpoint', base.toString());
       await secure.write('test_ai_device_token', token);
       _endpoint = base.toString();
-      _model = value['proModel'] is String
-          ? '${value['model']} · Pro: ${value['proModel']}'
-          : value['model'] is String
-          ? value['model'] as String
-          : _model;
+      _model = value['model'] as String? ?? _model;
       await secure.write('test_ai_model', _model);
       _remote = RemoteAi(base, _DeviceIdentity(token), client);
     } on AppFailure {
@@ -95,11 +96,41 @@ class GatewayAi implements AiService, AiConnection {
   @override
   void cancel() => _remote?.cancel();
   @override
-  Future<String> transform(String text, AiAction action) =>
-      (_remote ?? DemonstrationAi()).transform(text, action);
+  String get lastModel =>
+      _remote?.lastModel.isNotEmpty == true ? _remote!.lastModel : _model;
   @override
-  Future<AnalysisProposal> analyze(List<PickedFile> files, Library library) =>
-      (_remote ?? DemonstrationAi()).analyze(files, library);
+  bool get lastWasDemonstration => false;
+  @override
+  Future<String> transform(String text, AiAction action) async {
+    final remote = _remote;
+    if (remote == null) {
+      throw const AppFailure(
+        'Conecta la IA antes de procesar texto. No se ha consultado ningún modelo.',
+      );
+    }
+    return remote.transform(text, action);
+  }
+
+  @override
+  Future<AnalysisProposal> analyze(
+    List<PickedFile> files,
+    Library library,
+  ) async {
+    final remote = _remote;
+    if (remote == null) {
+      throw const AppFailure('Conecta la IA antes de analizar las fuentes.');
+    }
+    return remote.analyze(files, library);
+  }
+
+  @override
+  Future<AiAccess> refreshAccess() async {
+    if (_remote == null) throw const AppFailure('Conecta la IA de prueba.');
+    final access = await _remote!.refreshAccess();
+    _model = access.model;
+    await secure.write('test_ai_model', _model);
+    return access;
+  }
 }
 
 class _DeviceIdentity implements IdentityService {

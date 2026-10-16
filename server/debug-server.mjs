@@ -8,14 +8,20 @@ import {ServiceError,executeAi,validateTransform,validateFiles} from './service.
 const directory=process.env.DRAFTAI_STATE_DIR;
 if(!directory||!process.env.AI_API_KEY)throw new Error('Configure private local credentials and state directory.');
 mkdirSync(directory,{recursive:true});const file=join(directory,'usage.json');
-let state;try{state=JSON.parse(readFileSync(file,'utf8'));}catch(error){if(error.code!=='ENOENT')throw error;state={devices:[],usage:{}};}
-const persist=()=>{writeFileSync(file+'.tmp',JSON.stringify(state));renameSync(file+'.tmp',file);};
+let state;try{state=JSON.parse(readFileSync(file,'utf8'));}catch(error){if(error.code!=='ENOENT')throw error;state={devices:[],usage:{}};writeFileSync(file,JSON.stringify(state));}
+const persist=()=>{
+ // Preserve operator entitlement changes even while a provider request is in flight.
+ let devices=[];try{devices=JSON.parse(readFileSync(file,'utf8')).devices;}catch(e){if(e.code!=='ENOENT')throw e;}
+ const known=new Map(devices.map(d=>[d.hash,d]));for(const d of state.devices)if(!known.has(d.hash))known.set(d.hash,d);
+ state.devices=[...known.values()].filter(d=>d.expires>Date.now());
+ writeFileSync(file+'.tmp',JSON.stringify(state));renameSync(file+'.tmp',file);};
 const hash=s=>createHash('sha256').update(s).digest('hex');
 const safeEqual=(a,b)=>{const x=Buffer.from(a),y=Buffer.from(b);return x.length===y.length&&timingSafeEqual(x,y);};
 const fixedModels={model:'openai/gpt-oss-20b',guardModel:'openai/gpt-oss-20b',visionModel:'qwen/qwen3.8-27b'};
 const proModel='gpt-5-nano-2025-08-07';
-let pairCode=randomBytes(9).toString('hex'),pairExpires=Date.now()+24*3600000;
+let pairCode=randomBytes(9).toString('hex'),proCode=randomBytes(9).toString('hex'),pairExpires=Date.now()+24*3600000;
 writeFileSync(join(directory,'pair-code.txt'),pairCode,{mode:0o600});
+writeFileSync(join(directory,'pro-code.txt'),proCode,{mode:0o600});
 const day=()=>new Date().toISOString().slice(0,10);
 function usage(){const key=day();if(!state.usage[key]){state.usage={[key]:{provider:0,operations:{}}};persist();}return state.usage[key];}
 const budget=new ProviderBudget(directory,{initial:state.usage?.[day()]?.provider??0});
@@ -29,25 +35,30 @@ const server=createServer(async(req,res)=>{
  res.setHeader('Content-Type','application/json; charset=utf-8');res.setHeader('Cache-Control','no-store');res.setHeader('X-Content-Type-Options','nosniff');let active=false;
  try{
   if(req.method==='GET'&&req.url==='/health'){res.end(JSON.stringify({ready:true,...fixedModels,proModel,proReady:Boolean(process.env.AI_PRO_API_KEY)}));return;}
-  if(req.method!=='POST'||!['/v1/pair','/v1/transform','/v1/analyze'].includes(req.url))throw new ServiceError(404,'Acción no disponible.');
+  if(!((req.method==='POST'&&['/v1/pair','/v1/transform','/v1/analyze'].includes(req.url))||(req.method==='GET'&&req.url==='/v1/status')))throw new ServiceError(404,'Acción no disponible.');
   if(req.url==='/v1/pair'){
    burst('pair-global',6);const b=await readBody(req,1024);
-   if(typeof b.code!=='string'||Date.now()>pairExpires||!safeEqual(hash(b.code),hash(pairCode)))throw new ServiceError(401,'Código de conexión no válido o vencido.','invalid_pair');
+   const pro=typeof b.code==='string'&&safeEqual(hash(b.code),hash(proCode));
+   if(typeof b.code!=='string'||Date.now()>pairExpires||(!pro&&!safeEqual(hash(b.code),hash(pairCode))))throw new ServiceError(401,'Código de conexión no válido o vencido.','invalid_pair');
    // Pairing code stays local, authorizes up to four test devices, and never enters the APK.
-   if(state.devices.filter(d=>d.expires>Date.now()).length>=4)throw new ServiceError(429,'Ya hay cuatro dispositivos de prueba.');
-   const token=randomBytes(32).toString('hex');state.devices.push({hash:hash(token),expires:Date.now()+24*3600000,pro:false});persist();
-   res.end(JSON.stringify({token,...fixedModels,proModel,expires:Date.now()+24*3600000}));return;
+   state.devices=JSON.parse(readFileSync(file,'utf8')).devices;
+   const previous=typeof b.previousToken==='string'&&/^[a-f0-9]{64}$/.test(b.previousToken)?state.devices.find(d=>d.expires>Date.now()&&safeEqual(d.hash,hash(b.previousToken))):null;
+   if(state.devices.filter(d=>d.expires>Date.now()&&d!==previous).length>=4)throw new ServiceError(429,'Ya hay cuatro dispositivos de prueba.');
+   const token=randomBytes(32).toString('hex');if(previous){const u=usage();u.operations[hash(token)]=u.operations[previous.hash]??0;}state.devices.push({hash:hash(token),expires:Date.now()+24*3600000,pro:pro||previous?.pro===true});if(previous){previous.expires=0;const disk=JSON.parse(readFileSync(file,'utf8'));disk.devices=disk.devices.filter(d=>d.hash!==previous.hash);writeFileSync(file+'.tmp',JSON.stringify(disk));renameSync(file+'.tmp',file);}persist();
+   res.end(JSON.stringify({token,...fixedModels,model:pro||previous?.pro?proModel:fixedModels.model,pro:pro||previous?.pro===true,proModel,expires:Date.now()+24*3600000}));return;
   }
   state.devices=JSON.parse(readFileSync(file,'utf8')).devices;
   const bearer=/^Bearer ([a-f0-9]{64})$/.exec(req.headers.authorization??'')?.[1];
   const device=bearer?state.devices.find(d=>safeEqual(d.hash,hash(bearer))&&d.expires>Date.now()):null;
   if(!device)throw new ServiceError(401,'Conecta este dispositivo para usar la IA de prueba.','pair_required');
+  if(req.url==='/v1/status'){res.end(JSON.stringify({pro:device.pro,model:device.pro?proModel:fixedModels.model,vision:device.pro&&Boolean(process.env.AI_PRO_API_KEY),remaining:Math.max(0,(device.pro?10:2)-(usage().operations[device.hash]??0)),expires:device.expires}));return;}
   burst(device.hash,4);
   if(inflight>=2)throw new ServiceError(429,'El servidor está ocupado. Reintenta más tarde.','busy');
   const body=await readBody(req,req.url==='/v1/analyze'?14500000:60000);
   if(req.url==='/v1/transform')validateTransform(body);else validateFiles(body);
   // Free devices get two transforms per day. Pro must be enabled locally by the operator.
   if(req.url==='/v1/analyze'&&!device.pro)throw new ServiceError(403,'Lectura de imágenes disponible solo en la prueba Pro autorizada.','pro_required');
+  if(inflight>=2)throw new ServiceError(429,'El servidor está ocupado.','busy');
   const u=usage(),used=u.operations[device.hash]??0;
   if(used>=(device.pro?10:2))throw new ServiceError(429,'Límite diario alcanzado.','daily_limit');
   if(u.provider>57)throw new ServiceError(429,'El servidor alcanzó su límite global por hoy.','global_limit');
@@ -62,4 +73,4 @@ const server=createServer(async(req,res)=>{
  finally{if(active)inflight--;}
 });
 server.requestTimeout=90000;server.headersTimeout=10000;server.maxConnections=16;
-server.listen(8787,'127.0.0.1',()=>console.log('DraftAI test gateway ready. Provider keys and request content are never logged.'));
+server.listen(Number(process.env.DRAFTAI_PORT??8787),'127.0.0.1',()=>{console.log('DraftAI test gateway ready. Provider keys and request content are never logged.');process.send?.({port:server.address().port});});
