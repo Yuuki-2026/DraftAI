@@ -2041,9 +2041,10 @@ Future<void> exportMenu(
   final exporter = ref.read(exportPort);
   if (textDelivery == 'copy') {
     if (exporter is! PlainTextExportService) return;
+    final plainTextExporter = exporter as PlainTextExportService;
     await Clipboard.setData(
       ClipboardData(
-        text: exporter.plainText(
+        text: plainTextExporter.plainText(
           notes,
           markdown: format == ExportFormat.markdown,
         ),

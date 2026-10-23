@@ -495,18 +495,13 @@ class _PreviewAttachmentState extends ConsumerState<_PreviewAttachment> {
     if (oldWidget.widthFactor != widget.widthFactor) {
       widthFactor = widget.widthFactor;
     }
+    if (oldWidget.attachmentId != widget.attachmentId) imageBytes = _load();
   }
 
   @override
   void initState() {
     super.initState();
     imageBytes = _load();
-  }
-
-  @override
-  void didUpdateWidget(covariant _PreviewAttachment oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.attachmentId != widget.attachmentId) imageBytes = _load();
   }
 
   Future<Uint8List>? _load() {

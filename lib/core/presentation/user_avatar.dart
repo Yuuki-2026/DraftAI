@@ -20,15 +20,15 @@ class UserAvatar extends ConsumerWidget {
     final encoded = settings?.profileImage ?? '';
     if (encoded.isNotEmpty) {
       try {
-        return ClipOval(
-          child: Image.memory(
+        return _circle(
+          Image.memory(
             base64Decode(encoded),
             width: size,
             height: size,
             cacheWidth: cacheSide,
             cacheHeight: cacheSide,
             fit: BoxFit.cover,
-            errorBuilder: (_, _, _) => _fallback(fallback),
+            errorBuilder: (_, _, _) => _fallback(fallback, cacheSide),
           ),
         );
       } catch (_) {
@@ -40,8 +40,8 @@ class UserAvatar extends ConsumerWidget {
         ? (identity as ProfilePhotoIdentityService).photoUrl
         : null;
     if (photoUrl != null && photoUrl.isNotEmpty) {
-      return ClipOval(
-        child: Image.network(
+      return _circle(
+        Image.network(
           photoUrl,
           width: size,
           height: size,
@@ -50,17 +50,22 @@ class UserAvatar extends ConsumerWidget {
           fit: BoxFit.cover,
           frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
             if (wasSynchronouslyLoaded || frame != null) return child;
-            return _fallback(fallback);
+            return _fallback(fallback, cacheSide);
           },
-          errorBuilder: (_, _, _) => _fallback(fallback),
+          errorBuilder: (_, _, _) => _fallback(fallback, cacheSide),
         ),
       );
     }
-    return _fallback(fallback);
+    return _fallback(fallback, cacheSide);
   }
 
-  Widget _fallback(String path) => ClipOval(
-    child: Image.asset(
+  Widget _circle(Widget image) => SizedBox.square(
+    dimension: size,
+    child: ClipOval(child: image),
+  );
+
+  Widget _fallback(String path, int cacheSide) => _circle(
+    Image.asset(
       path,
       width: size,
       height: size,

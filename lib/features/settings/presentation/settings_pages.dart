@@ -557,7 +557,7 @@ class _ProfilePhotoCropDialogState extends State<_ProfilePhotoCropDialog> {
       if (boundary == null) throw StateError('No crop render boundary');
       final original = await sourceSize;
       final side = math.min(original.width, original.height);
-      final cropDimension = boundary.size.shortestSide;
+      final cropDimension = math.min(boundary.size.width, boundary.size.height);
       final pixelRatio = (side / cropDimension).clamp(1.0, 8.0).toDouble();
       final image = await boundary.toImage(pixelRatio: pixelRatio);
       final data = await image.toByteData(format: ui.ImageByteFormat.png);
@@ -604,76 +604,93 @@ class _ProfilePhotoCropDialogState extends State<_ProfilePhotoCropDialog> {
                   child: const Center(child: CircularProgressIndicator()),
                 );
               }
-              final size = snapshot.data!;
-              final aspect = size.width / size.height;
-              final imageWidth = aspect >= 1
-                  ? cropDimension * aspect
-                  : cropDimension;
-              final imageHeight = aspect >= 1
-                  ? cropDimension
-                  : cropDimension / aspect;
-              return RepaintBoundary(
-                key: cropKey,
-                child: ClipOval(
-                  child: SizedBox.square(
-                    dimension: cropDimension,
-                    child: Stack(
-                      children: [
-                        ColoredBox(
-                          color: Theme.of(context)
-                              .colorScheme
-                              .surfaceContainerHighest,
-                          child: SizedBox.expand(
-                            child: InteractiveViewer(
-                              transformationController: transform,
-                              constrained: false,
-                              alignment: Alignment.center,
-                              minScale: 1,
-                              maxScale: 4,
-                              boundaryMargin: const EdgeInsets.all(80),
-                              child: Image.memory(
-                                widget.bytes,
-                                width: imageWidth,
-                                height: imageHeight,
-                                fit: BoxFit.fill,
-                                gaplessPlayback: true,
-                                frameBuilder: (context, child, frame, sync) {
-                                  if (sync || frame != null) {
-                                    if (!imageReady) {
-                                      WidgetsBinding.instance
-                                          .addPostFrameCallback((_) {
-                                            if (mounted) {
-                                              setState(() => imageReady = true);
+              final source = snapshot.data!;
+              return LayoutBuilder(
+                builder: (context, constraints) {
+                  final maxWidth = constraints.maxWidth.isFinite
+                      ? constraints.maxWidth
+                      : cropDimension;
+                  final maxHeight = constraints.maxHeight.isFinite
+                      ? constraints.maxHeight
+                      : cropDimension;
+                  final side = math
+                      .min(cropDimension, math.min(maxWidth, maxHeight))
+                      .clamp(1.0, cropDimension)
+                      .toDouble();
+                  final aspect = source.width / source.height;
+                  final imageWidth = aspect >= 1 ? side * aspect : side;
+                  final imageHeight = aspect >= 1 ? side : side / aspect;
+                  return Center(
+                    child: RepaintBoundary(
+                      key: cropKey,
+                      child: SizedBox(
+                        width: side,
+                        height: side,
+                        child: ClipOval(
+                          child: Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              ColoredBox(
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .surfaceContainerHighest,
+                                child: InteractiveViewer(
+                                  transformationController: transform,
+                                  constrained: false,
+                                  alignment: Alignment.center,
+                                  minScale: 1,
+                                  maxScale: 4,
+                                  boundaryMargin: const EdgeInsets.all(80),
+                                  child: Image.memory(
+                                    widget.bytes,
+                                    width: imageWidth,
+                                    height: imageHeight,
+                                    fit: BoxFit.fill,
+                                    gaplessPlayback: true,
+                                    frameBuilder:
+                                        (context, child, frame, sync) {
+                                          if (sync || frame != null) {
+                                            if (!imageReady) {
+                                              WidgetsBinding.instance
+                                                  .addPostFrameCallback((_) {
+                                                    if (mounted) {
+                                                      setState(
+                                                        () => imageReady = true,
+                                                      );
+                                                    }
+                                                  });
                                             }
-                                          });
-                                    }
-                                    return child;
-                                  }
-                                  return const Center(
-                                    child: CircularProgressIndicator(),
-                                  );
-                                },
+                                            return child;
+                                          }
+                                          return const Center(
+                                            child: CircularProgressIndicator(),
+                                          );
+                                        },
+                                  ),
+                                ),
                               ),
-                            ),
+                              IgnorePointer(
+                                child: DecoratedBox(
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .primary
+                                          .withValues(alpha: .75),
+                                      width: 1,
+                                    ),
+                                  ),
+                                  child: const SizedBox.expand(),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                        IgnorePointer(
-                          child: DecoratedBox(
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: Theme.of(context).colorScheme.primary
-                                    .withValues(alpha: .75),
-                                width: 1,
-                              ),
-                            ),
-                            child: const SizedBox.expand(),
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
-                  ),
-                ),
+                  );
+                },
               );
             },
           ),

@@ -1,3 +1,9 @@
+# Corrección UI · recorte de perfil y botón de tablas · 2026-10-22
+
+El selector de foto limita el área de recorte al espacio real disponible y captura un viewport cuadrado con máscara circular; los avatares fuerzan un contenedor cuadrado antes del recorte para evitar óvalos por restricciones de pantalla. El botón Insertar tabla ahora usa un icono de cuadrícula más grande y un fondo tonal para distinguirlo en la barra de edición. El análisis estático también encontró y se corrigieron dos errores de compilación preexistentes: un método `didUpdateWidget` duplicado y el acceso a `plainText` mediante una interfaz explícita.
+
+Análisis dirigido de los cinco archivos afectados: sin errores; quedaron solo avisos informativos existentes. No se compiló APK ni se ejecutó en dispositivo. Pendiente: revisar ambos cambios en el teléfono cuando se prepare el siguiente APK.
+
 # Continuidad · Acceso Google real y aislamiento local · 2026-10-22
 
 Se sustituyó el acceso de “usuario de prueba” por Firebase Authentication/Google Sign-In. Android procesa `google-services.json` mediante Google Services Gradle Plugin; la app ya no depende de `--dart-define` para los valores públicos de Firebase. La biblioteca Invitado conserva la base y clave existentes. Cada UID abre una base y clave AES-GCM independientes, con sus propios adjuntos y preferencias.

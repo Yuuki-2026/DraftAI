@@ -30,6 +30,7 @@ class NoteFormatBar extends StatelessWidget {
         Widget child,
         VoidCallback action, {
         q.Attribute? attribute,
+        bool prominent = false,
       }) {
         final active =
             attribute != null &&
@@ -43,10 +44,12 @@ class NoteFormatBar extends StatelessWidget {
               child: Container(
                 height: 46,
                 alignment: Alignment.center,
-                decoration: active
+                decoration: active || prominent
                     ? BoxDecoration(
-                        color: Theme.of(context).colorScheme.secondaryContainer,
-                        borderRadius: BorderRadius.circular(6),
+                        color: prominent
+                            ? Theme.of(context).colorScheme.primaryContainer
+                            : Theme.of(context).colorScheme.secondaryContainer,
+                        borderRadius: BorderRadius.circular(8),
                       )
                     : null,
                 child: child,
@@ -104,8 +107,13 @@ class NoteFormatBar extends StatelessWidget {
               ),
               button(
                 'Insertar tabla',
-                const Icon(Icons.table_chart_outlined, size: 19),
+                Icon(
+                  Icons.grid_on,
+                  size: 24,
+                  color: Theme.of(context).colorScheme.onPrimaryContainer,
+                ),
                 onInsertTable,
+                prominent: true,
               ),
               button('Deshacer', const Icon(Icons.undo, size: 20), () {
                 onDismissKeyboard();
