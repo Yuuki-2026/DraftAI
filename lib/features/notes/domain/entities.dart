@@ -119,6 +119,25 @@ class PickedFile {
 
 enum ExportFormat { pdf, word, text, markdown }
 
+/// Presentation controls shared by PDF and Word exports.
+class ExportOptions {
+  final double imageScale;
+  final double titleSize;
+  final double pageMargin;
+  final bool showPageNumbers;
+  final bool includeDate;
+  final String footer;
+
+  const ExportOptions({
+    this.imageScale = 1,
+    this.titleSize = 24,
+    this.pageMargin = 36,
+    this.showPageNumbers = true,
+    this.includeDate = true,
+    this.footer = '',
+  });
+}
+
 enum AiAction { summarize, improve }
 
 enum CaptureSource { camera, gallery, files }

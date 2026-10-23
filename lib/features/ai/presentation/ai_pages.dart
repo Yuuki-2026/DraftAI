@@ -59,7 +59,16 @@ class _AiPageState extends ConsumerState<AiPage> {
 
   Future<void> _verifyConnection() async {
     final service = ref.read(aiPort);
-    if (!service.configured || service is! AiAccessProvider) {
+    final connection = service is AiConnection ? service : null;
+    if (connection == null || !service.configured) {
+      if (mounted) setState(() => verified = false);
+      return;
+    }
+    if (!connection.isGoogleAccount) {
+      if (mounted) setState(() => verified = true);
+      return;
+    }
+    if (service is! AiAccessProvider) {
       if (mounted) setState(() => verified = false);
       return;
     }
@@ -167,23 +176,43 @@ class _AiPageState extends ConsumerState<AiPage> {
                       context,
                       checkingConnection
                           ? 'Comprobando conexión…'
+                          : connection.isGoogleAccount
+                          ? verified
+                                ? 'IA de DraftAI'
+                                : 'IA en la nube no disponible'
                           : verified
-                          ? 'IA conectada'
-                          : 'Conectar IA de prueba',
+                          ? 'Proveedor configurado'
+                          : 'Conectar IA',
                     ),
                   ),
                   subtitle: Text(
-                    verified
-                        ? connection.model
-                        : tr(context, 'Sin conexión verificada a IA'),
+                    connection.isGoogleAccount
+                        ? verified
+                              ? connection.model
+                              : tr(
+                                  context,
+                                  'La conexión de Azure se habilitará cuando el servicio esté configurado.',
+                                )
+                        : verified
+                        ? tr(
+                            context,
+                            'Cuota y disponibilidad según tu proveedor.',
+                          )
+                        : tr(
+                            context,
+                            'Configura URL, modelo y clave API para este dispositivo.',
+                          ),
                   ),
-                  onTap: () async {
-                    if (await connectAiDialog(context, connection) && mounted) {
-                      await _verifyConnection();
-                      ref.invalidate(aiAccessProvider);
-                    }
-                  },
-                  trailing: service.configured
+                  onTap: connection.isGoogleAccount
+                      ? null
+                      : () async {
+                          if (await connectAiDialog(context, connection) &&
+                              mounted) {
+                            await _verifyConnection();
+                            ref.invalidate(aiAccessProvider);
+                          }
+                        },
+                  trailing: service.configured && connection.canDisconnect
                       ? IconButton(
                           tooltip: tr(context, 'Desconectar'),
                           onPressed: () async {
@@ -193,6 +222,10 @@ class _AiPageState extends ConsumerState<AiPage> {
                           },
                           icon: const Icon(Icons.close),
                         )
+                      : connection.isGoogleAccount && service.configured
+                      ? const Icon(Icons.cloud_done_outlined)
+                      : connection.isGoogleAccount
+                      ? const Icon(Icons.cloud_off_outlined)
                       : const Icon(Icons.chevron_right),
                 ),
               SizedBox(height: 16),

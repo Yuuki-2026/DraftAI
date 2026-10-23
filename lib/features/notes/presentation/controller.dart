@@ -19,6 +19,9 @@ final aiPort = Provider<AiService>((ref) => throw UnimplementedError());
 final identityPort = Provider<IdentityService>(
   (ref) => throw UnimplementedError(),
 );
+final profileVaultPort = Provider<ProfileVaultService>(
+  (ref) => throw UnimplementedError(),
+);
 final speechPort = Provider<SpeechService>((ref) => throw UnimplementedError());
 final actionsPort = Provider<NoteActions>((ref) => throw UnimplementedError());
 final policyPort = Provider<AiPolicy>((ref) => throw UnimplementedError());
@@ -28,15 +31,18 @@ final libraryProvider = StreamProvider<Library>(
 );
 
 class Settings {
-  final bool entered, pro, testUser;
-  final String theme, locale;
+  final bool entered, pro;
+  final String theme, locale, profileName, profileImage, paperStyle, fontFamily;
   final int used;
   const Settings({
     this.entered = false,
-    this.testUser = false,
     this.pro = false,
     this.theme = 'dark',
     this.locale = 'es',
+    this.profileName = '',
+    this.profileImage = '',
+    this.paperStyle = 'plain',
+    this.fontFamily = 'Inter',
     this.used = 0,
   });
 }
@@ -51,26 +57,61 @@ class AppController extends AsyncNotifier<Settings> {
   @override
   Future<Settings> build() async => Settings(
     entered: await _repo.preference('entered') == 'true',
-    testUser: await _repo.preference('beta_user') == 'true',
     pro: await ref.read(policyPort).pro,
     theme: await _repo.preference('theme') ?? 'dark',
     locale: await _repo.preference('locale') ?? 'es',
+    profileName: await _repo.preference('profile_name') ?? '',
+    profileImage: await _repo.preference('profile_image') ?? '',
+    paperStyle: _validPaperStyle(await _repo.preference('paper_style')),
+    fontFamily: _validFont(await _repo.preference('font_family')),
     used: await ref.read(policyPort).used(),
   );
+
+  String _validPaperStyle(String? value) =>
+      const {'plain', 'lines', 'grid', 'dots', 'spaced'}.contains(value)
+      ? value!
+      : 'plain';
+  String _validFont(String? value) =>
+      const {'Inter', 'serif', 'monospace'}.contains(value) ? value! : 'Inter';
   Future<void> refresh() async {
     state = AsyncData(await build());
   }
 
-  Future<void> enter({bool google = false, bool testUser = false}) async {
-    if (google) await ref.read(identityPort).signIn();
-    await _repo.setPreference('beta_user', testUser ? 'true' : 'false');
+  Future<void> enterGuest() async {
+    await ref.read(identityPort).signOut();
+    await ref.read(profileVaultPort).activate(guestProfileId);
     await _repo.setPreference('entered', 'true');
+    ref.invalidate(libraryProvider);
+    await refresh();
+  }
+
+  Future<void> enterGoogle({required bool moveGuestNotes}) async {
+    final identity = ref.read(identityPort);
+    if (identity is! AccountIdentityService) {
+      throw const AppFailure('Google no devolvió una cuenta válida.');
+    }
+    final userId = (identity as AccountIdentityService).userId;
+    if (userId == null) {
+      throw const AppFailure('Google no devolvió una cuenta válida.');
+    }
+    final profiles = ref.read(profileVaultPort);
+    if (profiles.activeOwnerId == guestProfileId && moveGuestNotes) {
+      await profiles.moveGuestTo(userId);
+    }
+    await profiles.activate(userId);
+    await _repo.setPreference('entered', 'true');
+    ref.invalidate(libraryProvider);
+    ref.invalidate(aiAccessProvider);
     await refresh();
   }
 
   Future<void> leave() async {
-    await ref.read(identityPort).signOut();
     await _repo.setPreference('entered', 'false');
+    await ref.read(identityPort).signOut();
+    await ref.read(profileVaultPort).activate(guestProfileId);
+    await _repo.setPreference('entered', 'false');
+    ref.invalidate(libraryProvider);
+    ref.invalidate(aiAccessProvider);
     await refresh();
   }
 
@@ -86,6 +127,25 @@ class AppController extends AsyncNotifier<Settings> {
 
   Future<void> locale(String v) async {
     await _repo.setPreference('locale', v);
+    await refresh();
+  }
+
+  Future<void> saveProfile({
+    required String name,
+    required String image,
+  }) async {
+    await _repo.setPreference('profile_name', name.trim());
+    await _repo.setPreference('profile_image', image);
+    await refresh();
+  }
+
+  Future<void> paperStyle(String value) async {
+    await _repo.setPreference('paper_style', _validPaperStyle(value));
+    await refresh();
+  }
+
+  Future<void> fontFamily(String value) async {
+    await _repo.setPreference('font_family', _validFont(value));
     await refresh();
   }
 
@@ -134,7 +194,9 @@ class AppController extends AsyncNotifier<Settings> {
     final service = ref.read(aiPort);
     if (service is! AiAccessProvider) return null;
     final access = await (service as AiAccessProvider).refreshAccess();
-    if (state.value?.pro != access.pro) await plan(access.pro);
+    if (access.limit > 0 && state.value?.pro != access.pro) {
+      await plan(access.pro);
+    }
     return access;
   }
 
@@ -145,17 +207,17 @@ class AppController extends AsyncNotifier<Settings> {
     }
     if (sources && !access.vision) {
       throw const AppFailure(
-        'Conectado como Gratis. Usa el código Pro de prueba para analizar imágenes o documentos.',
+        'El servidor de IA no tiene habilitado el análisis de imágenes.',
       );
     }
     if (access.remaining <= 0) {
       throw const AppFailure(
-        'Agotaste los usos de esta conexión por hoy. Consulta el contador en Perfil.',
+        'Alcanzaste el límite diario de IA. Vuelve a intentarlo mañana.',
       );
     }
     if (access.globalRemaining == 0) {
       throw const AppFailure(
-        'El servidor agotó el presupuesto compartido de hoy. Consulta el contador en Perfil.',
+        'El servicio de IA alcanzó su límite diario. Vuelve a intentarlo mañana.',
       );
     }
   }

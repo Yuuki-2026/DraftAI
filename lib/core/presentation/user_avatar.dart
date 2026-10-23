@@ -1,17 +1,61 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../features/notes/domain/ports.dart';
 import '../../features/notes/presentation/controller.dart';
 
 class UserAvatar extends ConsumerWidget {
   final double size;
   const UserAvatar({super.key, this.size = 32});
   @override
-  Widget build(BuildContext context, WidgetRef ref) => ClipOval(
+  Widget build(BuildContext context, WidgetRef ref) {
+    final settings = ref.watch(controllerProvider).value;
+    const fallback = 'assets/images/12225881.png';
+    final encoded = settings?.profileImage ?? '';
+    if (encoded.isNotEmpty) {
+      try {
+        return ClipOval(
+          child: Image.memory(
+            base64Decode(encoded),
+            width: size,
+            height: size,
+            cacheWidth: 144,
+            fit: BoxFit.cover,
+            errorBuilder: (_, _, _) => _fallback(fallback),
+          ),
+        );
+      } catch (_) {
+        // Fall back to the built-in avatar if saved image data is invalid.
+      }
+    }
+    final identity = ref.read(identityPort);
+    final photoUrl = identity is ProfilePhotoIdentityService
+        ? (identity as ProfilePhotoIdentityService).photoUrl
+        : null;
+    if (photoUrl != null && photoUrl.isNotEmpty) {
+      return ClipOval(
+        child: Image.network(
+          photoUrl,
+          width: size,
+          height: size,
+          cacheWidth: 144,
+          fit: BoxFit.cover,
+          frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+            if (wasSynchronouslyLoaded || frame != null) return child;
+            return _fallback(fallback);
+          },
+          errorBuilder: (_, _, _) => _fallback(fallback),
+        ),
+      );
+    }
+    return _fallback(fallback);
+  }
+
+  Widget _fallback(String path) => ClipOval(
     child: Image.asset(
-      ref.watch(controllerProvider).value?.testUser == true
-          ? 'assets/images/test-user.webp'
-          : 'assets/images/12225881.png',
+      path,
       width: size,
       height: size,
       fit: BoxFit.cover,

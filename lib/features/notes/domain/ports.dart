@@ -29,6 +29,15 @@ abstract interface class ExportService {
   Future<void> backup(Library library);
 }
 
+abstract interface class ConfigurableExportService implements ExportService {
+  Future<void> exportConfigured({
+    required List<Note> notes,
+    required ExportFormat format,
+    required ExportOptions options,
+    required bool separateFiles,
+  });
+}
+
 abstract interface class SpeechService {
   Future<bool> listen(void Function(String) onResult);
   Future<void> stop();
@@ -95,6 +104,19 @@ abstract interface class AiRunMetadata {
   bool get lastWasDemonstration;
 }
 
+class AiQuizQuestion {
+  final String prompt;
+  final List<String> options;
+  final int answerIndex;
+  final String explanation;
+  const AiQuizQuestion({
+    required this.prompt,
+    required this.options,
+    required this.answerIndex,
+    this.explanation = '',
+  });
+}
+
 String aiModelLabel(AiService service) => service is AiRunMetadata
     ? (service as AiRunMetadata).lastModel
     : service.configured
@@ -108,6 +130,7 @@ abstract interface class AiService {
   void cancel();
   bool get configured;
   Future<String> transform(String text, AiAction action);
+  Future<List<AiQuizQuestion>> generateQuiz(String text);
   Future<AnalysisProposal> analyze(List<PickedFile> files, Library library);
 }
 
@@ -119,11 +142,35 @@ abstract interface class IdentityService {
   Future<String?> idToken();
 }
 
-/// Optional test connection. Provider credentials never cross this contract.
+abstract interface class AccountIdentityService {
+  String? get userId;
+}
+
+abstract interface class ProfilePhotoIdentityService {
+  String? get photoUrl;
+}
+
+/// Switches between separately encrypted local libraries owned by each profile.
+abstract interface class ProfileVaultService {
+  String get activeOwnerId;
+  Future<int> guestNoteCount();
+  Future<bool> guestMovePromptEnabled();
+  Future<void> setGuestMovePromptEnabled(bool enabled);
+  Future<void> activate(String ownerId);
+  Future<void> moveGuestTo(String ownerId);
+}
+
+const guestProfileId = 'guest';
+
+/// AI routing and guest-owned provider configuration.
 abstract interface class AiConnection {
+  bool get configured;
+  bool get isGoogleAccount;
+  bool get usesGoogleCloud;
+  bool get canDisconnect;
   String get endpoint;
   String get model;
-  Future<void> connect(String endpoint, String code);
+  Future<void> connect(String endpoint, String apiKey, String model);
   Future<void> disconnect();
 }
 

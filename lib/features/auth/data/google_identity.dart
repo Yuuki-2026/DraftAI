@@ -5,67 +5,64 @@ import 'package:google_sign_in/google_sign_in.dart';
 import '../../notes/domain/entities.dart';
 import '../../notes/domain/ports.dart';
 
-class GoogleIdentity implements IdentityService {
+class GoogleIdentity
+    implements
+        IdentityService,
+        AccountIdentityService,
+        ProfilePhotoIdentityService {
   bool _ready = false;
-  static const apiKey = String.fromEnvironment('FIREBASE_API_KEY');
-  static const appId = String.fromEnvironment('FIREBASE_APP_ID');
-  static const projectId = String.fromEnvironment('FIREBASE_PROJECT_ID');
-  static const senderId = String.fromEnvironment(
-    'FIREBASE_MESSAGING_SENDER_ID',
-  );
-  static const serverClientId = String.fromEnvironment(
-    'GOOGLE_SERVER_CLIENT_ID',
-  );
   @override
-  bool get configured =>
-      apiKey.isNotEmpty &&
-      appId.isNotEmpty &&
-      projectId.isNotEmpty &&
-      senderId.isNotEmpty;
-  Future<void> _initialize() async {
-    if (_ready) return;
-    if (!configured) {
-      throw const AppFailure(
-        'Google aún no está configurado. Puedes continuar sin cuenta.',
-      );
-    }
-    await Firebase.initializeApp(
-      options: const FirebaseOptions(
-        apiKey: apiKey,
-        appId: appId,
-        messagingSenderId: senderId,
-        projectId: projectId,
-      ),
-    );
-    await GoogleSignIn.instance.initialize(
-      serverClientId: serverClientId.isEmpty ? null : serverClientId,
-    );
-    _ready = true;
-  }
+  bool get configured => _ready;
+
+  @override
+  String? get userId => _ready ? FirebaseAuth.instance.currentUser?.uid : null;
 
   @override
   String? get displayName =>
       _ready ? FirebaseAuth.instance.currentUser?.displayName : null;
+
   @override
-  Future<void> signIn() async {
-    await _initialize();
+  String? get photoUrl =>
+      _ready ? FirebaseAuth.instance.currentUser?.photoURL : null;
+
+  Future<void> initialize() async {
+    if (_ready) return;
     try {
-      final account = await GoogleSignIn.instance.authenticate();
-      final credential = GoogleAuthProvider.credential(
-        idToken: account.authentication.idToken,
-      );
-      await FirebaseAuth.instance.signInWithCredential(credential);
+      if (Firebase.apps.isEmpty) await Firebase.initializeApp();
+      // On Android the google-services Gradle plugin reads the web OAuth
+      // client from google-services.json; no client ID is compiled into Dart.
+      await GoogleSignIn.instance.initialize();
+      _ready = true;
     } catch (_) {
       throw const AppFailure(
-        'No se pudo iniciar sesión con Google. Puedes reintentar o continuar sin cuenta.',
+        'No se pudo iniciar Firebase. Revisa la configuración de Android y vuelve a intentarlo.',
+      );
+    }
+  }
+
+  @override
+  Future<void> signIn() async {
+    await initialize();
+    try {
+      final account = await GoogleSignIn.instance.authenticate();
+      final idToken = account.authentication.idToken;
+      if (idToken == null || idToken.isEmpty) {
+        throw const AppFailure('Google no devolvió un token de acceso válido.');
+      }
+      final credential = GoogleAuthProvider.credential(idToken: idToken);
+      await FirebaseAuth.instance.signInWithCredential(credential);
+    } on AppFailure {
+      rethrow;
+    } catch (_) {
+      throw const AppFailure(
+        'No se pudo iniciar sesión con Google. Revisa la cuenta y la conexión, e inténtalo de nuevo.',
       );
     }
   }
 
   @override
   Future<String?> idToken() async {
-    if (!configured) return null;
-    await _initialize();
+    if (!_ready) return null;
     return FirebaseAuth.instance.currentUser?.getIdToken();
   }
 

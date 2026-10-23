@@ -59,16 +59,50 @@ const english = <String, String>{
   "Y otros archivos": "Other files",
   "Las fórmulas se exportan como código LaTeX, sin el renderizado visual de la app.": "Equations are exported as LaTeX source, without the visual rendering shown in the app.",
   "El formato de texto puede simplificarse. Los originales seguirán disponibles en DraftAI.": "Text formatting may be simplified. Originals will remain available in DraftAI.",
-  "Google · Beta": "Google · Beta",
-  "El inicio de sesión con Google aún no está disponible. Puedes entrar como usuario de prueba, sin vincular una cuenta.": "Google sign-in is not available yet. You can enter as a test user without linking an account.",
-  "Entrar como usuario de prueba": "Continue as a test user",
-  "Usuario de prueba": "Test user",
+  "Dejar en Invitado": "Keep in Guest",
+  "Mover apuntes": "Move notes",
   "Beta · En pruebas": "Beta · Testing",
   "¿Guardar los cambios?": "Save changes?",
   "Tienes cambios sin guardar en este apunte.":
       "This note has unsaved changes.",
   "Seguir editando": "Keep editing",
   "Cambios guardados.": "Changes saved.",
+  "Icono de la aplicación": "App icon",
+  "Elige cómo se ve DraftAI en el lanzador de Android.":
+      "Choose how DraftAI looks in the Android launcher.",
+  "Original": "Original",
+  "Océano": "Ocean",
+  "Ámbar": "Amber",
+  "Icono actualizado.": "Icon updated.",
+  "No se pudo cambiar el icono.": "The icon could not be changed.",
+  "El cambio de icono solo está disponible en Android.":
+      "Changing the app icon is only available on Android.",
+  "Cuestionario": "Quiz",
+  "Cuestionario creado localmente a partir del texto del apunte.":
+      "Quiz created locally from the note text.",
+  "Repasar con preguntas de este apunte":
+      "Review with questions from this note",
+  "Completa la idea": "Complete the idea",
+  "No hay suficiente texto para crear preguntas.":
+      "There is not enough text to create questions.",
+  "Añade varias frases con conceptos para preparar un repaso.":
+      "Add a few concept-rich sentences to prepare a study review.",
+  "Respuesta correcta.": "Correct.",
+  "Respuesta correcta:": "Correct answer:",
+  "Ver resultado": "See results",
+  "Siguiente": "Next",
+  "Resultado": "Results",
+  "Buen repaso. Puedes volver a intentarlo cuando quieras.":
+      "Nice review. You can try again whenever you want.",
+  "Repasa el apunte y vuelve a intentarlo.": "Review the note and try again.",
+  "Intentar de nuevo": "Try again",
+  "El apunte podrá restaurarse desde la papelera.":
+      "You can restore this note from the trash.",
+  "Mostrar indicador de páginas": "Show page indicator",
+  "Ocultar indicador de páginas": "Hide page indicator",
+  "Salir de lectura": "Exit reading mode",
+  "Página": "Page",
+  "aprox.": "approx.",
   "Añadir tema": "Add topic",
   "Nombre del tema": "Topic name",
   "Comprobando conexión…": "Checking connection…",
@@ -76,6 +110,56 @@ const english = <String, String>{
   "Apuntes y temas": "Notes and topics",
   "Solo se enviarán los apuntes y temas marcados. Las fechas filtran la última edición de cada tema.": "Only checked notes and topics will be sent. Dates filter the latest edit of each topic.",
   "Captura completada": "Capture complete",
+  "Añade una fuente para comenzar": "Add a source to get started",
+  "¿Qué quieres añadir?": "What would you like to add?",
+  "Selecciona imágenes o archivos para organizarlos en tus apuntes.":
+      "Choose images or files to organize them in your notes.",
+  "Fuentes añadidas": "Sources added",
+  "Fuentes listas para organizar": "Sources ready to organize",
+  "¿Dónde irán tus fuentes?": "Where should these sources go?",
+  "Elegir imágenes": "Choose images",
+  "Seleccionar archivos": "Choose files",
+  "Vista de lista": "List view",
+  "Vista de cuadrícula": "Grid view",
+  "Abrir": "Open",
+  "Abrir carpeta": "Open folder",
+  "más": "more",
+  "Cambiar color de carpeta": "Change folder color",
+  "Selecciona un color": "Select a color",
+  "Sin color": "No color",
+  "Sin relleno": "No fill",
+  "Estilo de página": "Page style",
+  "Liso": "Plain",
+  "Renglones": "Ruled",
+  "Cuadrícula": "Grid",
+  "Puntos": "Dots",
+  "Interlineado amplio": "Wide spacing",
+  "Color de texto": "Text color",
+  "Color de resaltado": "Highlight color",
+  "Resaltador": "Highlighter",
+  "Quitar color": "Remove color",
+  "Amarillo": "Yellow",
+  "Verde": "Green",
+  "Azul": "Blue",
+  "Rosa": "Pink",
+  "Naranja": "Orange",
+  "Violeta": "Purple",
+  "Negro": "Black",
+  "Rojo": "Red",
+  "Insertar tabla": "Insert table",
+  "Celda": "Cell",
+  "No se pudo editar la tabla.": "The table could not be edited.",
+  "Personalización": "Personalization",
+  "Nombre dentro de la aplicación": "In-app name",
+  "Este nombre aparece en los encabezados y en el título de la ventana.":
+      "This name appears in app headers and the window title.",
+  "Guardar nombre": "Save name",
+  "Nombre actualizado.": "Name updated.",
+  "Invitado": "Guest",
+  "Un buen nombre ayuda a clasificar mejor a la IA.":
+      "A good title helps AI classify it more accurately.",
+  "Escribe un título para guardar el apunte.":
+      "Enter a title to save this note.",
   "Asigna cada fuente a una carpeta y a un apunte.":
       "Assign each source to a folder and a note.",
   "Déjalo a la IA": "Let AI handle it",
@@ -180,6 +264,10 @@ const english = <String, String>{
   'Mejorar': 'Improve',
   'Archivos': 'Files',
   'Añadir imágenes': 'Add images',
+  'Añadir contenido al apunte': 'Add content to the note',
+  'Elegir imágenes de la galería': 'Choose images from the gallery',
+  'Tomar una fotografía para el apunte': 'Take a photo for the note',
+  'Adjuntar un PDF u otro archivo': 'Attach a PDF or another file',
   'Sin categoría': 'No category',
   '+ Categoría': '+ Category',
   'Historial de versiones': 'Version history',
@@ -195,11 +283,13 @@ const english = <String, String>{
   'Selecciona el texto que quieres mejorar.':
       'Select the text you want to improve.',
   'Revisar cambio de IA': 'Review AI edit',
-  'Original': 'Original',
   'Contenido modificado. Vuelve a seleccionar el texto.':
       'Content changed. Select the text again.',
-  'Conectar IA de prueba': 'Connect test AI',
-  'Código de conexión': 'Connection code',
+  'Inicia sesión con Google para consultar tu cuota de IA.':
+      'Sign in with Google to view your AI quota.',
+  'El límite se reinicia a medianoche, hora de Lima. Cada operación correcta cuenta como un uso.': 'The limit resets at midnight Lima time. Each successful operation counts as one use.',
+  'El servidor de IA no tiene habilitado el análisis de imágenes.':
+      'Image analysis is not enabled on the AI server.',
   'Conectar': 'Connect',
   'Desconectar': 'Disconnect',
   'IA conectada': 'AI connected',
@@ -241,6 +331,81 @@ const english = <String, String>{
 };
 
 const extraEnglish = <String, String>{
+  'Resaltar texto': 'Highlight text',
+  'Generado con IA': 'Generated with AI',
+  'La IA está preparando el cuestionario…': 'AI is preparing your quiz…',
+  'El apunte debe tener texto y no superar 12000 caracteres.':
+      'The note must contain text and be under 12,000 characters.',
+  'Añade texto al apunte para crear un cuestionario.':
+      'Add text to the note to generate a quiz.',
+  'La IA no encontró material para crear preguntas.':
+      'The AI could not find enough material to create questions.',
+  'Editar perfil': 'Edit profile',
+  'Cambiar foto': 'Change photo',
+  'Quitar foto': 'Remove photo',
+  'Nombre': 'Name',
+  'Elige el fondo de tus apuntes.':
+      'Choose the page background for your notes.',
+  'Crear un apunte en una carpeta': 'Create a note in a folder',
+  'Usar la cámara del dispositivo': 'Use the device camera',
+  'Elegir fotos de la galería': 'Choose photos from gallery',
+  'Importar documentos compatibles': 'Import supported documents',
+  'Conectar IA': 'Connect AI',
+  'IA de Invitado': 'Guest AI',
+  'Proveedor configurado. La cuota y disponibilidad dependen de ese proveedor.': 'Provider configured. Availability and usage limits depend on that provider.',
+  'Conecta un proveedor compatible desde Herramientas de IA.':
+      'Connect a compatible provider from AI tools.',
+  'Usa un proveedor compatible con OpenAI Chat Completions. La disponibilidad y los límites dependen del proveedor que elijas.': 'Use a provider compatible with OpenAI Chat Completions. Availability and limits depend on your provider.',
+  'URL base HTTPS': 'HTTPS base URL',
+  'Modelo': 'Model',
+  'Clave API del proveedor': 'Provider API key',
+  'Déjala vacía para conservar la clave guardada en este teléfono.':
+      'Leave blank to keep the key saved on this phone.',
+  'La clave se guarda de forma segura en este teléfono.':
+      'The key is stored securely on this phone.',
+  'El texto o las imágenes que proceses se enviarán al proveedor configurado.':
+      'Text or images you process will be sent to the configured provider.',
+  'Guardar conexión': 'Save connection',
+  'Proveedor configurado': 'Provider configured',
+  'Cuota y disponibilidad según tu proveedor.':
+      'Usage limits and availability depend on your provider.',
+  'Configura URL, modelo y clave API para este dispositivo.':
+      'Set the URL, model, and API key for this device.',
+  'IA de DraftAI': 'DraftAI AI',
+  'IA en la nube no disponible': 'Cloud AI unavailable',
+  'La conexión de Azure se habilitará cuando el servicio esté configurado.':
+      'Azure connectivity will be enabled when the service is configured.',
+  'La IA de tu cuenta de Google se habilitará al conectar el servicio de DraftAI.': 'AI for your Google account will be enabled when the DraftAI service is connected.',
+  'La conexión de IA en la nube aún no está configurada.':
+      'Cloud AI is not configured yet.',
+  'La IA de tu cuenta todavía no está disponible. El backend de Azure debe estar configurado.': 'AI for your account is not available yet. The Azure backend must be configured.',
+  'Las cuentas de Google usan el servicio de IA de DraftAI; no configuran una clave propia.':
+      'Google accounts use DraftAI AI and cannot configure their own key.',
+  'Este proveedor procesa imágenes y texto, pero no archivos PDF. Extrae o exporta el texto del documento y vuelve a intentarlo.': 'This provider processes images and text, but not PDF files. Extract or export the document text and try again.',
+  'Este tipo de archivo no es compatible con el proveedor elegido.':
+      'This file type is not supported by the selected provider.',
+  'El proveedor alcanzó su límite o cuota. Revisa tu cuenta e inténtalo más tarde.': 'The provider reached its limit or quota. Check your account and try again later.',
+  'El proveedor rechazó la clave. Revísala en la configuración de IA de Invitado.':
+      'The provider rejected the key. Check it in Guest AI settings.',
+  'El proveedor no encontró el modelo o la dirección configurada.':
+      'The provider could not find the model or configured URL.',
+  'El proveedor no pudo completar la solicitud. Inténtalo de nuevo.':
+      'The provider could not complete the request. Try again.',
+  'Reduce el tamaño de las fuentes. El proveedor Invitado admite hasta 15 MB por solicitud.': 'Reduce the source size. The Guest provider supports up to 15 MB per request.',
+  'El tipo de archivo no es compatible con este proveedor.':
+      'This provider does not support this file type.',
+  'Introduce la URL base HTTPS del proveedor, sin clave ni parámetros.':
+      'Enter the provider HTTPS base URL without a key or query parameters.',
+  'Introduce la clave API de tu proveedor.': 'Enter your provider API key.',
+  'La clave API no tiene un formato válido.': 'The API key format is invalid.',
+  'Introduce el identificador del modelo.': 'Enter the model identifier.',
+  'No se pudo conectar con el proveedor o su respuesta no es válida.':
+      'Unable to connect to the provider or its response is invalid.',
+  'El proveedor tardó demasiado en responder. Inténtalo de nuevo.':
+      'The provider took too long to respond. Try again.',
+  'Pregunta': 'Question',
+  'Reintentar': 'Try again',
+  'Se enviará el texto del apunte al servicio de IA para preparar preguntas. ¿Continuar?': 'The note text will be sent to the AI service to prepare questions. Continue?',
   'Biblioteca de prueba': 'Sample library',
   'Cargar o eliminar ejemplos': 'Load or remove sample notes',
   'Cargar ejemplos': 'Load samples',
@@ -468,9 +633,57 @@ const extraEnglish = <String, String>{
       "Generate a chart and explain the available data.",
   "Genera apuntes ilustrados con descripciones de imágenes.":
       "Generate illustrated notes with image descriptions.",
+  'No volver a mostrar; puedes moverlos desde Preferencias.':
+      'Do not show again; you can move them from Preferences.',
+  'Cambiar foto de perfil': 'Change profile photo',
+  'Editar nombre': 'Edit name',
+  'Ajustar foto de perfil': 'Adjust profile photo',
+  'Alinear a la izquierda': 'Align left',
+  'Alinear a la derecha': 'Align right',
+  'Centrar imagen': 'Center image',
+  'Arrastra la imagen o usa dos dedos para ajustar el encuadre.':
+      'Drag the image or use two fingers to adjust the crop.',
+  'Usar foto': 'Use photo',
+  'No se pudo guardar el recorte.': 'Could not save the crop.',
+  'Fuente de la aplicación': 'App font',
+  'Clásica': 'Serif',
+  'Monoespaciada': 'Monospace',
+  'Traslado de apuntes': 'Note transfer',
+  'Recordarme mover apuntes de Invitado': 'Remind me to move Guest notes',
+  'Puedes cambiar esta opción cuando quieras.':
+      'You can change this setting at any time.',
+  'Importar apuntes de Invitado': 'Import Guest notes',
+  'apuntes disponibles': 'notes available',
+  'Se moverán a la bóveda cifrada de esta cuenta en este teléfono. DraftAI verificará la copia antes de retirarlos de Invitado. Aún no hay sincronización en la nube.': 'They will move to this account’s encrypted vault on this phone. DraftAI verifies the copy before removing them from Guest. Cloud sync is not available yet.',
+  'Vista previa de PDF': 'PDF preview',
+  'Filas': 'Rows',
+  'Columnas': 'Columns',
+  'Vista previa de Word': 'Word preview',
+  'Vista previa del documento': 'Document preview',
+  'Exportar apuntes seleccionados': 'Export selected notes',
+  'Un documento': 'One document',
+  'Un archivo por apunte': 'One file per note',
+  'Personalizar documento': 'Customize document',
+  'Tamaño de las imágenes': 'Image size',
+  'Tamaño de títulos': 'Title size',
+  'Márgenes de página': 'Page margins',
+  'Texto del pie de página': 'Footer text',
+  'Incluir fecha': 'Include date',
+  'Mostrar número de página': 'Show page number',
+  'Las imágenes no se incrustan en este formato; se marcará su posición con el nombre del archivo.': 'Images are not embedded in this format; their position will be marked with the file name.',
 };
 
 String _dynamicEnglish(String value) {
+  final move = RegExp(r'^¿Mover (\d+) apuntes a (.+)\?$').firstMatch(value);
+  if (move != null) return 'Move ${move[1]} notes to ${move[2]}?';
+  final transfer = RegExp(
+    r'^Se moverán (\d+) apuntes a la bóveda cifrada de esta cuenta\. Los datos de Invitado solo se retirarán después de verificar la copia\.$',
+  ).firstMatch(value);
+  if (transfer != null) {
+    return '${transfer[1]} notes will move to this account’s encrypted vault. Guest data is removed only after verifying the copy.';
+  }
+  final available = RegExp(r'^(\d+) apuntes disponibles$').firstMatch(value);
+  if (available != null) return '${available[1]} notes available';
   final selected = RegExp(r'^(\d+) seleccionados$').firstMatch(value);
   if (selected != null) return '${selected[1]} selected';
   final insert = RegExp(r'^Insertar (\d+) archivos$').firstMatch(value);

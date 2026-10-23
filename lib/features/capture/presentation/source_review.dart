@@ -356,7 +356,7 @@ class _ReviewState extends ConsumerState<SourceReviewPage> {
               ),
             for (final a in added) ...[
               {
-                'insert': {NoteDocument.mediaKey: a.id},
+                'insert': {NoteDocument.mediaKey: NoteDocument.mediaData(a.id)},
               },
               {'insert': '\n'},
             ],

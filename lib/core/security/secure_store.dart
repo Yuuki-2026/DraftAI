@@ -8,6 +8,7 @@ import '../../features/notes/domain/entities.dart';
 abstract interface class SecureStore {
   Future<String?> read(String key);
   Future<void> write(String key, String value);
+  Future<void> delete(String key);
 }
 
 class SystemSecureStore implements SecureStore {
@@ -42,6 +43,15 @@ class SystemSecureStore implements SecureStore {
       throw const AppFailure('No se pudo proteger la clave de los apuntes.');
     }
   }
+
+  @override
+  Future<void> delete(String key) async {
+    try {
+      await _store.delete(key: key);
+    } catch (_) {
+      throw const AppFailure('No se pudo retirar la clave de los apuntes.');
+    }
+  }
 }
 
 class MemorySecureStore implements SecureStore {
@@ -52,6 +62,11 @@ class MemorySecureStore implements SecureStore {
   Future<void> write(String key, String value) async {
     values[key] = value;
   }
+
+  @override
+  Future<void> delete(String key) async {
+    values.remove(key);
+  }
 }
 
 class VaultCipher {
@@ -61,8 +76,9 @@ class VaultCipher {
   static Future<VaultCipher> open(
     SecureStore store, {
     bool existingData = false,
+    String keyName = 'vault_key_v1',
   }) async {
-    var encoded = await store.read('vault_key_v1');
+    var encoded = await store.read(keyName);
     if (encoded == null) {
       if (existingData) {
         throw const AppFailure(
@@ -71,9 +87,17 @@ class VaultCipher {
       }
       final key = await AesGcm.with256bits().newSecretKey();
       encoded = base64Encode(await key.extractBytes());
-      await store.write('vault_key_v1', encoded);
+      await store.write(keyName, encoded);
     }
     return VaultCipher(SecretKey(base64Decode(encoded)));
+  }
+
+  static Future<void> rotate(
+    SecureStore store, {
+    String keyName = 'vault_key_v1',
+  }) async {
+    final key = await AesGcm.with256bits().newSecretKey();
+    await store.write(keyName, base64Encode(await key.extractBytes()));
   }
 
   Future<String> seal(String value) async =>

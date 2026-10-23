@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/presentation/design.dart';
 import '../../../core/presentation/strings.dart';
 import '../../notes/domain/ports.dart';
 
@@ -7,8 +8,20 @@ Future<bool> connectAiDialog(
   BuildContext context,
   AiConnection connection,
 ) async {
+  if (connection.isGoogleAccount) {
+    message(
+      context,
+      tr(
+        context,
+        'La IA de tu cuenta de Google se habilitará al conectar el servicio de DraftAI.',
+      ),
+    );
+    return false;
+  }
+
   final endpoint = TextEditingController(text: connection.endpoint),
-      code = TextEditingController();
+      model = TextEditingController(text: connection.model),
+      apiKey = TextEditingController();
   var busy = false;
   String? error;
   final result = await showDialog<bool>(
@@ -18,34 +31,63 @@ Future<bool> connectAiDialog(
       builder: (dialog, set) => PopScope(
         canPop: !busy,
         child: AlertDialog(
-          title: Text(tr(dialog, 'Conectar IA de prueba')),
+          title: Text(tr(dialog, 'Conectar IA')),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Text(
+                  tr(
+                    dialog,
+                    'Usa un proveedor compatible con OpenAI Chat Completions. La disponibilidad y los límites dependen del proveedor que elijas.',
+                  ),
+                ),
+                const SizedBox(height: 16),
                 TextField(
                   controller: endpoint,
                   enabled: !busy,
                   keyboardType: TextInputType.url,
                   autocorrect: false,
                   decoration: InputDecoration(
-                    labelText: tr(context, 'URL HTTPS'),
+                    labelText: tr(dialog, 'URL base HTTPS'),
+                    hintText: 'https://api.example.com/v1/',
                   ),
                 ),
-                SizedBox(height: 12),
+                const SizedBox(height: 12),
                 TextField(
-                  controller: code,
+                  controller: model,
+                  enabled: !busy,
+                  autocorrect: false,
+                  decoration: InputDecoration(
+                    labelText: tr(dialog, 'Modelo'),
+                    hintText: 'nombre-del-modelo',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: apiKey,
                   enabled: !busy,
                   obscureText: true,
                   autocorrect: false,
                   enableSuggestions: false,
                   decoration: InputDecoration(
-                    labelText: tr(dialog, 'Código de conexión'),
+                    labelText: tr(dialog, 'Clave API del proveedor'),
                     helperText: tr(
                       dialog,
-                      'Usa el código Pro de prueba para analizar fuentes.',
+                      connection.configured
+                          ? 'Déjala vacía para conservar la clave guardada en este teléfono.'
+                          : 'La clave se guarda de forma segura en este teléfono.',
                     ),
                   ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  tr(
+                    dialog,
+                    'El texto o las imágenes que proceses se enviarán al proveedor configurado.',
+                  ),
+                  style: Theme.of(dialog).textTheme.bodySmall,
                 ),
                 if (error != null)
                   Padding(
@@ -72,7 +114,11 @@ Future<bool> connectAiDialog(
                   : () async {
                       set(() => busy = true);
                       try {
-                        await connection.connect(endpoint.text, code.text);
+                        await connection.connect(
+                          endpoint.text,
+                          apiKey.text,
+                          model.text,
+                        );
                         if (dialog.mounted) Navigator.pop(dialog, true);
                       } catch (e) {
                         if (dialog.mounted) {
@@ -83,7 +129,7 @@ Future<bool> connectAiDialog(
                         }
                       }
                     },
-              child: Text(tr(dialog, 'Conectar')),
+              child: Text(tr(dialog, 'Guardar conexión')),
             ),
           ],
         ),
@@ -91,6 +137,7 @@ Future<bool> connectAiDialog(
     ),
   );
   endpoint.dispose();
-  code.dispose();
+  model.dispose();
+  apiKey.dispose();
   return result ?? false;
 }

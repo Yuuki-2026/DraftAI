@@ -1,32 +1,34 @@
 # Configuración de servicios
 
-## Prueba real de IA en 0.2.1
-El APK se conecta por dispositivo al servidor temporal del propietario sin Firebase ni Google. Ver [TEST_SERVER.md](TEST_SERVER.md) para URL/código, modelos exactos, cuotas e inicio/parada. Las claves de Groq, NVIDIA y OpenAI se conservan cifradas con Windows fuera del repositorio. Gratis usa Groq; Pro autorizado usa OpenAI gpt-5-nano-2025-08-07 y validaciones de seguridad Groq. NVIDIA queda en reserva. Los modelos se ejecutan remotamente, sin instalarse en el teléfono o la computadora.
+## API de IA en Azure
+La API de producción se prepara como Azure Functions. La app envía el token de Firebase Authentication de la cuenta Google activa; el servidor verifica el UID, controla el consumo diario en Firestore y llama a OpenAI. La clave de OpenAI y la credencial administrativa de Firebase se configuran en Azure Key Vault, nunca en Flutter, el APK ni el repositorio.
 
-La sección de gateway Firebase de este documento describe otra opción de despliegue para una fase posterior. Google y los pagos reales siguen pendientes.
+Consulta [AZURE_DEPLOYMENT.md](../server/AZURE_DEPLOYMENT.md) para los ajustes del servidor. El límite inicial es 30 operaciones diarias por cuenta Google, configurable en el servidor; hay también un tope global de solicitudes al proveedor. No se guarda el contenido de los apuntes en la API. Solo se envía el contenido seleccionado para la acción solicitada.
+
+El acceso de las cuentas Google es solo por el backend administrado. Si la URL de Azure no está configurada, la app muestra que el servicio aún no está disponible y no cae a la clave del perfil Invitado.
+
+## IA propia en modo Invitado
+Invitado puede configurar una URL HTTPS, el identificador de modelo y una clave API de un proveedor compatible con OpenAI Chat Completions. La configuración se guarda en el almacén seguro del teléfono y solo se usa mientras el perfil activo sea Invitado. La app envía las solicitudes directamente al endpoint elegido; ese proveedor fija sus propios límites, disponibilidad y condiciones de privacidad. La integración no promete que todos los planes gratuitos sean permanentes ni compatibles.
+
+El formulario pide la URL base del endpoint, no la clave dentro de la URL. No se hacen solicitudes de prueba al guardar, para evitar consumir cuota; el proveedor y la clave se comprueban en la primera operación real. El flujo invitado admite texto e imágenes JPEG/PNG/WebP/GIF hasta 15 MB por solicitud; los PDF requieren extraer o exportar su texto. Las credenciales de Invitado no se comparten con Azure ni con las cuentas Google.
 
 ## Qué funciona sin claves
-El APK entra como invitado y permite crear, editar y organizar notas locales, formato enriquecido, imágenes, búsquedas, historial, papelera y exportación. Pro es una vista previa sin compras. El resumen demostrativo extrae frases localmente; la mejora demostrativa normaliza espacios. El OCR demostrativo muestra un formulario editable y declara que no leyó las imágenes.
+El APK permite crear, editar y organizar notas locales, formato enriquecido, imágenes, búsquedas, historial, papelera y exportación en modo invitado. La IA de Invitado requiere una clave del proveedor que el propio usuario elija; la IA administrada de las cuentas Google requiere el backend de Azure.
 
-## Google (opcional)
-1. Crear un proyecto Firebase y habilitar Authentication → Google.
-2. Registrar Android con paquete **pe.edu.uandina.draft_ai**. Añadir las huellas SHA-1/SHA-256 del certificado real de release (`keytool -list -v -keystore android/draftai-release.jks`, introduce la contraseña local; no compartirla).
-3. Copiar `config/app.example.json` a `config/app.json` (ignorado por Git). Completar los identificadores de Firebase y el ID de cliente OAuth de tipo web en GOOGLE_SERVER_CLIENT_ID. Los identificadores Firebase son configuración pública, no una clave privada de IA.
-4. Compilar: `flutter build apk --release --dart-define-from-file=config/app.json`.
-El SDK de Firebase administra su sesión; no se persisten contraseñas ni tokens propios en SQLite. Google solo autentica y no sube la biblioteca. La biblioteca es de este dispositivo, independientemente de la sesión.
+## Google y bóvedas locales
+1. En Firebase, habilitar Authentication → Google y registrar la app Android con paquete **pe.edu.uandina.draft_ai**.
+2. Añadir la huella SHA-1 del certificado que firma la variante que se instalará. Una APK debug y una APK release pueden tener huellas distintas.
+3. Descargar el archivo de configuración Android y guardarlo con el nombre exacto `android/app/google-services.json`. Debe incluir un cliente OAuth web (`client_type: 3`).
+4. El proyecto aplica Google Services Gradle Plugin y carga esa configuración nativa. La URL pública de Azure se configura aparte con AI_BASE_URL al preparar la variante conectada; nunca se añade una clave privada a Dart.
 
-## Proveedor de IA futuro
-Las claves privadas se colocan **en server/.env, nunca en config/app.json ni en Dart**. Se incluye un gateway de referencia para un proveedor compatible con Chat Completions. Luna y Jev no se han identificado mediante documentación/API oficial: no se promete que esos nombres sean compatibles. Completar AI_MODEL y AI_UPSTREAM_URL con los identificadores reales que indique el proveedor. No se fijan precios de modelos desconocidos.
+Firebase Authentication identifica al usuario con su UID. Invitado y cada UID usan archivos de base y claves AES-GCM distintas; las claves se protegen con el almacén seguro del sistema. Al elegir mover notas de Invitado, DraftAI copia y vuelve a cifrar notas, adjuntos e historial en la bóveda del UID, verifica que se puedan leer y luego limpia Invitado. Si no se acepta, no mezcla los datos. Una interrupción deja el original de Invitado y permite reintentar.
 
-1. `cd server`, `npm ci`, copiar `.env.example` a `.env`.
-2. Configurar AI_API_KEY, AI_MODEL, AI_UPSTREAM_URL, GOOGLE_APPLICATION_CREDENTIALS (archivo privado de servicio Firebase fuera del repo) y FIREBASE_PROJECT_ID.
-3. Para probar OCR con usuarios autorizados, añadir sus UID a DEMO_PRO_UIDS. El cliente no puede autoasignarse permisos del servidor.
-4. Publicar el gateway detrás de HTTPS y limitar el acceso en el alojamiento. Ejecutar con Node **24.17.0**: `npm start`.
-5. Añadir la URL HTTPS del gateway en AI_BASE_URL y recompilar el APK.
+Esto aún es almacenamiento cifrado **en el teléfono**: no hay Cloud Storage ni sincronización de notas a otros dispositivos. Firestore se usa en la API únicamente para contadores de cuota; no guarda los apuntes.
 
-Contrato propio: POST v1/transform recibe `{text, action: summarize|improve}` y devuelve `{text}`. POST v1/analyze recibe archivos y nombres de carpetas/categorías; devuelve `{text, summary, title, topic, folderName, categoryName}`. El adaptador actual del gateway acepta imágenes JPEG/PNG/WebP; PDF permanece como adjunto, sin OCR remoto en este adaptador. Se puede añadir otro adaptador sin cambiar Domain/Presentation.
+## Configurar el APK para la API
+Después de desplegar Azure Functions, recompilar la app con AI_BASE_URL apuntando a la URL HTTPS de la Function App y terminando en /api/. En esa variante, la IA se conecta automáticamente con la sesión Google. AI_BASE_URL no incluye ninguna clave. Invitado conserva su configuración de proveedor, aislada en el teléfono y separada de la ruta Google.
 
-El gateway exige token Firebase, limita uso diario y rechaza contenido excesivo. Las cuotas por usuario del gateway Firebase son de referencia y están en memoria por instancia; el presupuesto global del proveedor ya se persiste en disco. Para producción con múltiples instancias sustituir ambos por almacenamiento compartido y reemplazar la lista demo por derechos de pago verificados. No hay pagos reales en esta entrega.
+Contrato: POST v1/transform recibe {text, action: summarize|improve|quiz}; resumen/mejora devuelven {text} y cuestionarios devuelven {questions: [{question, options, answerIndex, explanation}]}. POST v1/analyze procesa fuentes dentro de los límites del servicio. La API requiere una cuenta Google, rechaza entradas inválidas o excesivas y no devuelve credenciales del proveedor.
 
 ## Firma Android
 La firma de esta entrega se conserva localmente en `android/draftai-release.jks`; las contraseñas están en `android/key.properties`, ambos ignorados por Git. Copiar ambos a un respaldo privado del propietario. Nunca adjuntarlos a una release. Se necesita la misma firma para actualizar una instalación existente.

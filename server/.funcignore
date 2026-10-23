@@ -1,0 +1,9 @@
+.git*
+.vscode
+node_modules
+local.settings.json
+.env
+.env.*
+*.dpapi
+*.log
+coverage

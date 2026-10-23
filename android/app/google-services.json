@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "609273882661",
+    "project_id": "draftai-6a5aa",
+    "storage_bucket": "draftai-6a5aa.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:609273882661:android:7849fde9ce1d64001037cc",
+        "android_client_info": {
+          "package_name": "pe.edu.uandina.draft_ai"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "609273882661-ab5htececs7t6jscot176b87577g1c4m.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "pe.edu.uandina.draft_ai",
+            "certificate_hash": "4624b2707b265a876f01c6af02c6e539fd3b841b"
+          }
+        },
+        {
+          "client_id": "609273882661-538u83kd0j7bm0ouu09tkq0o062ccd5v.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCtGbQzPs9hIZ0ZA3k58LpWljClKDyx91Y"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "609273882661-538u83kd0j7bm0ouu09tkq0o062ccd5v.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

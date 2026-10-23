@@ -3,12 +3,36 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/presentation/design.dart';
 import '../../../core/presentation/strings.dart';
+import '../../notes/domain/ports.dart';
 import '../../notes/presentation/controller.dart';
 
 class AiQuotaCard extends ConsumerWidget {
   const AiQuotaCard({super.key});
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final service = ref.watch(aiPort);
+    final connection = service is AiConnection ? service : null;
+    if (connection != null && !connection.isGoogleAccount) {
+      return Surface(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(tr(context, 'IA de Invitado')),
+            const SizedBox(height: 8),
+            Text(
+              tr(
+                context,
+                connection.configured
+                    ? 'Proveedor configurado. La cuota y disponibilidad dependen de ese proveedor.'
+                    : 'Conecta un proveedor compatible desde Herramientas de IA.',
+              ),
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+        ),
+      );
+    }
+
     final quota = ref.watch(aiAccessProvider);
     return Surface(
       child: Column(
@@ -33,13 +57,16 @@ class AiQuotaCard extends ConsumerWidget {
               ),
             ),
             data: (access) {
-              if (access == null)
+              if (access == null) {
                 return Text(
                   tr(
                     context,
-                    'Conecta la IA de prueba para consultar tus usos reales.',
+                    connection?.isGoogleAccount == true
+                        ? 'La conexión de IA en la nube aún no está configurada.'
+                        : 'Inicia sesión con Google para consultar tu cuota de IA.',
                   ),
                 );
+              }
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -65,7 +92,7 @@ class AiQuotaCard extends ConsumerWidget {
                   Text(
                     tr(
                       context,
-                      'Resumen y mejora: hasta 3 llamadas. Fuentes: normalmente 2 por grupo de hasta 5. Los intentos fallidos pueden consumir cuota. Reinicio diario: 19:00 de Lima.',
+                      'El límite se reinicia a medianoche, hora de Lima. Cada operación correcta cuenta como un uso.',
                     ),
                     style: Theme.of(context).textTheme.bodySmall,
                   ),

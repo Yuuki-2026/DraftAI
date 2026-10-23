@@ -44,6 +44,15 @@ class LocalNotesRepository implements NotesRepository {
     return domain.Library(folders, categories, notes);
   }
 
+  Future<int> noteCount() async =>
+      (await db
+              .customSelect(
+                'SELECT COUNT(*) AS count FROM notes',
+                readsFrom: {db.notes},
+              )
+              .getSingle())
+          .read<int>('count');
+
   @override
   Future<void> save(domain.Note note, {String reason = 'Edición'}) async {
     final old = await (db.select(
@@ -174,4 +183,34 @@ class LocalNotesRepository implements NotesRepository {
   Future<String?> preference(String key) async => (await (db.select(
     db.preferences,
   )..where((p) => p.key.equals(key))).getSingleOrNull())?.value;
+
+  /// Removes note content while preserving this profile's app preferences.
+  Future<void> clearLibrary() async {
+    await db.customStatement('PRAGMA secure_delete = ON');
+    await db.transaction(() async {
+      await db.delete(db.revisions).go();
+      await db.delete(db.notes).go();
+      await db.delete(db.categories).go();
+      await db.delete(db.folders).go();
+    });
+    await db.customStatement('VACUUM');
+    await db.customStatement('PRAGMA wal_checkpoint(TRUNCATE)');
+  }
+
+  Future<void> saveRevisionSnapshot(
+    domain.Note note, {
+    required String reason,
+  }) async {
+    await db
+        .into(db.revisions)
+        .insert(
+          RevisionsCompanion.insert(
+            noteId: note.id,
+            payload: await cipher.seal(
+              jsonEncode({'reason': reason, 'note': NoteMapper.encode(note)}),
+            ),
+            savedAt: DateTime.now().toUtc(),
+          ),
+        );
+  }
 }

@@ -88,8 +88,19 @@ class LocalMediaRepository implements MediaRepository {
 
   @override
   Future<Attachment> store(PickedFile f) async {
+    return _storeWithId(f, newId());
+  }
+
+  /// Writes to a stable id so an interrupted guest migration can safely retry.
+  Future<Attachment> storeWithId(PickedFile f, String id) =>
+      _storeWithId(f, id);
+
+  Future<Attachment> _storeWithId(PickedFile f, String id) async {
     if (f.bytes.length > maxBytes) {
       throw const AppFailure('El archivo supera 15 MB.');
+    }
+    if (!RegExp(r'^[a-zA-Z0-9_-]+$').hasMatch(id)) {
+      throw const AppFailure('Identificador de archivo no válido.');
     }
     FileValidation.validate(f);
     if (f.mime.startsWith('image/')) {
@@ -126,7 +137,7 @@ class LocalMediaRepository implements MediaRepository {
       }
     }
     await directory.create(recursive: true);
-    final a = Attachment(newId(), p.basename(f.name), f.mime);
+    final a = Attachment(id, p.basename(f.name), f.mime);
     await _file(a).writeAsBytes(await cipher.encrypt(f.bytes), flush: true);
     return a;
   }
@@ -174,5 +185,9 @@ class LocalMediaRepository implements MediaRepository {
       }
     }
     return total;
+  }
+
+  Future<void> clearAll() async {
+    if (await directory.exists()) await directory.delete(recursive: true);
   }
 }

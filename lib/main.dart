@@ -44,6 +44,7 @@ Future<void> main() async {
           aiPort.overrideWithValue(sl<AiService>()),
           speechPort.overrideWithValue(sl<SpeechService>()),
           identityPort.overrideWithValue(sl<IdentityService>()),
+          profileVaultPort.overrideWithValue(sl<ProfileVaultService>()),
           actionsPort.overrideWithValue(sl<NoteActions>()),
           policyPort.overrideWithValue(sl<AiPolicy>()),
           idPort.overrideWithValue(newId),
@@ -90,8 +91,11 @@ class DraftApp extends ConsumerWidget {
     return MaterialApp(
       title: 'DraftAI',
       debugShowCheckedModeBanner: false,
-      theme: appTheme(Brightness.light),
-      darkTheme: appTheme(Brightness.dark),
+      theme: appTheme(Brightness.light, fontFamily: settings.value?.fontFamily),
+      darkTheme: appTheme(
+        Brightness.dark,
+        fontFamily: settings.value?.fontFamily,
+      ),
       themeMode: theme == 'system'
           ? ThemeMode.system
           : theme == 'light'

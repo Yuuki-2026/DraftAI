@@ -1,13 +1,21 @@
 import '../../ai/presentation/ai_quota_card.dart';
-import '../../../core/presentation/user_avatar.dart';
 import 'example_page.dart';
 import '../../../core/presentation/strings.dart';
+import '../../../core/presentation/user_avatar.dart';
+
+import 'dart:convert';
+import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../../core/presentation/design.dart';
 import '../../notes/presentation/controller.dart';
+import '../../notes/domain/ports.dart';
+import '../../notes/presentation/paper_pattern.dart';
 import '../../ai/presentation/ai_pages.dart';
 
 class WelcomePage extends ConsumerStatefulWidget {
@@ -20,37 +28,101 @@ class _WelcomePageState extends ConsumerState<WelcomePage> {
   bool busy = false;
   Future<void> _enter(bool google) async {
     if (busy) return;
-    if (google) {
-      final proceed = await showDialog<bool>(
-        context: context,
-        builder: (c) => AlertDialog(
-          title: Text(tr(c, 'Google · Beta')),
-          content: Text(
-            tr(
-              c,
-              'El inicio de sesión con Google aún no está disponible. Puedes entrar como usuario de prueba, sin vincular una cuenta.',
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(c, false),
-              child: Text(tr(c, 'Cancelar')),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(c, true),
-              child: Text(tr(c, 'Entrar como usuario de prueba')),
-            ),
-          ],
-        ),
-      );
-      if (proceed != true || !mounted) return;
-    }
     setState(() => busy = true);
-    await runAction(
-      context,
-      () => ref.read(controllerProvider.notifier).enter(testUser: google),
-    );
-    if (mounted) setState(() => busy = false);
+    try {
+      await runAction(context, () async {
+        final controller = ref.read(controllerProvider.notifier);
+        if (!google) {
+          await controller.enterGuest();
+          return;
+        }
+
+        final identity = ref.read(identityPort);
+        final english = Localizations.localeOf(context).languageCode == 'en';
+        await identity.signIn();
+        var completed = false;
+        try {
+          if (!mounted) return;
+          var moveGuestNotes = false;
+          var neverAskAgain = false;
+          final profiles = ref.read(profileVaultPort);
+          if (profiles.activeOwnerId == guestProfileId &&
+              await profiles.guestMovePromptEnabled()) {
+            final count = await profiles.guestNoteCount();
+            if (count > 0) {
+              if (!mounted) return;
+              final accountName = identity.displayName ?? 'Google';
+              var suppressPrompt = false;
+              final choice = await showDialog<_GuestMoveDecision>(
+                context: context,
+                builder: (dialogContext) => StatefulBuilder(
+                  builder: (context, setDialogState) => AlertDialog(
+                    title: Text(
+                      english
+                          ? 'Move $count notes to $accountName?'
+                          : '¿Mover $count apuntes a $accountName?',
+                    ),
+                    content: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          english
+                              ? 'They will be moved to this account’s encrypted vault on this phone. DraftAI verifies the copy before removing them from Guest. Cloud sync is not available yet.'
+                              : 'Se moverán a la bóveda cifrada de esta cuenta en este teléfono. DraftAI verificará la copia antes de retirarlos de Invitado. Aún no hay sincronización en la nube.',
+                        ),
+                        const SizedBox(height: 8),
+                        CheckboxListTile(
+                          contentPadding: EdgeInsets.zero,
+                          controlAffinity: ListTileControlAffinity.leading,
+                          value: suppressPrompt,
+                          onChanged: (value) => setDialogState(
+                            () => suppressPrompt = value ?? false,
+                          ),
+                          title: Text(
+                            tr(
+                              context,
+                              'No volver a mostrar; puedes moverlos desde Preferencias.',
+                            ),
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                        ),
+                      ],
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(
+                          dialogContext,
+                          _GuestMoveDecision(false, suppressPrompt),
+                        ),
+                        child: Text(tr(dialogContext, 'Dejar en Invitado')),
+                      ),
+                      FilledButton(
+                        onPressed: () => Navigator.pop(
+                          dialogContext,
+                          _GuestMoveDecision(true, suppressPrompt),
+                        ),
+                        child: Text(tr(dialogContext, 'Mover apuntes')),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+              if (choice == null || !mounted) return;
+              moveGuestNotes = choice.move;
+              neverAskAgain = choice.neverAskAgain;
+            }
+          }
+          await controller.enterGoogle(moveGuestNotes: moveGuestNotes);
+          if (neverAskAgain) await profiles.setGuestMovePromptEnabled(false);
+          completed = true;
+        } finally {
+          if (!completed) await identity.signOut();
+        }
+      });
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
   }
 
   @override
@@ -140,6 +212,61 @@ class ProfilePage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final settings = ref.watch(controllerProvider).value;
     final identity = ref.read(identityPort);
+    final googleAccountAvailable =
+        identity.configured &&
+        identity is AccountIdentityService &&
+        (identity as AccountIdentityService).userId != null;
+    final defaultName = identity.displayName ?? tr(context, 'Modo invitado');
+    final profileName = settings?.profileName.trim().isNotEmpty == true
+        ? settings!.profileName.trim()
+        : defaultName;
+
+    Future<void> editName() async {
+      final result = await showDialog<String>(
+        context: context,
+        builder: (_) => _ProfileNameDialog(name: profileName),
+      );
+      if (result == null || !context.mounted) return;
+      await runAction(
+        context,
+        () => ref
+            .read(controllerProvider.notifier)
+            .saveProfile(name: result, image: settings?.profileImage ?? ''),
+      );
+    }
+
+    Future<void> editPhoto() async {
+      try {
+        final file = await ImagePicker().pickImage(
+          source: ImageSource.gallery,
+          maxWidth: 1600,
+          maxHeight: 1600,
+          imageQuality: 88,
+        );
+        if (file == null || !context.mounted) return;
+        final bytes = await file.readAsBytes();
+        if (!context.mounted) return;
+        final cropped = await showDialog<Uint8List>(
+          context: context,
+          builder: (_) => _ProfilePhotoCropDialog(bytes: bytes),
+        );
+        if (cropped == null || !context.mounted) return;
+        await runAction(
+          context,
+          () => ref
+              .read(controllerProvider.notifier)
+              .saveProfile(
+                name: settings?.profileName ?? '',
+                image: base64Encode(cropped),
+              ),
+        );
+      } catch (_) {
+        if (context.mounted) {
+          message(context, tr(context, 'No se pudo abrir la imagen.'));
+        }
+      }
+    }
+
     return Scaffold(
       appBar: AppBar(title: Text(tr(context, 'Perfil'))),
       body: SafeArea(
@@ -149,45 +276,103 @@ class ProfilePage extends ConsumerWidget {
             children: [
               SizedBox(height: 16),
               Surface(
-                child: Row(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 18,
+                  vertical: 22,
+                ),
+                child: Column(
                   children: [
-                    CircleAvatar(
-                      radius: 24,
-                      backgroundColor: AppColors.mid,
-                      child: const UserAvatar(size: 48),
-                    ),
-                    SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            settings?.testUser == true
-                                ? tr(context, 'Usuario de prueba')
-                                : identity.displayName ??
-                                      tr(context, 'Modo invitado'),
-                            style: const TextStyle(fontWeight: FontWeight.w600),
-                          ),
-                          Meta(tr(context, 'Datos en este dispositivo')),
-                        ],
+                    Semantics(
+                      button: true,
+                      label: tr(context, 'Cambiar foto de perfil'),
+                      child: InkWell(
+                        onTap: editPhoto,
+                        customBorder: const CircleBorder(),
+                        child: Stack(
+                          children: [
+                            UserAvatar(size: 116),
+                            Positioned(
+                              right: 2,
+                              bottom: 2,
+                              child: Container(
+                                padding: const EdgeInsets.all(7),
+                                decoration: BoxDecoration(
+                                  color: Theme.of(context).colorScheme.primary,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .surface,
+                                    width: 2,
+                                  ),
+                                ),
+                                child: Icon(
+                                  Icons.camera_alt_outlined,
+                                  size: 16,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onPrimary,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                    Pill(settings?.pro == true ? 'Pro · demo' : 'Gratis'),
+                    const SizedBox(height: 12),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Flexible(
+                          child: Text(
+                            profileName,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.center,
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                        ),
+                        IconButton(
+                          tooltip: tr(context, 'Editar nombre'),
+                          onPressed: editName,
+                          visualDensity: VisualDensity.compact,
+                          icon: const Icon(Icons.edit_outlined, size: 18),
+                        ),
+                      ],
+                    ),
+                    Meta(tr(context, 'Datos en este dispositivo')),
+                    const SizedBox(height: 8),
+                    Pill(
+                      googleAccountAvailable
+                          ? settings?.pro == true
+                                ? 'Pro · demo'
+                                : 'Gratis'
+                          : tr(context, 'Invitado'),
+                    ),
                   ],
                 ),
               ),
               SizedBox(height: 12),
               const AiQuotaCard(),
               SizedBox(height: 16),
-              _item(
-                context,
-                Icons.auto_awesome_outlined,
-                settings?.pro == true
-                    ? 'Plan Pro demostrativo'
-                    : 'Ver Plan Pro',
-                'Sin cobros ni compra real',
-                const PlansPage(),
-              ),
+              if (!googleAccountAvailable)
+                _item(
+                  context,
+                  Icons.key_outlined,
+                  'Conectar IA',
+                  '',
+                  const AiPage(),
+                ),
+              if (googleAccountAvailable)
+                _item(
+                  context,
+                  Icons.auto_awesome_outlined,
+                  settings?.pro == true
+                      ? 'Plan Pro demostrativo'
+                      : 'Ver Plan Pro',
+                  'Sin cobros ni compra real',
+                  const PlansPage(),
+                ),
               _item(
                 context,
                 Icons.tune,
@@ -249,7 +434,7 @@ class ProfilePage extends ConsumerWidget {
     BuildContext c,
     IconData icon,
     String title,
-    String subtitle,
+    String? subtitle,
     Widget page,
   ) => Padding(
     padding: const EdgeInsets.only(bottom: 8),
@@ -258,11 +443,216 @@ class ProfilePage extends ConsumerWidget {
       child: ListTile(
         leading: Icon(icon, size: 21),
         title: Text(tr(c, title), style: const TextStyle(fontSize: 13)),
-        subtitle: Text(tr(c, subtitle), style: const TextStyle(fontSize: 11)),
+        subtitle: subtitle == null || subtitle.isEmpty
+            ? null
+            : Text(tr(c, subtitle), style: const TextStyle(fontSize: 11)),
         trailing: const Icon(Icons.chevron_right, size: 18),
         onTap: () => openPage(c, page),
       ),
     ),
+  );
+}
+
+class _GuestMoveDecision {
+  final bool move;
+  final bool neverAskAgain;
+  const _GuestMoveDecision(this.move, this.neverAskAgain);
+}
+
+class _ProfileNameDialog extends StatefulWidget {
+  final String name;
+  const _ProfileNameDialog({required this.name});
+
+  @override
+  State<_ProfileNameDialog> createState() => _ProfileNameDialogState();
+}
+
+class _ProfileNameDialogState extends State<_ProfileNameDialog> {
+  late final TextEditingController name;
+
+  @override
+  void initState() {
+    super.initState();
+    name = TextEditingController(text: widget.name);
+  }
+
+  @override
+  void dispose() {
+    name.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(tr(context, 'Editar nombre')),
+      content: TextField(
+        controller: name,
+        autofocus: true,
+        maxLength: 40,
+        onChanged: (_) => setState(() {}),
+        decoration: InputDecoration(labelText: tr(context, 'Nombre')),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text(tr(context, 'Cancelar')),
+        ),
+        FilledButton(
+          onPressed: name.text.trim().isEmpty
+              ? null
+              : () => Navigator.pop(context, name.text.trim()),
+          child: Text(tr(context, 'Guardar')),
+        ),
+      ],
+    );
+  }
+}
+
+class _ProfilePhotoCropDialog extends StatefulWidget {
+  final Uint8List bytes;
+  const _ProfilePhotoCropDialog({required this.bytes});
+
+  @override
+  State<_ProfilePhotoCropDialog> createState() =>
+      _ProfilePhotoCropDialogState();
+}
+
+class _ProfilePhotoCropDialogState extends State<_ProfilePhotoCropDialog> {
+  final cropKey = GlobalKey();
+  final transform = TransformationController();
+  late final Future<double> imageAspect = _readImageAspect();
+  bool saving = false, imageReady = false;
+
+  Future<double> _readImageAspect() async {
+    final codec = await ui.instantiateImageCodec(widget.bytes);
+    try {
+      final frame = await codec.getNextFrame();
+      try {
+        return frame.image.width / frame.image.height;
+      } finally {
+        frame.image.dispose();
+      }
+    } finally {
+      codec.dispose();
+    }
+  }
+
+  @override
+  void dispose() {
+    transform.dispose();
+    super.dispose();
+  }
+
+  Future<void> save() async {
+    if (saving) return;
+    setState(() => saving = true);
+    try {
+      await WidgetsBinding.instance.endOfFrame;
+      final boundary =
+          cropKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+      if (boundary == null) throw StateError('No crop render boundary');
+      final image = await boundary.toImage(pixelRatio: 2);
+      final data = await image.toByteData(format: ui.ImageByteFormat.png);
+      image.dispose();
+      if (data == null) throw StateError('No crop image bytes');
+      if (mounted) Navigator.pop(context, data.buffer.asUint8List());
+    } catch (_) {
+      if (mounted) {
+        setState(() => saving = false);
+        message(context, tr(context, 'No se pudo guardar el recorte.'));
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: Text(tr(context, 'Ajustar foto de perfil')),
+    content: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          tr(
+            context,
+            'Arrastra la imagen o usa dos dedos para ajustar el encuadre.',
+          ),
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+        const SizedBox(height: 16),
+        FutureBuilder<double>(
+          future: imageAspect,
+          builder: (context, snapshot) {
+            if (!snapshot.hasData) {
+              return const SizedBox.square(
+                dimension: 264,
+                child: Center(child: CircularProgressIndicator()),
+              );
+            }
+            final aspect = snapshot.data!;
+            final imageWidth = aspect >= 1 ? 264 * aspect : 264.0;
+            final imageHeight = aspect >= 1 ? 264.0 : 264 / aspect;
+            return RepaintBoundary(
+              key: cropKey,
+              child: ClipOval(
+                child: SizedBox(
+                  width: 264,
+                  height: 264,
+                  child: ColoredBox(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .surfaceContainerHighest,
+                    child: InteractiveViewer(
+                      transformationController: transform,
+                      constrained: false,
+                      alignment: Alignment.center,
+                      minScale: 1,
+                      maxScale: 4,
+                      boundaryMargin: const EdgeInsets.all(80),
+                      child: Image.memory(
+                        widget.bytes,
+                        width: imageWidth,
+                        height: imageHeight,
+                        fit: BoxFit.fill,
+                        gaplessPlayback: true,
+                        frameBuilder: (context, child, frame, sync) {
+                          if (sync || frame != null) {
+                            if (!imageReady) {
+                              WidgetsBinding.instance.addPostFrameCallback((_) {
+                                if (mounted) setState(() => imageReady = true);
+                              });
+                            }
+                            return child;
+                          }
+                          return const Center(
+                            child: CircularProgressIndicator(),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      ],
+    ),
+    actions: [
+      TextButton(
+        onPressed: saving ? null : () => Navigator.pop(context),
+        child: Text(tr(context, 'Cancelar')),
+      ),
+      FilledButton.icon(
+        onPressed: saving || !imageReady ? null : save,
+        icon: saving
+            ? const SizedBox.square(
+                dimension: 16,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : const Icon(Icons.check),
+        label: Text(tr(context, 'Usar foto')),
+      ),
+    ],
   );
 }
 
@@ -408,9 +798,17 @@ class PlansPage extends ConsumerWidget {
 
 class PreferencesPage extends ConsumerWidget {
   const PreferencesPage({super.key});
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final settings = ref.watch(controllerProvider).value;
+    const styles = [
+      ('plain', 'Liso'),
+      ('lines', 'Renglones'),
+      ('grid', 'Cuadrícula'),
+      ('dots', 'Puntos'),
+      ('spaced', 'Interlineado amplio'),
+    ];
     return Scaffold(
       appBar: AppBar(title: Text(tr(context, 'Preferencias'))),
       body: SafeArea(
@@ -418,6 +816,41 @@ class PreferencesPage extends ConsumerWidget {
           maxWidth: 640,
           child: ListView(
             children: [
+              SectionTitle('Estilo de página'),
+              Surface(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(tr(context, 'Elige el fondo de tus apuntes.')),
+                    const SizedBox(height: 14),
+                    LayoutBuilder(
+                      builder: (context, constraints) => Wrap(
+                        spacing: 12,
+                        runSpacing: 12,
+                        children: [
+                          for (final style in styles)
+                            SizedBox(
+                              width: (constraints.maxWidth - 12) / 2,
+                              child: _PaperStyleChoice(
+                                id: style.$1,
+                                label: style.$2,
+                                selected:
+                                    (settings?.paperStyle ?? 'plain') ==
+                                    style.$1,
+                                onTap: () => runAction(
+                                  context,
+                                  () => ref
+                                      .read(controllerProvider.notifier)
+                                      .paperStyle(style.$1),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
               SectionTitle('Idioma'),
               Surface(
                 padding: EdgeInsets.zero,
@@ -445,6 +878,39 @@ class PreferencesPage extends ConsumerWidget {
                   ],
                 ),
               ),
+              SectionTitle('Fuente de la aplicación'),
+              Surface(
+                padding: EdgeInsets.zero,
+                child: Column(
+                  children: [
+                    for (final font in [
+                      ('Inter', 'Inter', Icons.text_fields),
+                      ('serif', 'Clásica', Icons.menu_book_outlined),
+                      ('monospace', 'Monoespaciada', Icons.code),
+                    ])
+                      ListTile(
+                        leading: Icon(font.$3),
+                        title: Text(
+                          tr(context, font.$2),
+                          style: TextStyle(fontFamily: font.$1),
+                        ),
+                        trailing: Icon(
+                          (settings?.fontFamily ?? 'Inter') == font.$1
+                              ? Icons.radio_button_checked
+                              : Icons.radio_button_unchecked,
+                        ),
+                        onTap: () => runAction(
+                          context,
+                          () => ref
+                              .read(controllerProvider.notifier)
+                              .fontFamily(font.$1),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              SectionTitle('Traslado de apuntes'),
+              const _GuestTransferSettings(),
               SectionTitle('Tema visual'),
               Surface(
                 child: Column(
@@ -471,7 +937,190 @@ class PreferencesPage extends ConsumerWidget {
                   ],
                 ),
               ),
-              SizedBox(height: 28),
+              const SizedBox(height: 28),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _GuestTransferSettings extends ConsumerStatefulWidget {
+  const _GuestTransferSettings();
+
+  @override
+  ConsumerState<_GuestTransferSettings> createState() =>
+      _GuestTransferSettingsState();
+}
+
+class _GuestTransferSettingsState
+    extends ConsumerState<_GuestTransferSettings> {
+  bool? promptEnabled;
+  int guestNotes = 0;
+  bool loading = true;
+  bool moving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final profiles = ref.read(profileVaultPort);
+    final enabled = await profiles.guestMovePromptEnabled();
+    final count = await profiles.guestNoteCount();
+    if (!mounted) return;
+    setState(() {
+      promptEnabled = enabled;
+      guestNotes = count;
+      loading = false;
+    });
+  }
+
+  Future<void> _move(String ownerId) async {
+    if (moving) return;
+    final count = guestNotes;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(tr(dialogContext, 'Importar apuntes de Invitado')),
+        content: Text(
+          tr(
+            dialogContext,
+            'Se moverán $count apuntes a la bóveda cifrada de esta cuenta. Los datos de Invitado solo se retirarán después de verificar la copia.',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: Text(tr(dialogContext, 'Cancelar')),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: Text(tr(dialogContext, 'Mover apuntes')),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() => moving = true);
+    await runAction(context, () async {
+      await ref.read(profileVaultPort).moveGuestTo(ownerId);
+      ref.invalidate(libraryProvider);
+      await ref.read(controllerProvider.notifier).refresh();
+      await _load();
+    });
+    if (mounted) setState(() => moving = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final identity = ref.read(identityPort);
+    final ownerId = identity is AccountIdentityService
+        ? (identity as AccountIdentityService).userId
+        : null;
+    return Surface(
+      padding: EdgeInsets.zero,
+      child: Column(
+        children: [
+          SwitchListTile(
+            value: promptEnabled ?? true,
+            onChanged: loading
+                ? null
+                : (value) async {
+                    setState(() => promptEnabled = value);
+                    await runAction(
+                      context,
+                      () => ref
+                          .read(profileVaultPort)
+                          .setGuestMovePromptEnabled(value),
+                    );
+                    await _load();
+                  },
+            title: Text(tr(context, 'Recordarme mover apuntes de Invitado')),
+            subtitle: Text(
+              tr(context, 'Puedes cambiar esta opción cuando quieras.'),
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ),
+          if (ownerId != null && !loading && guestNotes > 0) ...[
+            const Divider(height: 1),
+            ListTile(
+              leading: const Icon(Icons.move_to_inbox_outlined),
+              title: Text(tr(context, 'Importar apuntes de Invitado')),
+              subtitle: Text(
+                tr(context, '$guestNotes apuntes disponibles'),
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              trailing: moving
+                  ? const SizedBox.square(
+                      dimension: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.chevron_right),
+              onTap: moving ? null : () => _move(ownerId),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _PaperStyleChoice extends StatelessWidget {
+  final String id;
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+  const _PaperStyleChoice({
+    required this.id,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Material(
+      color: selected ? scheme.primaryContainer : scheme.surfaceContainerLow,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: BorderSide(
+          color: selected ? scheme.primary : scheme.outlineVariant,
+          width: selected ? 1.5 : 1,
+        ),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SizedBox(
+                height: 48,
+                child: CustomPaint(
+                  painter: PaperPatternPainter(
+                    style: id,
+                    color: scheme.onSurface,
+                  ),
+                  child: const SizedBox.expand(),
+                ),
+              ),
+              const SizedBox(height: 7),
+              Text(
+                tr(context, label),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+                ),
+              ),
             ],
           ),
         ),
@@ -625,7 +1274,7 @@ class AboutPage extends StatelessWidget {
                 style: TextStyle(fontSize: 24, fontWeight: FontWeight.w600),
               ),
             ),
-            Center(child: Meta(tr(context, 'Versión 0.2.3-beta.3 · Build 8'))),
+            Center(child: Meta(tr(context, 'Versión 0.2.3-beta.4 · Build 9'))),
             SizedBox(height: 20),
             Surface(
               child: Wrap(
@@ -663,7 +1312,7 @@ class AboutPage extends StatelessWidget {
               onTap: () => showLicensePage(
                 context: context,
                 applicationName: 'DraftAI',
-                applicationVersion: '0.2.3-beta.3',
+                applicationVersion: '0.2.3-beta.4',
               ),
             ),
             SizedBox(height: 24),
@@ -690,11 +1339,11 @@ class InformationPage extends StatelessWidget {
         ? [
             (
               'Almacenamiento local',
-              'Los apuntes, títulos, resúmenes y archivos se cifran con AES-GCM en el espacio privado del dispositivo. La clave se guarda con el almacén seguro del sistema. Identificadores y fechas quedan en SQLite para sus relaciones e índices.',
+              'Los apuntes y archivos se cifran en el teléfono con una clave protegida por el sistema. Invitado y cada cuenta de Google tienen una bóveda local independiente. Las notas todavía no se sincronizan con la nube.',
             ),
             (
               'Servicios externos',
-              'En esta beta, Google aún no inicia sesión. El usuario de prueba es local y no sincroniza notas. El servicio de IA recibe solo el contenido que confirmes enviar. Su proveedor y tratamiento deben revisarse al configurar el servicio.',
+              'Google se usa para identificar la cuenta y abrir su bóveda local. Las funciones de IA envían al servicio externo únicamente el contenido que confirmes procesar. Las notas y sus archivos permanecen cifrados en el teléfono hasta habilitar la sincronización en la nube.',
             ),
             (
               'Voz y permisos',

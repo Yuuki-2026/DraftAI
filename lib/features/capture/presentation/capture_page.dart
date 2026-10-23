@@ -20,6 +20,8 @@ class CapturePage extends ConsumerStatefulWidget {
 
 class _CaptureState extends ConsumerState<CapturePage> {
   List<PickedFile> files = [];
+  final analyzedDrafts = <PickedFile, SourceDraft>{};
+  final manualDrafts = <PickedFile, SourceDraft>{};
   bool busy = false;
   int index = 0;
   final pages = PageController();
@@ -54,6 +56,13 @@ class _CaptureState extends ConsumerState<CapturePage> {
 
   Future<void> _analyze() async {
     if (busy || files.isEmpty) return;
+    final pendingFiles = files
+        .where((file) => !analyzedDrafts.containsKey(file))
+        .toList();
+    if (pendingFiles.isEmpty) {
+      await _review(files.map((file) => analyzedDrafts[file]!).toList());
+      return;
+    }
     final service = ref.read(aiPort);
     if (!service.configured) {
       if (service is! AiConnection ||
@@ -67,10 +76,10 @@ class _CaptureState extends ConsumerState<CapturePage> {
       final access = await ref.read(controllerProvider.notifier).syncAiAccess();
       if (access != null && !access.vision) {
         throw const AppFailure(
-          'Este acceso es Gratis. Conecta usando el código Pro de prueba para analizar imágenes, PDF y textos.',
+          'El servidor de IA no tiene habilitado el análisis de imágenes.',
         );
       }
-      final groups = sourceGroups(files);
+      final groups = sourceGroups(pendingFiles);
       if (access != null && groups.length > access.remaining) {
         throw AppFailure(
           'Este lote necesita ${groups.length} acciones y quedan ${access.remaining}. Reduce el lote o espera al próximo día.',
@@ -80,7 +89,7 @@ class _CaptureState extends ConsumerState<CapturePage> {
       if (!await confirm(
         context,
         'Analizar fuentes',
-        'Se enviarán ${files.length} fuentes y los nombres de tus carpetas/apuntes al servicio de IA. '
+        'Se enviarán ${pendingFiles.length} fuentes y los nombres de tus carpetas/apuntes al servicio de IA. '
             'Se procesarán en ${groups.length} grupos de hasta 5. Revisarás cada destino antes de guardar.',
       )) {
         return;
@@ -94,22 +103,10 @@ class _CaptureState extends ConsumerState<CapturePage> {
         ),
       );
       if (results != null && mounted) {
-        await Navigator.push(
-          context,
-          MaterialPageRoute<void>(
-            builder: (_) => SourceReviewPage(drafts: results),
-          ),
-        );
-        if (mounted) {
-          setState(() {
-            final saved = results
-                .where((d) => d.saved)
-                .map((d) => d.file)
-                .toSet();
-            files.removeWhere(saved.contains);
-            index = 0;
-          });
+        for (final draft in results) {
+          analyzedDrafts[draft.file] = draft;
         }
+        await _review(files.map((file) => analyzedDrafts[file]!).toList());
       }
     });
     if (mounted) setState(() => busy = false);
@@ -117,17 +114,35 @@ class _CaptureState extends ConsumerState<CapturePage> {
 
   Future<void> _manual() async {
     final lib = ref.read(libraryProvider).value ?? const Library([], [], []);
-    final drafts = files.map((f) => SourceDraft.manual(f, lib)).toList();
+    final drafts = files
+        .map(
+          (file) => manualDrafts.putIfAbsent(
+            file,
+            () => SourceDraft.manual(file, lib),
+          ),
+        )
+        .toList();
+    await _review(drafts, manual: true);
+  }
+
+  Future<void> _review(List<SourceDraft> drafts, {bool manual = false}) async {
     await Navigator.push(
       context,
       MaterialPageRoute<void>(
-        builder: (_) => SourceReviewPage(manual: true, drafts: drafts),
+        builder: (_) => SourceReviewPage(manual: manual, drafts: drafts),
       ),
     );
     if (!mounted) return;
     setState(() {
-      final saved = drafts.where((d) => d.saved).map((d) => d.file).toSet();
+      final saved = drafts
+          .where((draft) => draft.saved)
+          .map((d) => d.file)
+          .toSet();
       files.removeWhere(saved.contains);
+      for (final file in saved) {
+        analyzedDrafts.remove(file);
+        manualDrafts.remove(file);
+      }
       index = 0;
     });
   }
@@ -145,20 +160,36 @@ class _CaptureState extends ConsumerState<CapturePage> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  tr(context, 'Captura completada'),
+                  tr(
+                    context,
+                    files.isEmpty
+                        ? 'Añade una fuente para comenzar'
+                        : 'Fuentes añadidas',
+                  ),
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
-                Pill('${files.length} ${tr(context, 'elementos')}'),
+                if (files.isNotEmpty)
+                  Pill('${files.length} ${tr(context, 'elementos')}'),
               ],
             ),
             const SizedBox(height: 16),
             Text(
-              tr(context, '¿Dónde irán tus fotos?'),
+              tr(
+                context,
+                files.isEmpty
+                    ? '¿Qué quieres añadir?'
+                    : '¿Dónde irán tus fuentes?',
+              ),
               style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: 8),
             Text(
-              tr(context, 'Asigna cada fuente a una carpeta y a un apunte.'),
+              tr(
+                context,
+                files.isEmpty
+                    ? 'Selecciona imágenes o archivos para organizarlos en tus apuntes.'
+                    : 'Asigna cada fuente a una carpeta y a un apunte.',
+              ),
               style: Theme.of(context).textTheme.bodySmall,
             ),
             const SizedBox(height: 16),
@@ -205,7 +236,9 @@ class _CaptureState extends ConsumerState<CapturePage> {
                                 onPressed: busy
                                     ? null
                                     : () => setState(() {
-                                        files.removeAt(i);
+                                        final removed = files.removeAt(i);
+                                        analyzedDrafts.remove(removed);
+                                        manualDrafts.remove(removed);
                                         index = index.clamp(
                                           0,
                                           files.isEmpty ? 0 : files.length - 1,
@@ -277,12 +310,17 @@ class _CaptureState extends ConsumerState<CapturePage> {
                 OutlinedButton.icon(
                   onPressed: busy ? null : () => _pick(CaptureSource.gallery),
                   icon: const Icon(Icons.add_photo_alternate_outlined),
-                  label: Text(tr(context, 'Añadir otra')),
+                  label: Text(
+                    tr(
+                      context,
+                      files.isEmpty ? 'Elegir imágenes' : 'Añadir otra',
+                    ),
+                  ),
                 ),
                 OutlinedButton.icon(
                   onPressed: busy ? null : () => _pick(CaptureSource.files),
                   icon: const Icon(Icons.attach_file),
-                  label: Text(tr(context, 'Archivos')),
+                  label: Text(tr(context, 'Seleccionar archivos')),
                 ),
                 TextButton(
                   onPressed: busy ? null : () => Navigator.pop(context),

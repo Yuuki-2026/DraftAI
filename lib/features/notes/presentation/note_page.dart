@@ -1,8 +1,10 @@
 import '../../../core/presentation/action_panel.dart';
 
 import 'dart:convert';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_quill/flutter_quill.dart' as q;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -13,6 +15,8 @@ import 'media_widgets.dart';
 import 'note_format_bar.dart';
 import 'rich_ai_text.dart';
 import 'note_reader.dart';
+import 'note_quiz.dart';
+import 'paper_pattern.dart';
 import '../domain/ports.dart';
 import '../../ai/presentation/connection_dialog.dart';
 import '../domain/note_document.dart';
@@ -20,6 +24,7 @@ import '../domain/note_sections.dart';
 import '../../../core/presentation/strings.dart';
 import 'library_page.dart';
 import '../../ai/presentation/ai_pages.dart';
+import '../../export/presentation/export_preview_page.dart';
 
 class NotePage extends ConsumerStatefulWidget {
   final Note note;
@@ -42,7 +47,6 @@ class _NotePageState extends ConsumerState<NotePage> {
   final focus = FocusNode();
   final scroll = ScrollController();
   final editorScroll = ScrollController();
-  late String lastSignature;
   late Note committed;
   bool closing = false;
   late List<PickedFile> pendingFiles;
@@ -55,8 +59,12 @@ class _NotePageState extends ConsumerState<NotePage> {
       saving = false,
       allowPop = false,
       dictating = false;
+  bool showPageIndicator = false;
+  int readingPage = 1, readingPageCount = 1;
+  String? persistentTextColor, persistentHighlightColor;
   Future<bool>? activeSave;
   String status = 'Guardado en este dispositivo';
+  String? titleError;
   @override
   void initState() {
     super.initState();
@@ -70,7 +78,7 @@ class _NotePageState extends ConsumerState<NotePage> {
     title.addListener(_changed);
     topic.addListener(_changed);
     editor.addListener(_changed);
-    lastSignature = _signature();
+    scroll.addListener(_updateReadingPage);
     pendingFiles = List.of(widget.pendingFiles);
   }
 
@@ -78,27 +86,93 @@ class _NotePageState extends ConsumerState<NotePage> {
     final doc = q.Document.fromJson(
       NoteDocument.delta(NoteSections.compactDates(n)),
     );
-    return q.QuillController(
+    final controller = q.QuillController(
       document: doc,
       selection: const TextSelection.collapsed(offset: 0),
     );
+    controller.onSelectionChanged = (_) =>
+        _applyPersistentTypingStyle(controller);
+    return controller;
   }
 
-  String _signature() => jsonEncode([
-    title.text,
-    topic.text,
-    editor.document.toDelta().toJson(),
-    note.folderId,
-    note.categoryId,
-    note.attachments.map((a) => a.id).toList(),
-  ]);
+  void _setPersistentEditorColor(bool isBackground, String? hex) {
+    if (!mounted) return;
+    setState(() {
+      if (isBackground) {
+        persistentHighlightColor = hex;
+      } else {
+        persistentTextColor = hex;
+      }
+    });
+    _applyPersistentTypingStyle(editor);
+  }
+
+  void _applyPersistentTypingStyle(q.QuillController target) {
+    final attributes =
+        Map<String, q.Attribute>.from(
+          target.toggledStyle.attributes,
+        )..removeWhere(
+          (key, _) =>
+              key == q.Attribute.color.key || key == q.Attribute.background.key,
+        );
+    if (persistentTextColor case final color?) {
+      attributes[q.Attribute.color.key] = q.ColorAttribute(color);
+    }
+    if (persistentHighlightColor case final color?) {
+      attributes[q.Attribute.background.key] = q.BackgroundAttribute(color);
+    }
+    target.toggledStyle = q.Style.attr(attributes);
+  }
+
+  void _updateReadingPage() {
+    if (!mounted || !reading || !showPageIndicator || !scroll.hasClients) {
+      return;
+    }
+    final position = scroll.position;
+    if (position.viewportDimension <= 0) return;
+    final pageCount =
+        ((position.maxScrollExtent + position.viewportDimension) /
+                position.viewportDimension)
+            .ceil()
+            .clamp(1, 999)
+            .toInt();
+    final page =
+        (position.pixels / position.viewportDimension)
+            .floor()
+            .clamp(0, pageCount - 1)
+            .toInt() +
+        1;
+    if (page == readingPage && pageCount == readingPageCount) return;
+    setState(() {
+      readingPage = page;
+      readingPageCount = pageCount;
+    });
+  }
+
+  void _togglePageIndicator() {
+    setState(() => showPageIndicator = !showPageIndicator);
+    if (showPageIndicator) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _updateReadingPage());
+    }
+  }
+
+  void _changeReadingScale(double change) {
+    setState(
+      () => readingScale = (readingScale + change).clamp(.85, 1.65).toDouble(),
+    );
+    WidgetsBinding.instance.addPostFrameCallback((_) => _updateReadingPage());
+  }
+
   void _changed() {
-    if (!editing) return;
-    final signature = _signature();
-    if (signature == lastSignature) return;
-    lastSignature = signature;
-    if (!dirty && mounted) setState(() => status = 'Cambios sin guardar');
+    if (!editing || dirty) return;
     dirty = true;
+    if (mounted) setState(() => status = 'Cambios sin guardar');
+  }
+
+  void _dismissEditorKeyboard() {
+    focus.unfocus();
+    FocusManager.instance.primaryFocus?.unfocus();
+    unawaited(SystemChannels.textInput.invokeMethod<void>('TextInput.hide'));
   }
 
   Note _snapshot() => note.copyWith(
@@ -113,6 +187,14 @@ class _NotePageState extends ConsumerState<NotePage> {
     updatedAt: DateTime.now().toUtc(),
   );
   Future<bool> _flush() async {
+    if (title.text.trim().isEmpty) {
+      if (mounted) {
+        setState(
+          () => titleError = 'Escribe un título para guardar el apunte.',
+        );
+      }
+      return false;
+    }
     if (activeSave != null) {
       await activeSave;
     }
@@ -148,7 +230,6 @@ class _NotePageState extends ConsumerState<NotePage> {
         editor = _controller(stored);
         editor.readOnly = !editing;
         editor.addListener(_changed);
-        lastSignature = _signature();
         WidgetsBinding.instance.addPostFrameCallback(
           (_) => oldEditor.dispose(),
         );
@@ -216,7 +297,6 @@ class _NotePageState extends ConsumerState<NotePage> {
       editor = _controller(note);
       editor.readOnly = !editing;
       dirty = false;
-      lastSignature = _signature();
     });
     title.addListener(_changed);
     topic.addListener(_changed);
@@ -248,7 +328,7 @@ class _NotePageState extends ConsumerState<NotePage> {
       await ref.read(speechPort).stop();
       dictating = false;
     }
-    focus.unfocus();
+    _dismissEditorKeyboard();
     editor.readOnly = true;
     final saved = await _flush();
     if (!mounted) return;
@@ -309,6 +389,7 @@ class _NotePageState extends ConsumerState<NotePage> {
     topic.dispose();
     editor.dispose();
     focus.dispose();
+    scroll.removeListener(_updateReadingPage);
     scroll.dispose();
     editorScroll.dispose();
     super.dispose();
@@ -317,6 +398,8 @@ class _NotePageState extends ConsumerState<NotePage> {
   @override
   Widget build(BuildContext context) {
     final lib = ref.watch(libraryProvider).value;
+    final pageStyle =
+        ref.watch(controllerProvider).value?.paperStyle ?? 'plain';
 
     return PopScope(
       canPop: allowPop,
@@ -360,6 +443,16 @@ class _NotePageState extends ConsumerState<NotePage> {
             if (editing)
               TextButton(
                 onPressed: saving ? null : _saveAndView,
+                style: TextButton.styleFrom(
+                  backgroundColor:
+                      Theme.of(context).brightness == Brightness.dark
+                      ? Colors.white
+                      : Colors.black,
+                  foregroundColor:
+                      Theme.of(context).brightness == Brightness.dark
+                      ? Colors.black
+                      : Colors.white,
+                ),
                 child: Text(tr(context, 'Guardar')),
               ),
             if (editing)
@@ -393,8 +486,17 @@ class _NotePageState extends ConsumerState<NotePage> {
                         onPressed: _export,
                         icon: const Icon(Icons.ios_share_outlined, size: 20),
                       ),
+                      if (!reading)
+                        IconButton(
+                          tooltip: tr(context, 'Enviar a la papelera'),
+                          onPressed: _trashNote,
+                          icon: const Icon(Icons.delete_outline, size: 20),
+                        ),
                       IconButton(
-                        tooltip: tr(context, 'Lectura'),
+                        tooltip: tr(
+                          context,
+                          reading ? 'Salir de lectura' : 'Lectura',
+                        ),
                         onPressed: () => setState(() => reading = !reading),
                         icon: Icon(
                           reading ? Icons.menu_book : Icons.menu_book_outlined,
@@ -410,20 +512,42 @@ class _NotePageState extends ConsumerState<NotePage> {
                   ),
                 if (reading)
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
                     children: [
+                      IconButton(
+                        tooltip: tr(
+                          context,
+                          showPageIndicator
+                              ? 'Ocultar indicador de páginas'
+                              : 'Mostrar indicador de páginas',
+                        ),
+                        onPressed: _togglePageIndicator,
+                        icon: Icon(
+                          showPageIndicator
+                              ? Icons.auto_stories
+                              : Icons.auto_stories_outlined,
+                          size: 20,
+                        ),
+                      ),
+                      if (showPageIndicator)
+                        Expanded(
+                          child: Meta(
+                            '${tr(context, 'Página')} $readingPage / $readingPageCount · ${tr(context, 'aprox.')}',
+                          ),
+                        )
+                      else
+                        const Spacer(),
                       IconButton(
                         tooltip: tr(context, 'Reducir texto'),
                         onPressed: readingScale <= .85
                             ? null
-                            : () => setState(() => readingScale -= .1),
+                            : () => _changeReadingScale(-.1),
                         icon: const Icon(Icons.text_decrease, size: 20),
                       ),
                       IconButton(
                         tooltip: tr(context, 'Ampliar texto'),
                         onPressed: readingScale >= 1.65
                             ? null
-                            : () => setState(() => readingScale += .1),
+                            : () => _changeReadingScale(.1),
                         icon: const Icon(Icons.text_increase, size: 20),
                       ),
                     ],
@@ -445,7 +569,20 @@ class _NotePageState extends ConsumerState<NotePage> {
                     style: Theme.of(context).textTheme.titleLarge,
                     decoration: InputDecoration(
                       labelText: tr(context, 'Título del apunte'),
+                      helperText: tr(
+                        context,
+                        'Un buen nombre ayuda a clasificar mejor a la IA.',
+                      ),
+                      helperMaxLines: 2,
+                      errorText: titleError == null
+                          ? null
+                          : tr(context, titleError!),
                     ),
+                    onChanged: (value) {
+                      if (value.trim().isNotEmpty && titleError != null) {
+                        setState(() => titleError = null);
+                      }
+                    },
                   )
                 else
                   SelectableText(
@@ -514,90 +651,112 @@ class _NotePageState extends ConsumerState<NotePage> {
                   Meta(NoteSections.label(note.updatedAt.toLocal())),
                 Surface(
                   key: const ValueKey('note-document-surface'),
-                  child: MediaQuery(
-                    data: MediaQuery.of(context).copyWith(
-                      textScaler: TextScaler.linear(
-                        MediaQuery.textScalerOf(context)
-                            .scale(reading ? readingScale : 1),
-                      ),
+                  child: CustomPaint(
+                    painter: PaperPatternPainter(
+                      style: pageStyle,
+                      color: Theme.of(context).colorScheme.onSurface,
+                      scale: reading ? readingScale : 1,
+                      scrollController: editing ? editorScroll : null,
                     ),
-                    child: !editing
-                        ? NoteReader(note: _snapshot())
-                        : q.QuillEditor(
-                            controller: editor,
-                            focusNode: focus,
-                            scrollController: editorScroll,
-                            key: ValueKey((editor, editing)),
-                            config: q.QuillEditorConfig(
-                              customStyles: q.DefaultStyles(
-                                paragraph: q.DefaultStyles.getInstance(context)
-                                    .paragraph!
-                                    .copyWith(
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .bodyMedium!
-                                          .copyWith(fontSize: 15, height: 1.6),
-                                      verticalSpacing: const q.VerticalSpacing(
-                                        3,
-                                        7,
-                                      ),
-                                    ),
-                                h3: q.DefaultStyles.getInstance(context).h3!
-                                    .copyWith(
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .titleMedium!
-                                          .copyWith(fontSize: 17, height: 1.5),
-                                    ),
-                              ),
-                              textSpanBuilder:
-                                  (
-                                    c,
-                                    node,
-                                    offset,
-                                    text,
-                                    style,
-                                    recognizer,
-                                  ) => TextSpan(
-                                    text: text,
-                                    recognizer: recognizer,
-                                    style:
-                                        RegExp(r'^\d{2}/\d{2}/\d{4}$')
-                                            .hasMatch(text.trim())
-                                        ? (style ?? const TextStyle()).copyWith(
-                                            fontSize: 11,
-                                            height: 1.4,
-                                            fontWeight: FontWeight.normal,
-                                            color: Theme.of(c)
-                                                .colorScheme
-                                                .onSurfaceVariant,
-                                          )
-                                        : style,
-                                  ),
-                              embedBuilders: [
-                                NoteMediaEmbed(
-                                  note.attachments
-                                      .where(
-                                        (a) => NoteDocument.references(
-                                          jsonEncode(
-                                            editor.document.toDelta().toJson(),
+                    child: MediaQuery(
+                      data: MediaQuery.of(context).copyWith(
+                        textScaler: TextScaler.linear(
+                          MediaQuery.textScalerOf(context)
+                              .scale(reading ? readingScale : 1),
+                        ),
+                      ),
+                      child: !editing
+                          ? NoteReader(note: _snapshot())
+                          : q.QuillEditor(
+                              controller: editor,
+                              focusNode: focus,
+                              scrollController: editorScroll,
+                              key: ValueKey((editor, editing)),
+                              config: q.QuillEditorConfig(
+                                customStyles: q.DefaultStyles(
+                                  paragraph:
+                                      q.DefaultStyles.getInstance(context)
+                                          .paragraph!
+                                          .copyWith(
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .bodyMedium!
+                                                .copyWith(
+                                                  fontSize: 15,
+                                                  height: 1.6,
+                                                ),
+                                            verticalSpacing:
+                                                const q.VerticalSpacing(3, 7),
                                           ),
-                                        ).contains(a.id),
-                                      )
-                                      .toList(),
+                                  h3: q.DefaultStyles.getInstance(context).h3!
+                                      .copyWith(
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .titleMedium!
+                                            .copyWith(
+                                              fontSize: 17,
+                                              height: 1.5,
+                                            ),
+                                      ),
                                 ),
-                              ],
-                              scrollable: false,
-                              autoFocus: false,
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              placeholder: tr(
-                                context,
-                                'Escribe tus ideas aquí…',
+                                textSpanBuilder:
+                                    (
+                                      c,
+                                      node,
+                                      offset,
+                                      text,
+                                      style,
+                                      recognizer,
+                                    ) => TextSpan(
+                                      text: text,
+                                      recognizer: recognizer,
+                                      style:
+                                          RegExp(r'^\d{2}/\d{2}/\d{4}$')
+                                              .hasMatch(text.trim())
+                                          ? (style ?? const TextStyle())
+                                                .copyWith(
+                                                  fontSize: 11,
+                                                  height: 1.4,
+                                                  fontWeight: FontWeight.normal,
+                                                  color: Theme.of(c)
+                                                      .colorScheme
+                                                      .onSurfaceVariant,
+                                                )
+                                          : style,
+                                    ),
+                                embedBuilders: [
+                                  NoteMediaEmbed(
+                                    note.attachments
+                                        .where(
+                                          (a) => NoteDocument.references(
+                                            jsonEncode(
+                                              editor.document
+                                                  .toDelta()
+                                                  .toJson(),
+                                            ),
+                                          ).contains(a.id),
+                                        )
+                                        .toList(),
+                                    editable: editing,
+                                    onResize: _resizeImage,
+                                    onAlign: _alignImage,
+                                  ),
+                                  NoteTableEmbed(onEdit: _editTable),
+                                ],
+                                scrollable: false,
+                                autoFocus: false,
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 12,
+                                ),
+                                placeholder: tr(
+                                  context,
+                                  'Escribe tus ideas aquí…',
+                                ),
+                                expands: false,
+                                minHeight: 220,
                               ),
-                              expands: false,
-                              minHeight: 220,
                             ),
-                          ),
+                    ),
                   ),
                 ),
                 if (note.lastAiModel.isNotEmpty)
@@ -680,6 +839,9 @@ class _NotePageState extends ConsumerState<NotePage> {
                             NoteFormatBar(
                               controller: editor,
                               onFormula: _formula,
+                              onDismissKeyboard: _dismissEditorKeyboard,
+                              onPersistentColorChanged:
+                                  _setPersistentEditorColor,
                             ),
                             _editingTools(),
                           ],
@@ -785,7 +947,9 @@ class _NotePageState extends ConsumerState<NotePage> {
           }
         }
       }),
-      _tool(Icons.edit_outlined, 'Editar', _enterEdit),
+      reading
+          ? _tool(Icons.quiz_outlined, 'Cuestionario', _quiz)
+          : _tool(Icons.edit_outlined, 'Editar', _enterEdit),
       _tool(Icons.auto_awesome_outlined, 'IA', _ai, primary: true),
       _tool(Icons.ios_share_outlined, 'Exportar', _export),
       _tool(Icons.more_vert, 'Más', _more),
@@ -814,14 +978,11 @@ class _NotePageState extends ConsumerState<NotePage> {
   );
 
   void _enterEdit() {
-    focus.unfocus();
+    _dismissEditorKeyboard();
     setState(() {
       editing = true;
       reading = false;
       editor.readOnly = false;
-    });
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted && editing) focus.requestFocus();
     });
   }
 
@@ -831,83 +992,398 @@ class _NotePageState extends ConsumerState<NotePage> {
     }
   }
 
+  Future<void> _quiz() async {
+    if (!await _resolveChanges() || !mounted) return;
+    final service = ref.read(aiPort);
+    if (!service.configured) {
+      if (service is! AiConnection ||
+          !await connectAiDialog(context, service as AiConnection)) {
+        return;
+      }
+      if (!mounted) return;
+    }
+    if (!await confirm(
+      context,
+      'Procesar con IA',
+      'Se enviará el texto del apunte al servicio de IA para preparar preguntas. ¿Continuar?',
+    )) {
+      return;
+    }
+    if (!mounted) return;
+    openPage(context, NoteQuizPage(note: _snapshot()));
+  }
+
+  Future<void> _trashNote() async {
+    if (!await _resolveChanges() || !mounted) return;
+    if (!await confirm(
+      context,
+      'Enviar a la papelera',
+      'El apunte podrá restaurarse desde la papelera.',
+    )) {
+      return;
+    }
+    await runAction(context, () async {
+      await ref.read(controllerProvider.notifier).trash(committed);
+      if (!mounted) return;
+      setState(() => allowPop = true);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) Navigator.pop(context);
+      });
+    });
+  }
+
   Future<void> _insertMenu() async {
-    final source = await showModalBottomSheet<CaptureSource>(
-      context: context,
-      builder: (c) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(title: Text(tr(c, 'Insertar'))),
-            for (final item in [
-              (
-                CaptureSource.gallery,
-                Icons.photo_library_outlined,
-                'Añadir imágenes',
-              ),
-              (CaptureSource.camera, Icons.camera_alt_outlined, 'Cámara'),
-              (CaptureSource.files, Icons.attach_file, 'Archivos'),
-            ])
-              ListTile(
-                leading: Icon(item.$2),
-                title: Text(tr(c, item.$3)),
-                onTap: () => Navigator.pop(c, item.$1),
-              ),
-          ],
+    _dismissEditorKeyboard();
+    final source = await showActionPanel<CaptureSource>(
+      context,
+      title: tr(context, 'Insertar'),
+      caption: 'Añadir contenido al apunte',
+      actions: [
+        PanelAction(
+          CaptureSource.gallery,
+          'Añadir imágenes',
+          'Elegir imágenes de la galería',
+          Icons.photo_library_outlined,
         ),
-      ),
+        PanelAction(
+          CaptureSource.camera,
+          'Cámara',
+          'Tomar una fotografía para el apunte',
+          Icons.camera_alt_outlined,
+        ),
+        PanelAction(
+          CaptureSource.files,
+          'Archivos',
+          'Adjuntar un PDF u otro archivo',
+          Icons.attach_file,
+        ),
+      ],
     );
     if (source != null && mounted) await _attach(source);
   }
 
-  Future<void> _types() => showModalBottomSheet<void>(
-    context: context,
-    isScrollControlled: true,
-    builder: (c) => SafeArea(
-      child: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                title: Text(tr(c, 'Tipos y formato')),
-                trailing: IconButton(
-                  tooltip: tr(c, 'Cerrar'),
-                  onPressed: () => Navigator.pop(c),
-                  icon: const Icon(Icons.close),
+  Future<void> _types() {
+    _dismissEditorKeyboard();
+    return showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (c) => SafeArea(
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(tr(c, 'Tipos y formato')),
+                  trailing: IconButton(
+                    tooltip: tr(c, 'Cerrar'),
+                    onPressed: () => Navigator.pop(c),
+                    icon: const Icon(Icons.close),
+                  ),
                 ),
-              ),
-              q.QuillSimpleToolbar(
-                controller: editor,
-                config: const q.QuillSimpleToolbarConfig(
-                  multiRowsDisplay: true,
-                  showFontFamily: true,
-                  showFontSize: true,
-                  showColorButton: true,
-                  showBackgroundColorButton: false,
-                  showBoldButton: false,
-                  showItalicButton: false,
-                  showSearchButton: false,
-                  showLink: false,
-                  showCodeBlock: false,
-                  showInlineCode: false,
-                  showIndent: false,
-                  showSubscript: false,
-                  showSuperscript: false,
-                  showUndo: false,
-                  showRedo: false,
-                  showAlignmentButtons: true,
+                q.QuillSimpleToolbar(
+                  controller: editor,
+                  config: q.QuillSimpleToolbarConfig(
+                    multiRowsDisplay: false,
+                    showFontFamily: true,
+                    showFontSize: true,
+                    showColorButton: true,
+                    showBackgroundColorButton: true,
+                    showBoldButton: false,
+                    showItalicButton: false,
+                    showSearchButton: false,
+                    showLink: false,
+                    showCodeBlock: false,
+                    showInlineCode: false,
+                    showIndent: false,
+                    showSubscript: false,
+                    showSuperscript: false,
+                    showUndo: false,
+                    showRedo: false,
+                    showAlignmentButtons: true,
+                    buttonOptions: q.QuillSimpleToolbarButtonOptions(
+                      base: q.QuillToolbarBaseButtonOptions(
+                        afterButtonPressed: _dismissEditorKeyboard,
+                      ),
+                      color: noteTextColorButtonOptions(
+                        c,
+                        _dismissEditorKeyboard,
+                        _setPersistentEditorColor,
+                      ),
+                      backgroundColor: noteHighlightButtonOptions(
+                        c,
+                        _dismissEditorKeyboard,
+                        _setPersistentEditorColor,
+                      ),
+                    ),
+                  ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: _insertTable,
+                  icon: const Icon(Icons.table_chart_outlined),
+                  label: Text(tr(c, 'Insertar tabla')),
+                ),
+                const SizedBox(height: 12),
+              ],
+            ),
           ),
         ),
       ),
-    ),
-  );
+    );
+  }
+
+  Future<List<List<String>>?> _tableDialog({
+    List<List<String>>? initialRows,
+  }) async {
+    var rowCount = (initialRows?.length ?? 3).clamp(1, 12);
+    var columnCount =
+        (initialRows?.fold<int>(
+                  0,
+                  (count, row) => row.length > count ? row.length : count,
+                ) ??
+                3)
+            .clamp(1, 6);
+    var cells = List.generate(
+      rowCount,
+      (row) => List.generate(
+        columnCount,
+        (column) =>
+            initialRows != null &&
+                row < initialRows.length &&
+                column < initialRows[row].length
+            ? initialRows[row][column]
+            : '',
+      ),
+    );
+    final size = MediaQuery.sizeOf(context);
+    return showDialog<List<List<String>>>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) {
+          void resizeTable({int? rows, int? columns}) {
+            final nextRows = (rows ?? rowCount).clamp(1, 12);
+            final nextColumns = (columns ?? columnCount).clamp(1, 6);
+            setDialogState(() {
+              cells = List.generate(
+                nextRows,
+                (row) => List.generate(
+                  nextColumns,
+                  (column) => row < cells.length && column < cells[row].length
+                      ? cells[row][column]
+                      : '',
+                ),
+              );
+              rowCount = nextRows;
+              columnCount = nextColumns;
+            });
+          }
+
+          return AlertDialog(
+            title: Text(tr(dialogContext, 'Insertar tabla')),
+            content: SizedBox(
+              width: (size.width - 64).clamp(240.0, 480.0),
+              height: (size.height * .56).clamp(250.0, 460.0),
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: DropdownButtonFormField<int>(
+                          initialValue: rowCount,
+                          isExpanded: true,
+                          decoration: InputDecoration(
+                            labelText: tr(dialogContext, 'Filas'),
+                          ),
+                          items: [
+                            for (var count = 1; count <= 12; count++)
+                              DropdownMenuItem(
+                                value: count,
+                                child: Text('$count'),
+                              ),
+                          ],
+                          onChanged: (value) {
+                            if (value != null) resizeTable(rows: value);
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: DropdownButtonFormField<int>(
+                          initialValue: columnCount,
+                          isExpanded: true,
+                          decoration: InputDecoration(
+                            labelText: tr(dialogContext, 'Columnas'),
+                          ),
+                          items: [
+                            for (var count = 1; count <= 6; count++)
+                              DropdownMenuItem(
+                                value: count,
+                                child: Text('$count'),
+                              ),
+                          ],
+                          onChanged: (value) {
+                            if (value != null) resizeTable(columns: value);
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Table(
+                          defaultColumnWidth: FixedColumnWidth(
+                            ((size.width - 96) / columnCount).clamp(
+                              72.0,
+                              160.0,
+                            ),
+                          ),
+                          children: [
+                            for (var row = 0; row < rowCount; row++)
+                              TableRow(
+                                children: [
+                                  for (
+                                    var column = 0;
+                                    column < columnCount;
+                                    column++
+                                  )
+                                    Padding(
+                                      padding: const EdgeInsets.all(3),
+                                      child: TextFormField(
+                                        key: ValueKey(
+                                          'table-$row-$column-$rowCount-$columnCount',
+                                        ),
+                                        initialValue: cells[row][column],
+                                        maxLength: 120,
+                                        minLines: 1,
+                                        maxLines: 3,
+                                        buildCounter: (
+                                          _, {
+                                          required currentLength,
+                                          required isFocused,
+                                          maxLength,
+                                        }) => null,
+                                        onChanged: (value) =>
+                                            cells[row][column] = value,
+                                        decoration: InputDecoration(
+                                          hintText: tr(dialogContext, 'Celda'),
+                                          isDense: true,
+                                          border: const OutlineInputBorder(),
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: Text(tr(dialogContext, 'Cancelar')),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(
+                  dialogContext,
+                  cells
+                      .map((row) => row.map((cell) => cell.trim()).toList())
+                      .toList(),
+                ),
+                child: Text(tr(dialogContext, 'Insertar')),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> _insertTable() async {
+    final rows = await _tableDialog();
+    if (rows == null || !mounted) return;
+    final data = jsonEncode({
+      'id': ref.read(controllerProvider.notifier).newId(),
+      'rows': rows,
+    });
+    var position = editor.selection.extentOffset.clamp(
+      0,
+      editor.document.length - 1,
+    );
+    editor.replaceText(
+      position,
+      0,
+      '\n',
+      TextSelection.collapsed(offset: position + 1),
+    );
+    position++;
+    editor.replaceText(
+      position,
+      0,
+      q.BlockEmbed(NoteDocument.tableKey, data),
+      TextSelection.collapsed(offset: position + 1),
+    );
+    position++;
+    editor.replaceText(
+      position,
+      0,
+      '\n',
+      TextSelection.collapsed(offset: position + 1),
+    );
+    editor.updateSelection(
+      TextSelection.collapsed(offset: position + 1),
+      q.ChangeSource.local,
+    );
+    _changed();
+  }
+
+  Future<void> _editTable(String originalData) async {
+    try {
+      final decoded = jsonDecode(originalData);
+      if (decoded is! Map || decoded['id'] is! String) return;
+      final id = decoded['id'] as String;
+      final rows = await _tableDialog(
+        initialRows: NoteDocument.tableRows(originalData),
+      );
+      if (rows == null || !mounted) return;
+      final data = jsonEncode({'id': id, 'rows': rows});
+      var position = 0;
+      int? match;
+      for (final operation in editor.document.toDelta().toJson()) {
+        final insert = operation['insert'];
+        if (insert is Map && insert[NoteDocument.tableKey] is String) {
+          try {
+            final value = jsonDecode(insert[NoteDocument.tableKey] as String);
+            if (value is Map && value['id'] == id) {
+              match = position;
+              break;
+            }
+          } catch (_) {}
+        }
+        position += insert is String ? insert.length : 1;
+      }
+      if (match == null) return;
+      editor.replaceText(
+        match,
+        1,
+        q.BlockEmbed(NoteDocument.tableKey, data),
+        TextSelection.collapsed(offset: match + 1),
+      );
+      _changed();
+    } catch (_) {
+      if (mounted) message(context, tr(context, 'No se pudo editar la tabla.'));
+    }
+  }
 
   Future<void> _formula() async {
     var input = '';
@@ -1013,7 +1489,7 @@ class _NotePageState extends ConsumerState<NotePage> {
         editor.replaceText(
           position,
           0,
-          q.BlockEmbed(NoteDocument.mediaKey, a.id),
+          q.BlockEmbed(NoteDocument.mediaKey, NoteDocument.mediaData(a.id)),
           TextSelection.collapsed(offset: position + 1),
         );
         position++;
@@ -1026,9 +1502,66 @@ class _NotePageState extends ConsumerState<NotePage> {
         position++;
       }
     }
-    dirty = true;
     _changed();
     if (mounted) setState(() => inserting = false);
+  }
+
+  void _resizeImage(String attachmentId, double width) {
+    if (!editing || !mounted) return;
+    final selection = editor.selection;
+    var offset = 0;
+    for (final operation in editor.document.toDelta().toJson()) {
+      final insert = operation['insert'];
+      if (insert is Map &&
+          NoteDocument.mediaId(insert[NoteDocument.mediaKey]) == attachmentId) {
+        editor.replaceText(
+          offset,
+          1,
+          q.BlockEmbed(
+            NoteDocument.mediaKey,
+            NoteDocument.mediaData(
+              attachmentId,
+              width: width,
+              alignment: NoteDocument.mediaAlignment(
+                insert[NoteDocument.mediaKey],
+              ),
+            ),
+          ),
+          selection,
+        );
+        _changed();
+        return;
+      }
+      offset += insert is String ? insert.length : 1;
+    }
+  }
+
+  void _alignImage(String attachmentId, String alignment) {
+    if (!editing || !mounted) return;
+    final selection = editor.selection;
+    var offset = 0;
+    for (final operation in editor.document.toDelta().toJson()) {
+      final insert = operation['insert'];
+      if (insert is Map &&
+          NoteDocument.mediaId(insert[NoteDocument.mediaKey]) == attachmentId) {
+        editor.replaceText(
+          offset,
+          1,
+          q.BlockEmbed(
+            NoteDocument.mediaKey,
+            NoteDocument.mediaData(
+              attachmentId,
+              width: NoteDocument.mediaWidth(insert[NoteDocument.mediaKey]),
+              alignment: alignment,
+            ),
+          ),
+          selection,
+        );
+        _changed();
+        return;
+      }
+      offset += insert is String ? insert.length : 1;
+    }
   }
 
   Future<void> _dictate() async {
@@ -1038,6 +1571,7 @@ class _NotePageState extends ConsumerState<NotePage> {
         if (mounted) setState(() => dictating = false);
         return;
       }
+      _dismissEditorKeyboard();
       final start = editor.selection.baseOffset.clamp(
         0,
         editor.document.length - 1,
@@ -1223,7 +1757,6 @@ class _NotePageState extends ConsumerState<NotePage> {
           lastAiModel: model,
           lastAiAt: DateTime.now().toUtc(),
         );
-        dirty = true;
         _changed();
       }
     });
@@ -1238,12 +1771,14 @@ class _NotePageState extends ConsumerState<NotePage> {
         initialNotes: [
           NoteSections.stamp(_snapshot(), committed, DateTime.now()),
         ],
-        onInsert: (text, model) async {
-          note = note.copyWith(summary: text, summaryModel: model);
-          dirty = true;
-          _enterEdit();
-          if (mounted) setState(() {});
-        },
+        onInsert: reading
+            ? null
+            : (text, model) async {
+                note = note.copyWith(summary: text, summaryModel: model);
+                _enterEdit();
+                _changed();
+                if (mounted) setState(() {});
+              },
       ),
     );
   }
@@ -1322,67 +1857,65 @@ class _NotePageState extends ConsumerState<NotePage> {
         title.addListener(_changed);
         topic.addListener(_changed);
         dirty = false;
-        lastSignature = _signature();
       });
     });
   }
 
   Future<void> _more() async {
+    _dismissEditorKeyboard();
     final action = await showActionPanel<String>(
       context,
       title: note.title,
       caption: 'ACCIONES · APUNTE',
-      actions: const [
-        PanelAction(
-          'trash',
-          'Enviar a la papelera',
-          'Mover a eliminados',
-          Icons.delete_outline,
+      actions: [
+        if (!reading)
+          const PanelAction(
+            'edit',
+            'Renombrar apunte',
+            'Cambiar el título del apunte',
+            Icons.edit_outlined,
+          ),
+        const PanelAction(
+          'search',
+          'Buscar',
+          'Encontrar texto clave',
+          Icons.search,
         ),
-        PanelAction(
-          'edit',
-          'Renombrar apunte',
-          'Cambiar el título del apunte',
-          Icons.edit_outlined,
-        ),
-        PanelAction('search', 'Buscar', 'Encontrar texto clave', Icons.search),
-        PanelAction(
+        const PanelAction(
           'export',
           'Exportar',
           'Elegir formato de archivo',
           Icons.ios_share_outlined,
         ),
-        PanelAction(
+        const PanelAction(
           'ai',
           'Generar resumen',
           'Resumir el apunte completo',
           Icons.auto_awesome_outlined,
         ),
-        PanelAction(
-          'history',
-          'Historial y revertir cambios',
-          'Ver versiones anteriores',
-          Icons.history,
-        ),
+        if (!reading)
+          const PanelAction(
+            'quiz',
+            'Cuestionario',
+            'Repasar con preguntas de este apunte',
+            Icons.quiz_outlined,
+          ),
+        if (!reading)
+          const PanelAction(
+            'history',
+            'Historial y revertir cambios',
+            'Ver versiones anteriores',
+            Icons.history,
+          ),
       ],
     );
     if (!mounted) return;
     if (action == 'search') openPage(context, const SearchPage());
     if (action == 'export') await _export();
     if (action == 'ai') await _ai();
+    if (action == 'quiz') await _quiz();
     if (action == 'edit') _enterEdit();
     if (action == 'history') await _history();
-    if (action == 'trash' && await _resolveChanges() && mounted) {
-      await runAction(context, () async {
-        await ref.read(controllerProvider.notifier).trash(committed);
-        if (mounted) {
-          setState(() => allowPop = true);
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) Navigator.pop(context);
-          });
-        }
-      });
-    }
   }
 }
 
@@ -1437,62 +1970,61 @@ Future<void> exportMenu(
     ],
   );
   if (format == null || !context.mounted) return;
-  final referenced = <String>{
-    for (final n in notes)
-      ...NoteDocument.parts(n).map((p) => p.attachmentId).whereType<String>(),
-  };
-  final excluded = {
-    for (final n in notes)
-      for (final a in n.attachments)
-        if (referenced.contains(a.id) &&
-            (format == ExportFormat.text ||
-                format == ExportFormat.markdown ||
-                !a.mime.startsWith('image/')))
-          a.id: a,
-  }.values.toList();
-  final math = notes.any(
-    (n) =>
-        noteMathPattern.hasMatch(n.plainText) ||
-        noteMathPattern.hasMatch(n.summary),
-  );
-  if (excluded.isEmpty && !math) {
-    await runAction(context, () => ref.read(exportPort).export(notes, format));
-    return;
-  }
-  final details = <String>[
-    if (excluded.isNotEmpty)
-      tr(context, 'No se incluirá el contenido de estos adjuntos:'),
-    ...excluded.take(5).map((a) => '• ${a.name}'),
-    if (excluded.length > 5)
-      '${tr(context, "Y otros archivos")}: ${excluded.length - 5}',
-    if (math)
-      tr(
-        context,
-        'Las fórmulas se exportan como código LaTeX, sin el renderizado visual de la app.',
+  var options = const ExportOptions();
+  var separateFiles = false;
+  if (format == ExportFormat.pdf || format == ExportFormat.word) {
+    final request = await Navigator.of(context).push<ExportRequest>(
+      MaterialPageRoute(
+        builder: (_) => ExportPreviewPage(notes: notes, format: format),
       ),
-    tr(
-      context,
-      'El formato de texto puede simplificarse. Los originales seguirán disponibles en DraftAI.',
-    ),
-  ];
-  final proceed = await showDialog<bool>(
-    context: context,
-    builder: (c) => AlertDialog(
-      title: Text(tr(c, 'Antes de exportar')),
-      content: SingleChildScrollView(child: Text(details.join('\n\n'))),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(c, false),
-          child: Text(tr(c, 'Cancelar')),
+    );
+    if (request == null || !context.mounted) return;
+    options = request.options;
+    separateFiles = request.separateFiles;
+  } else {
+    final imageNames = <String>{
+      for (final note in notes)
+        for (final part in NoteDocument.parts(note))
+          if (part.attachmentId != null)
+            for (final attachment in note.attachments)
+              if (attachment.id == part.attachmentId &&
+                  attachment.mime.startsWith('image/'))
+                attachment.name.split(RegExp(r'[/\\]')).last,
+    };
+    if (imageNames.isNotEmpty) {
+      final proceed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: Text(tr(dialogContext, 'Antes de exportar')),
+          content: Text(
+            '${tr(dialogContext, 'Las imágenes no se incrustan en este formato; se marcará su posición con el nombre del archivo.')}\n\n${imageNames.take(8).map((name) => '• $name').join('\n')}',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: Text(tr(dialogContext, 'Cancelar')),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: Text(tr(dialogContext, 'Exportar')),
+            ),
+          ],
         ),
-        FilledButton(
-          onPressed: () => Navigator.pop(c, true),
-          child: Text(tr(c, 'Exportar')),
-        ),
-      ],
-    ),
-  );
-  if (proceed == true && context.mounted) {
-    await runAction(context, () => ref.read(exportPort).export(notes, format));
+      );
+      if (proceed != true || !context.mounted) return;
+    }
   }
+  final exporter = ref.read(exportPort);
+  await runAction(context, () async {
+    if (exporter is ConfigurableExportService) {
+      await exporter.exportConfigured(
+        notes: notes,
+        format: format,
+        options: options,
+        separateFiles: separateFiles,
+      );
+    } else {
+      await exporter.export(notes, format);
+    }
+  });
 }

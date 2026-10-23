@@ -2,6 +2,8 @@ import '../../../core/presentation/action_panel.dart';
 import '../../../core/presentation/user_avatar.dart';
 import '../../../core/presentation/strings.dart';
 
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -24,6 +26,7 @@ class LibraryPage extends ConsumerStatefulWidget {
 class _LibraryPageState extends ConsumerState<LibraryPage> {
   int tab = 0;
   bool trashMode = false;
+  bool folderGridView = false;
   final Set<String> selectedIds = <String>{};
 
   bool get selecting => selectedIds.isNotEmpty;
@@ -214,13 +217,14 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
   @override
   Widget build(BuildContext context) {
     final library = ref.watch(libraryProvider);
+    final appName = tr(context, 'DraftAI');
     return Scaffold(
       appBar: AppBar(
         title: tab == 3
             ? Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Meta('DRAFTAI'),
+                  Meta(appName.toUpperCase()),
                   Text(tr(context, 'Papelera')),
                 ],
               )
@@ -231,7 +235,7 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
                   SizedBox(width: 8),
                   Flexible(
                     child: Text(
-                      tr(context, tab == 3 ? 'Papelera' : 'DraftAI'),
+                      tab == 3 ? tr(context, 'Papelera') : appName,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -434,26 +438,42 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
           ),
           SectionTitle(
             'Tus carpetas',
-            action: TextButton.icon(
-              onPressed: () => editFolder(context, ref),
-              icon: const Icon(Icons.create_new_folder_outlined, size: 16),
-              label: Text(
-                tr(context, 'Nueva carpeta'),
-                style: TextStyle(fontSize: 11),
-              ),
+            action: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextButton.icon(
+                  onPressed: () => editFolder(context, ref),
+                  icon: const Icon(Icons.create_new_folder_outlined, size: 16),
+                  label: Text(
+                    tr(context, 'Nueva carpeta'),
+                    style: const TextStyle(fontSize: 11),
+                  ),
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                    minimumSize: const Size(0, 40),
+                  ),
+                ),
+                _FolderViewToggle(
+                  grid: folderGridView,
+                  onChanged: (grid) => setState(() => folderGridView = grid),
+                ),
+              ],
             ),
           ),
           LayoutBuilder(
             builder: (c, box) {
-              final columns = Breakpoints.columns(box.maxWidth);
+              final columns = folderGridView ? 2 : 1;
+              final gap = folderGridView ? 10.0 : 14.0;
               return Wrap(
-                spacing: 14,
-                runSpacing: 14,
+                spacing: gap,
+                runSpacing: gap,
                 children: lib.folders
                     .map(
                       (folder) => SizedBox(
-                        width: (box.maxWidth - (columns - 1) * 14) / columns,
-                        child: _folder(folder, lib),
+                        width: (box.maxWidth - (columns - 1) * gap) / columns,
+                        child: folderGridView
+                            ? _folderGridCard(folder, lib)
+                            : _folder(folder, lib),
                       ),
                     )
                     .toList(),
@@ -500,25 +520,7 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
               onPressed: () => editFolder(context, ref, folder: f),
               icon: const Icon(Icons.edit_outlined, size: 16),
             ),
-            InkWell(
-              onTap: () => editFolder(context, ref, folder: f, colorOnly: true),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
-                decoration: BoxDecoration(
-                  border: Border.all(
-                    color: Theme.of(context).colorScheme.outlineVariant,
-                  ),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  _folderHex(f.color),
-                  style: const TextStyle(
-                    fontSize: 9,
-                    fontFamily: 'JetBrainsMono',
-                  ),
-                ),
-              ),
-            ),
+            _folderColorButton(f),
           ],
         ),
         children: [
@@ -577,38 +579,141 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
     );
   }
 
-  Widget _all(Library lib) => ResponsiveBody(
-    child: ListView(
-      children: [
-        SectionTitle('Tus apuntes'),
-        if (!selecting && lib.active.isNotEmpty)
-          Padding(
-            padding: EdgeInsets.only(bottom: 10),
-            child: Meta(
-              tr(context, 'Mantén pulsado un apunte para seleccionar varios.'),
+  Widget _folderGridCard(Folder folder, Library lib) {
+    final notes = lib.active
+        .where((note) => note.folderId == folder.id)
+        .toList();
+    return Surface(
+      padding: const EdgeInsets.all(10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              FolderGlyph(folder.color, size: 27),
+              const Spacer(),
+              IconButton(
+                visualDensity: VisualDensity.compact,
+                tooltip: tr(context, 'Renombrar carpeta'),
+                onPressed: () => editFolder(context, ref, folder: folder),
+                icon: const Icon(Icons.edit_outlined, size: 17),
+              ),
+              _folderColorButton(folder, compact: true),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            folder.name,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 3),
+          Meta('${notes.length} ${tr(context, 'apuntes')}'),
+          if (notes.isNotEmpty) ...[
+            const SizedBox(height: 9),
+            for (final note in notes.take(2))
+              Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Text(
+                  note.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ),
+            if (notes.length > 2)
+              Meta('+${notes.length - 2} ${tr(context, 'más')}'),
+          ] else ...[
+            const SizedBox(height: 9),
+            Text(
+              tr(context, 'Sin apuntes todavía'),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.bodySmall,
             ),
+          ],
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () =>
+                      openPage(context, SearchPage(folderId: folder.id)),
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size(0, 38),
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                  ),
+                  child: Text(
+                    tr(context, 'Abrir'),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 4),
+              IconButton(
+                tooltip: tr(context, 'Agregar apunte'),
+                visualDensity: VisualDensity.compact,
+                onPressed: () => createNote(context, ref, folderId: folder.id),
+                icon: const Icon(Icons.add, size: 19),
+              ),
+            ],
           ),
-        if (lib.active.isEmpty)
-          _empty(
-            'Sin apuntes todavía',
-            'Usa + Nuevo para comenzar.',
-            Icons.notes_outlined,
-          ),
-        ...NoteFilter.apply(lib.active).map(
-          (n) => NoteTile(
-            note: n,
-            selected: selectedIds.contains(n.id),
-            onTap: () => selecting
-                ? _toggleSelection(n.id)
-                : openPage(context, NotePage(note: n)),
-            onLongPress: () => _toggleSelection(n.id),
-            trailing: selecting ? null : _noteMenu(n, inTrash: false),
-          ),
-        ),
-        SizedBox(height: 24),
-      ],
-    ),
-  );
+        ],
+      ),
+    );
+  }
+
+  Widget _folderColorButton(Folder folder, {bool compact = false}) =>
+      IconButton(
+        visualDensity: compact ? VisualDensity.compact : VisualDensity.standard,
+        tooltip: tr(context, 'Cambiar color de carpeta'),
+        onPressed: () =>
+            editFolder(context, ref, folder: folder, colorOnly: true),
+        icon: const FolderColorWheelIcon(size: 21),
+      );
+
+  Widget _all(Library lib) {
+    final notes = NoteFilter.apply(lib.active);
+    return ResponsiveBody(
+      child: ListView(
+        children: [
+          SectionTitle('Tus apuntes'),
+          if (!selecting && notes.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Meta(
+                tr(
+                  context,
+                  'Mantén pulsado un apunte para seleccionar varios.',
+                ),
+              ),
+            ),
+          if (notes.isEmpty)
+            _empty(
+              'Sin apuntes todavía',
+              'Usa + Nuevo para comenzar.',
+              Icons.notes_outlined,
+            )
+          else
+            ...notes.map(
+              (note) => NoteTile(
+                note: note,
+                selected: selectedIds.contains(note.id),
+                onTap: () => selecting
+                    ? _toggleSelection(note.id)
+                    : openPage(context, NotePage(note: note)),
+                onLongPress: () => _toggleSelection(note.id),
+                trailing: selecting ? null : _noteMenu(note, inTrash: false),
+              ),
+            ),
+          const SizedBox(height: 24),
+        ],
+      ),
+    );
+  }
+
   Widget _trash(Library lib) => ResponsiveBody(
     child: ListView(
       children: [
@@ -881,15 +986,45 @@ class NoteTile extends StatelessWidget {
   );
 }
 
-class RecentNotePreview extends ConsumerWidget {
+class RecentNotePreview extends ConsumerStatefulWidget {
   final Note note;
   const RecentNotePreview({super.key, required this.note});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final image = note.attachments
-        .where((attachment) => attachment.mime.startsWith('image/'))
-        .firstOrNull;
+  ConsumerState<RecentNotePreview> createState() => _RecentNotePreviewState();
+}
+
+class _RecentNotePreviewState extends ConsumerState<RecentNotePreview> {
+  Future<Uint8List>? imageBytes;
+
+  Attachment? _firstImage(Note note) => note.attachments
+      .where((attachment) => attachment.mime.startsWith('image/'))
+      .firstOrNull;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadImage();
+  }
+
+  @override
+  void didUpdateWidget(covariant RecentNotePreview oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.note.id != widget.note.id ||
+        _firstImage(oldWidget.note)?.id != _firstImage(widget.note)?.id) {
+      _loadImage();
+    }
+  }
+
+  void _loadImage() {
+    final image = _firstImage(widget.note);
+    imageBytes = image == null ? null : ref.read(mediaPort).read(image);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final note = widget.note;
+    final image = _firstImage(note);
     final scheme = Theme.of(context).colorScheme;
     final preview = image == null
         ? Container(
@@ -925,8 +1060,8 @@ class RecentNotePreview extends ConsumerWidget {
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
           )
-        : FutureBuilder(
-            future: ref.read(mediaPort).read(image),
+        : FutureBuilder<Uint8List>(
+            future: imageBytes,
             builder: (context, snapshot) {
               if (snapshot.hasError) {
                 return Container(
@@ -947,6 +1082,7 @@ class RecentNotePreview extends ConsumerWidget {
               }
               return Image.memory(
                 snapshot.data!,
+                cacheWidth: 640,
                 fit: BoxFit.cover,
                 errorBuilder: (_, _, _) => Container(
                   color: scheme.surfaceContainerLow,
@@ -978,106 +1114,217 @@ Future<void> createNote(
     final library = ref.read(libraryProvider).value;
     if (library == null) return;
     final controller = ref.read(controllerProvider.notifier);
-    var folders = library.folders;
-    if (folders.isEmpty) {
-      final folder = Folder(controller.newId(), 'Mis apuntes', 0xFFFFFFFF);
-      await controller.folder(folder);
-      folders = [folder];
-      folderId = folder.id;
-    }
-    final initialFolder = folders.any((folder) => folder.id == folderId)
-        ? folderId!
-        : folders.first.id;
-    final title = TextEditingController();
+    final folders = library.folders;
+    final initialFolder =
+        folders.where((folder) => folder.id == folderId).firstOrNull?.id ??
+        folders.firstOrNull?.id;
     String? selectedFolder = initialFolder;
+    var createFolder = selectedFolder == null;
+    var titleText = '';
+    final folderName = TextEditingController();
     if (!context.mounted) return;
-    final result = await showDialog<_NoteFormResult>(
-      context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (dialogContext, setDialogState) {
-          return AlertDialog(
-            title: Text(tr(context, 'Nuevo apunte')),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  TextField(
-                    controller: title,
-                    maxLength: 200,
-                    autofocus: true,
-                    decoration: InputDecoration(
-                      labelText: tr(context, 'Título del apunte'),
-                      helperText: tr(
-                        context,
-                        'Un nombre claro ayuda a la IA a elegir este apunte.',
-                      ),
-                      hintText: tr(context, 'Ej. Cálculo diferencial'),
+    _NoteFormResult? result;
+    try {
+      result = await showModalBottomSheet<_NoteFormResult>(
+        context: context,
+        isScrollControlled: true,
+        useSafeArea: true,
+        showDragHandle: true,
+        builder: (dialogContext) => StatefulBuilder(
+          builder: (dialogContext, setDialogState) {
+            final bottomInset = MediaQuery.viewInsetsOf(dialogContext).bottom;
+            return Padding(
+              padding: EdgeInsets.fromLTRB(20, 4, 20, bottomInset + 16),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.sizeOf(dialogContext).height * .82,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.note_add_outlined,
+                          color: Theme.of(dialogContext).colorScheme.primary,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            tr(dialogContext, 'Nuevo apunte'),
+                            style: Theme.of(dialogContext).textTheme.titleLarge,
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                  SizedBox(height: 8),
-                  DropdownButtonFormField<String>(
-                    key: ValueKey('note-folder-$selectedFolder'),
-                    initialValue: selectedFolder,
-                    isExpanded: true,
-                    decoration: InputDecoration(
-                      labelText: tr(context, 'Carpeta'),
-                    ),
-                    items: [
-                      for (final folder in folders)
-                        DropdownMenuItem(
-                          value: folder.id,
-                          child: Row(
+                    const SizedBox(height: 14),
+                    Flexible(
+                      child: ListView(
+                        shrinkWrap: true,
+                        children: [
+                          TextFormField(
+                            initialValue: titleText,
+                            maxLength: 200,
+                            autofocus: true,
+                            onChanged: (value) => setDialogState(() {
+                              titleText = value;
+                            }),
+                            decoration: InputDecoration(
+                              labelText: tr(dialogContext, 'Título del apunte'),
+                              helperText: tr(
+                                dialogContext,
+                                'Un buen nombre ayuda a clasificar mejor a la IA.',
+                              ),
+                              helperMaxLines: 2,
+                              hintText: tr(
+                                dialogContext,
+                                'Ej. Cálculo diferencial',
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
                             children: [
-                              FolderGlyph(folder.color),
-                              SizedBox(width: 9),
                               Expanded(
                                 child: Text(
-                                  folder.name,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
+                                  tr(dialogContext, 'Guardar en'),
+                                  style: Theme.of(dialogContext)
+                                      .textTheme
+                                      .titleSmall,
+                                ),
+                              ),
+                              TextButton.icon(
+                                onPressed: () => setDialogState(() {
+                                  createFolder = !createFolder;
+                                  if (!createFolder) {
+                                    selectedFolder =
+                                        initialFolder ??
+                                        folders.firstOrNull?.id;
+                                    folderName.clear();
+                                  } else {
+                                    selectedFolder = null;
+                                  }
+                                }),
+                                icon: Icon(
+                                  createFolder
+                                      ? Icons.folder_open_outlined
+                                      : Icons.create_new_folder_outlined,
+                                  size: 17,
+                                ),
+                                label: Text(
+                                  tr(
+                                    dialogContext,
+                                    createFolder
+                                        ? 'Elegir carpeta'
+                                        : 'Nueva carpeta',
+                                  ),
                                 ),
                               ),
                             ],
                           ),
-                        ),
-                    ],
-                    onChanged: (value) => setDialogState(() {
-                      selectedFolder = value;
-                    }),
-                  ),
-                ],
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(dialogContext),
-                child: Text(tr(context, 'Cancelar')),
-              ),
-              FilledButton.icon(
-                onPressed: selectedFolder == null
-                    ? null
-                    : () => Navigator.pop(
-                        dialogContext,
-                        _NoteFormResult(
-                          folderId: selectedFolder!,
-                          categoryId: null,
-                          title: title.text.trim(),
-                        ),
+                          if (createFolder)
+                            TextField(
+                              controller: folderName,
+                              maxLength: 80,
+                              autofocus: titleText.trim().isNotEmpty,
+                              decoration: InputDecoration(
+                                labelText: tr(
+                                  dialogContext,
+                                  'Nombre de la carpeta',
+                                ),
+                                hintText: tr(dialogContext, 'Ej. Exámenes'),
+                                prefixIcon: const Icon(Icons.folder_outlined),
+                              ),
+                            )
+                          else
+                            DropdownButtonFormField<String>(
+                              key: ValueKey('note-folder-$selectedFolder'),
+                              initialValue: selectedFolder,
+                              isExpanded: true,
+                              decoration: InputDecoration(
+                                labelText: tr(dialogContext, 'Carpeta'),
+                              ),
+                              items: [
+                                for (final folder in folders)
+                                  DropdownMenuItem(
+                                    value: folder.id,
+                                    child: Row(
+                                      children: [
+                                        FolderGlyph(folder.color),
+                                        const SizedBox(width: 9),
+                                        Expanded(
+                                          child: Text(
+                                            folder.name,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                              ],
+                              onChanged: (value) => setDialogState(() {
+                                selectedFolder = value;
+                              }),
+                            ),
+                        ],
                       ),
-                icon: const Icon(Icons.add, size: 17),
-                label: Text(tr(context, 'Crear apunte')),
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextButton(
+                            onPressed: () => Navigator.pop(dialogContext),
+                            child: Text(tr(dialogContext, 'Cancelar')),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: FilledButton.icon(
+                            onPressed:
+                                titleText.trim().isEmpty ||
+                                    (createFolder &&
+                                        folderName.text.trim().isEmpty) ||
+                                    (!createFolder && selectedFolder == null)
+                                ? null
+                                : () => Navigator.pop(
+                                    dialogContext,
+                                    _NoteFormResult(
+                                      folderId: selectedFolder ?? '',
+                                      folderName: createFolder
+                                          ? folderName.text.trim()
+                                          : null,
+                                      categoryId: null,
+                                      title: titleText.trim(),
+                                    ),
+                                  ),
+                            icon: const Icon(Icons.add, size: 17),
+                            label: Text(tr(dialogContext, 'Crear apunte')),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
-            ],
-          );
-        },
-      ),
-    );
-    title.dispose();
+            );
+          },
+        ),
+      );
+    } finally {
+      folderName.dispose();
+    }
     if (result == null || !context.mounted) return;
-    if (!context.mounted) return;
+    var destinationFolder = result.folderId;
+    if (result.folderName != null) {
+      final folder = Folder(controller.newId(), result.folderName!, 0xFFFFFFFF);
+      await controller.folder(folder);
+      destinationFolder = folder.id;
+    }
     final note = await controller.create(
-      result.folderId,
+      destinationFolder,
       title: result.title,
       categoryId: result.categoryId,
     );
@@ -1087,67 +1334,180 @@ Future<void> createNote(
 
 class _NoteFormResult {
   final String folderId;
+  final String? folderName;
   final String title;
   final String? categoryId;
   const _NoteFormResult({
     required this.folderId,
+    this.folderName,
     required this.title,
     required this.categoryId,
   });
 }
 
 Future<void> newNoteMenu(BuildContext context, WidgetRef ref) async {
-  await showModalBottomSheet<void>(
-    context: context,
-    builder: (c) => SafeArea(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          ListTile(title: Text(tr(context, 'Añadir a tus apuntes'))),
-          ListTile(
-            leading: const Icon(Icons.edit_note),
-            title: Text(tr(context, 'Escribir nota')),
-            onTap: () {
-              Navigator.pop(c);
-              createNote(context, ref);
-            },
+  final action = await showActionPanel<String>(
+    context,
+    title: 'Añadir a tus apuntes',
+    actions: const [
+      PanelAction(
+        'write',
+        'Escribir nota',
+        'Crear un apunte en una carpeta',
+        Icons.edit_note,
+      ),
+      PanelAction(
+        'camera',
+        'Capturar fotografías',
+        'Usar la cámara del dispositivo',
+        Icons.camera_alt_outlined,
+      ),
+      PanelAction(
+        'images',
+        'Añadir imágenes',
+        'Elegir fotos de la galería',
+        Icons.photo_library_outlined,
+      ),
+      PanelAction(
+        'files',
+        'Agregar archivos o texto',
+        'Importar documentos compatibles',
+        Icons.attach_file,
+      ),
+    ],
+  );
+  if (!context.mounted) return;
+  switch (action) {
+    case 'write':
+      await createNote(context, ref);
+      return;
+    case 'camera':
+      openPage(context, const CapturePage(source: CaptureSource.camera));
+      return;
+    case 'images':
+      openPage(context, const CapturePage());
+      return;
+    case 'files':
+      openPage(context, const CapturePage(source: CaptureSource.files));
+      return;
+    default:
+      return;
+  }
+}
+
+String _folderHex(int argb) =>
+    '#${(argb & 0x00FFFFFF).toRadixString(16).padLeft(6, '0').toUpperCase()}';
+
+class _FolderViewToggle extends StatelessWidget {
+  final bool grid;
+  final ValueChanged<bool> onChanged;
+  const _FolderViewToggle({required this.grid, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(2),
+    decoration: BoxDecoration(
+      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+      border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+      borderRadius: BorderRadius.circular(12),
+    ),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _segment(
+          context,
+          selected: !grid,
+          icon: Icons.view_list_rounded,
+          label: 'Vista de lista',
+          onTap: () => onChanged(false),
+        ),
+        _segment(
+          context,
+          selected: grid,
+          icon: Icons.grid_view_rounded,
+          label: 'Vista de cuadrícula',
+          onTap: () => onChanged(true),
+        ),
+      ],
+    ),
+  );
+
+  Widget _segment(
+    BuildContext context, {
+    required bool selected,
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) => Semantics(
+    button: true,
+    selected: selected,
+    label: tr(context, label),
+    child: Tooltip(
+      message: tr(context, label),
+      child: InkWell(
+        onTap: onTap,
+        customBorder: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(9),
+        ),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          width: 34,
+          height: 32,
+          decoration: BoxDecoration(
+            color: selected
+                ? Theme.of(context).colorScheme.secondaryContainer
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(9),
           ),
-          ListTile(
-            leading: const Icon(Icons.camera_alt_outlined),
-            title: Text(tr(context, 'Capturar fotografías')),
-            onTap: () {
-              Navigator.pop(c);
-              openPage(
-                context,
-                const CapturePage(source: CaptureSource.camera),
-              );
-            },
+          child: Icon(
+            icon,
+            size: 18,
+            color: selected
+                ? Theme.of(context).colorScheme.onSecondaryContainer
+                : Theme.of(context).colorScheme.onSurfaceVariant,
           ),
-          ListTile(
-            leading: const Icon(Icons.photo_library_outlined),
-            title: Text(tr(context, 'Añadir imágenes')),
-            onTap: () {
-              Navigator.pop(c);
-              openPage(context, const CapturePage());
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.attach_file),
-            title: Text(tr(context, 'Agregar archivos o texto')),
-            onTap: () {
-              Navigator.pop(c);
-              openPage(context, const CapturePage(source: CaptureSource.files));
-            },
-          ),
-          SizedBox(height: 12),
-        ],
+        ),
       ),
     ),
   );
 }
 
-String _folderHex(int argb) =>
-    '#${(argb & 0x00FFFFFF).toRadixString(16).padLeft(6, '0').toUpperCase()}';
+class FolderColorWheelIcon extends StatelessWidget {
+  final double size;
+  const FolderColorWheelIcon({super.key, this.size = 21});
+
+  static const _colors = <Color>[
+    Color(0xFFFF3B30),
+    Color(0xFFFF9500),
+    Color(0xFFFFCC00),
+    Color(0xFF34C759),
+    Color(0xFF00C7BE),
+    Color(0xFF007AFF),
+    Color(0xFF5856D6),
+    Color(0xFFAF52DE),
+    Color(0xFFFF2D55),
+  ];
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: size,
+    height: size,
+    padding: EdgeInsets.all(size * .2),
+    decoration: BoxDecoration(
+      shape: BoxShape.circle,
+      gradient: const SweepGradient(colors: _colors),
+      border: Border.all(
+        color: Theme.of(context).colorScheme.outline.withValues(alpha: .5),
+      ),
+    ),
+    child: DecoratedBox(
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: Theme.of(context).colorScheme.surface,
+      ),
+    ),
+  );
+}
 
 int? _parseFolderHex(String value) {
   final hex = value.trim().replaceFirst('#', '');
@@ -1166,10 +1526,11 @@ Future<void> editFolder(
   Folder? folder,
   bool colorOnly = false,
 }) async {
-  final name = TextEditingController(text: folder?.name ?? '');
+  if (colorOnly) FocusManager.instance.primaryFocus?.unfocus();
+  var name = folder?.name ?? '';
   var color = folder?.color ?? 0xFFFFFFFF;
   final original = color;
-  final hex = TextEditingController(text: _folderHex(color));
+  var hex = _folderHex(color);
   final result = await showDialog<Folder>(
     context: context,
     builder: (dialog) => StatefulBuilder(
@@ -1192,11 +1553,11 @@ Future<void> editFolder(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 if (!colorOnly)
-                  TextField(
-                    controller: name,
-                    autofocus: true,
+                  TextFormField(
+                    initialValue: folder?.name ?? '',
+                    autofocus: false,
                     maxLength: 80,
-                    onChanged: (_) => set(() {}),
+                    onChanged: (value) => set(() => name = value),
                     decoration: InputDecoration(
                       labelText: tr(dialog, 'Nombre de la carpeta'),
                     ),
@@ -1221,14 +1582,12 @@ Future<void> editFolder(
                       color: Color(color),
                       onChanged: (next) => set(() {
                         color = next.toARGB32();
-                        hex.text = _folderHex(color);
+                        hex = _folderHex(color);
                       }),
                     ),
                   ),
-                  Slider(
+                  _HueSpectrumSlider(
                     value: HSVColor.fromColor(Color(color)).hue,
-                    min: 0,
-                    max: 360,
                     onChanged: (hue) => set(() {
                       final hsv = HSVColor.fromColor(Color(color));
                       color = HSVColor.fromAHSV(
@@ -1237,19 +1596,12 @@ Future<void> editFolder(
                         hsv.saturation < .1 ? .65 : hsv.saturation,
                         hsv.value < .1 ? .85 : hsv.value,
                       ).toColor().toARGB32();
-                      hex.text = _folderHex(color);
+                      hex = _folderHex(color);
                     }),
                   ),
-                  TextField(
-                    controller: hex,
-                    decoration: const InputDecoration(
-                      labelText: 'HEX',
-                      hintText: '#FFFFFF',
-                    ),
-                    onChanged: (value) {
-                      final parsed = _parseFolderHex(value);
-                      if (parsed != null) set(() => color = parsed);
-                    },
+                  InputDecorator(
+                    decoration: const InputDecoration(labelText: 'HEX'),
+                    child: SelectableText(hex),
                   ),
                   const SizedBox(height: 14),
                   Wrap(
@@ -1269,7 +1621,7 @@ Future<void> editFolder(
                         InkWell(
                           onTap: () => set(() {
                             color = value;
-                            hex.text = _folderHex(value);
+                            hex = _folderHex(value);
                           }),
                           customBorder: const CircleBorder(),
                           child: Container(
@@ -1297,7 +1649,7 @@ Future<void> editFolder(
                   TextButton(
                     onPressed: () => set(() {
                       color = original;
-                      hex.text = _folderHex(color);
+                      hex = _folderHex(color);
                     }),
                     child: Text(tr(dialog, 'Restaurar original')),
                   ),
@@ -1350,15 +1702,14 @@ Future<void> editFolder(
             child: Text(tr(dialog, 'Cancelar')),
           ),
           FilledButton(
-            onPressed:
-                name.text.trim().isEmpty || _parseFolderHex(hex.text) == null
+            onPressed: name.trim().isEmpty || _parseFolderHex(hex) == null
                 ? null
                 : () => Navigator.pop(
                     dialog,
                     Folder(
                       folder?.id ??
                           ref.read(controllerProvider.notifier).newId(),
-                      name.text.trim(),
+                      name.trim(),
                       color,
                     ),
                   ),
@@ -1368,8 +1719,6 @@ Future<void> editFolder(
       ),
     ),
   );
-  name.dispose();
-  hex.dispose();
   if (result != null && context.mounted) {
     await runAction(
       context,
@@ -1407,6 +1756,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
         if (mounted) setState(() => listening = false);
         return;
       }
+      FocusScope.of(context).unfocus();
       final available = await speech.listen((text) {
         if (mounted) setState(() => search.text = text);
       });
@@ -1431,6 +1781,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
   @override
   Widget build(BuildContext context) {
     final lib = ref.watch(libraryProvider).value;
+    final appName = tr(context, 'DraftAI');
     final results = NoteFilter.apply(
       lib?.active ?? [],
       query: search.text,
@@ -1441,7 +1792,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
       appBar: AppBar(
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: [const Meta('DRAFTAI'), Text(tr(context, 'Buscar'))],
+          children: [Meta(appName.toUpperCase()), Text(tr(context, 'Buscar'))],
         ),
         actions: const [HeaderSearchActions(showSearch: false)],
       ),
@@ -1608,6 +1959,75 @@ class _ColorSpectrum extends StatelessWidget {
                     border: Border.all(color: Colors.white, width: 2),
                     boxShadow: const [
                       BoxShadow(color: Colors.black54, blurRadius: 2),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    },
+  );
+}
+
+class _HueSpectrumSlider extends StatelessWidget {
+  final double value;
+  final ValueChanged<double> onChanged;
+  const _HueSpectrumSlider({required this.value, required this.onChanged});
+
+  static const _hues = <Color>[
+    Color(0xFFFF0000),
+    Color(0xFFFFFF00),
+    Color(0xFF00FF00),
+    Color(0xFF00FFFF),
+    Color(0xFF0000FF),
+    Color(0xFFFF00FF),
+    Color(0xFFFF0000),
+  ];
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      final width = constraints.maxWidth;
+      void update(Offset position) {
+        if (width <= 0) return;
+        onChanged((position.dx / width * 360).clamp(0, 360));
+      }
+
+      return SizedBox(
+        height: 34,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onPanDown: (event) => update(event.localPosition),
+          onPanUpdate: (event) => update(event.localPosition),
+          child: Stack(
+            alignment: Alignment.centerLeft,
+            children: [
+              Container(
+                height: 14,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(colors: _hues),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: Theme.of(context).colorScheme.outlineVariant,
+                  ),
+                ),
+              ),
+              Positioned(
+                left: (value / 360 * (width - 22)).clamp(0, width - 22),
+                child: Container(
+                  width: 22,
+                  height: 22,
+                  decoration: BoxDecoration(
+                    color: HSVColor.fromAHSV(1, value, 1, 1).toColor(),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: Theme.of(context).colorScheme.surface,
+                      width: 3,
+                    ),
+                    boxShadow: const [
+                      BoxShadow(color: Colors.black26, blurRadius: 3),
                     ],
                   ),
                 ),

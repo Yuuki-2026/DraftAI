@@ -1,3 +1,11 @@
+# Continuidad · Acceso Google real y aislamiento local · 2026-10-22
+
+Se sustituyó el acceso de “usuario de prueba” por Firebase Authentication/Google Sign-In. Android procesa `google-services.json` mediante Google Services Gradle Plugin; la app ya no depende de `--dart-define` para los valores públicos de Firebase. La biblioteca Invitado conserva la base y clave existentes. Cada UID abre una base y clave AES-GCM independientes, con sus propios adjuntos y preferencias.
+
+Al iniciar sesión desde Invitado con apuntes, aparece una decisión para moverlos a la cuenta o dejarlos en Invitado. El traslado vuelve a cifrar notas y archivos con la clave del UID, conserva carpetas, categorías, papelera e historial, verifica que destino y adjuntos abran antes de limpiar la fuente y usa identificadores de adjuntos estables para reintentar tras interrupciones. Al rechazar, las bibliotecas se mantienen separadas. Si se interrumpe la copia, el original se conserva. No se habilitó Firestore/Cloud Storage: el contenido sigue solo en este teléfono, sin recuperación en otro dispositivo ni sincronización.
+
+No se abrió la app, no se instaló APK y no se ejecutaron pruebas ni emulador: el propietario indicó que realizará la prueba cuando el acceso y la transferencia estén implementados. Pendiente de validación en teléfono: selección Google, cambio entre UID A/UID B/Invitado, aceptar/rechazar traslado e interrupción durante una biblioteca con adjuntos/historial.
+
 # Continuidad · 0.2.3 Beta 2
 
 Solicitud: corregir documento en blanco al guardar y volver a editar; fecha discreta, LaTeX, interlineado y aviso de exportación. Sin funciones adicionales. Se separó el lector del editor: la vista de edición se monta de nuevo al entrar, con clave por controlador/modo, foco solicitado después del montaje y recarga de la copia canónica persistida tras guardar. Se mantienen borradores manuales y confirmación al salir.
@@ -116,3 +124,144 @@ Se elimina el bloqueo local duplicado cuando el servicio expone acceso remoto. E
 Comprobaciones beta.3: Node --check correcto; presupuesto persistente 1 prueba aprobada sin llamadas externas. Flutter analyze terminó con 25 avisos de estilo/contexto (no se declara limpio). No se ejecutaron pruebas Flutter, emulador ni capturas para priorizar la entrega solicitada.
 
 Beta.3 publicada: https://github.com/Yuuki-2026/DraftAI/releases/tag/v0.2.3-beta.3 . APK firmado 84492431 bytes; SHA-256 36f76ea4d570909fe40cb67afc5b8e3cd07602fd331bf431477a1a5b5f5860f3. Digest y tamaño remoto verificados. Fuente edbcc280b8387f62755ebf5bba992b47961e5195. Se conserva firma, notas y endpoint; actualizar sin desinstalar.
+
+## Ajustes de experiencia de uso sobre beta.3
+Se actualizó `main` desde `origin/main` hasta `6a385c8` antes de modificar la app. Guardar apunte ahora usa botón destacado; entrar en edición no enfoca el editor ni abre el teclado; dictado oculta el teclado; los títulos vacíos no se guardan y al crear nota se muestra “Un buen nombre ayuda a clasificar mejor a la IA”. Se habilitó el color de fondo del texto para usarlo como resaltador y se evita que el selector de color de carpeta herede el foco del teclado.
+
+La pantalla de importación ahora muestra un estado inicial y acciones de elegir imágenes/archivos antes de que haya una primera fuente; al añadirlas presenta su cantidad y los destinos. Borradores revisados por IA y destinos manuales se conservan al volver a la pantalla de lote para no repetir el análisis ni perder la revisión; se limpian al guardar o quitar una fuente.
+
+Verificación: `dart format` aplicado; `dart analyze` sobre los cinco archivos cambiados terminó sin errores y mostró 10 avisos informativos de estilo/contexto en `library_page.dart` y `note_page.dart`. `flutter analyze --fatal-infos` quedó detenido durante el análisis global prolongado, así que no se declara como completado. No se ejecutaron pruebas automatizadas ni emulador. No se creó GCP ni se almacenaron credenciales; nube, propiedad/recuperación segura de notas y personalización de nombre/icono quedan para la etapa posterior que pidió el propietario.
+
+## Beta 0.2.3-beta.4 · mejoras locales de UI/UX
+Se ajustó Guardar para conservar su etiqueta y estilo de texto: fondo blanco y texto negro en tema oscuro; fondo negro y texto blanco en tema claro. El selector de cuadrícula/lista de apuntes conserva su preferencia y las tarjetas de cuadrícula muestran texto o una imagen real del apunte. Se añadieron plantillas por apunte (liso, renglones, cuadrícula, puntos e interlineado amplio), guardadas localmente.
+
+Los selectores de color de texto/resaltador usan paletas táctiles sin campo HEX ni teclado. El selector de carpeta conserva el control visual de color y ahora muestra HEX sin abrir el teclado. Se añadió inserción y edición de tablas 3×3 dentro del documento; la lectura las dibuja como tabla y las exportaciones las representan como filas de texto. Preferencias permite personalizar el nombre que aparece dentro de DraftAI y en el título de la ventana; el icono y la etiqueta del lanzador siguen siendo DraftAI.
+
+El perfil invitado ya no muestra una tarjeta de suscripción ni el estado Pro por preferencia local; esas opciones solo aparecen si hay identidad Google configurada y nombre de cuenta. Se mantienen los cambios anteriores: título requerido, ayuda para nombrar, edición sin teclado automático, dictado sin teclado, lotes de captura con estado inicial coherente y conservación de borradores para no volver a analizar fuentes al regresar. La clasificación existente rechaza fuentes no académicas o ilegibles y no fuerza un destino cuando la coincidencia es dudosa.
+
+Se completó el cuestionario de repaso local: genera preguntas de opción múltiple con frases del apunte, registra respuestas y muestra el resultado sin enviar texto a un servicio. El modo lectura permite mostrar u ocultar un indicador aproximado calculado con el desplazamiento visible; no representa páginas PDF reales. Se movió Eliminar fuera de Más, con confirmación; al leer se ocultan acciones de edición, borrado, historial y renombrado. Preferencias ahora permite elegir entre tres iconos del lanzador Android; el nombre dentro de la app sigue siendo editable.
+
+Fuera de este bloque: base de datos GCP, credenciales, identidad Google operativa, separación criptográfica por cuenta y traslado invitado→Google. La publicación/actualización beta.4 se hará después por indicación del propietario. No se encontraron `android/key.properties` ni `android/draftai-release.jks`; no se generó una clave nueva para no romper la firma beta.3.
+
+Verificación de este bloque: `dart format`, análisis acotado sin errores (12 avisos informativos de estilo/contexto) y `flutter build apk --debug` compilado correctamente. No se ejecutaron pruebas automatizadas ni se abrió el emulador. No se creó APK firmado, no se cambió la versión, ni se hizo commit, push o publicación. Kotlin incremental continúa desactivado y Gradle limitado a 3 GB/dos workers para evitar el error previo de caché entre unidades Windows.
+
+## Correcciones de UI/UX indicadas por el propietario · 21/10/2026
+
+Esta sección sustituye las afirmaciones anteriores de Beta 0.2.3-beta.4 cuando se contradicen con las correcciones más recientes. Trabajo solo local; no se hizo commit, push, release ni despliegue.
+
+### Lista vigente de tareas y estado
+- [x] Mantener el texto de Guardar y resaltarlo: fondo blanco/texto negro en tema oscuro y fondo negro/texto blanco en tema claro.
+- [x] Evitar teclado al entrar a editar, dictar y usar controles de formato; ocultar teclado desde color, tamaño, tipografía y resaltador, conservando la selección del texto.
+- [x] Conservar la paleta de color de texto y añadir junto a ella el resaltador con icono reconocible, sin fondo amarillo y con colores activos para la escritura hasta cambiarlos o quitarlos.
+- [x] Exigir título no vacío y permitir que la ayuda de nombre ocupe dos líneas en pantallas estrechas.
+- [x] Corregir el error de `TextEditingController` al cerrar creación de apuntes/carpetas. Los campos de nota, carpeta y tabla ya no se destruyen antes de cerrar su diálogo.
+- [x] Reubicar los fondos de hoja Liso, Renglones, Cuadrícula, Puntos e Interlineado amplio en Perfil > Preferencias; se guardan como preferencia global y se previsualizan.
+- [x] Separar los dos usos de “cuadrícula”: Preferencias controla el patrón de la hoja; la pastilla de Inicio cambia de forma independiente la distribución de carpetas entre lista y dos columnas.
+- [x] Reemplazar el cuestionario local por generación remota a partir del texto del apunte, con validación de respuesta/opciones, aviso antes de enviar y estado de error/reintento. App y gateway local implementan el contrato `action: quiz`.
+- [x] Cambiar personalización a nombre y foto del perfil, con “Modo invitado” como nombre por defecto para invitado y selección de foto desde la galería.
+- [x] Retirar el selector de nombre de la app y de icono del lanzador; se conserva el nombre de producto DraftAI y su icono fijo.
+- [x] Unificar el menú + Nuevo y el menú Más en paneles con botones distinguibles en modo claro y oscuro; quitar la instrucción confusa para cerrar tocando afuera.
+- [x] Usar ese mismo panel para insertar imágenes, abrir Cámara o adjuntar archivos desde el editor.
+- [x] Reducir trabajo por pulsación: el editor ya no serializa el apunte completo cada vez que cambia texto; se reutilizan lecturas cifradas de imágenes y se limitan dimensiones de decodificación en vistas previas.
+- [x] Mantener tablas editables 3×3, clasificación sin destino forzado cuando la coincidencia es dudosa, lote de captura con borradores y el indicador de lectura aproximado.
+- [x] Añadir selector Lista/Cuadrícula junto a “Nueva carpeta”, colocado inmediatamente a su derecha; la cuadrícula tiene dos columnas, previsualiza apuntes y usa el botón breve “Abrir”.
+- [x] Cambiar el color de carpeta desde una rueda multicolor con barra de tono; quitar el texto HEX como control visible.
+- [x] Conservar la paleta de texto y añadir al lado un resaltador compacto y funcional, sin fondo amarillo, con opción “Sin relleno” y sin bloque vacío en la barra de formato.
+- [ ] Verificar fluidez, teclado y navegación en un teléfono Android 9/emulador. El APK de perfil se compila para esa comprobación; el rendimiento real aún depende del dispositivo.
+- [ ] Conectar/desplegar el gateway actualizado para que el cuestionario IA pueda usarse. No hay URL de túnel disponible; no se envió contenido ni se llamó a proveedor en esta entrega.
+- [ ] Separar notas y claves por cuenta Google y diseñar el traslado invitado→Google. Pendiente; no se cambió la bóveda actual.
+- [ ] Crear base de datos/servicios en GCP y solicitar credenciales solo cuando corresponda. Diferido por indicación del propietario.
+- [ ] Preparar tutorial de VM y GCP. Diferido hasta terminar UI/UX.
+- [ ] Actualizar el repositorio y publicar beta.4 con APK firmado. Diferido: no se subió Git; faltan las claves originales de firma, y la etapa de publicación queda para cuando el propietario la autorice después de completar lo restante.
+- [x] Preparar el plan de GCP, cuentas Google, bóvedas/cifrado por identidad, migración invitado y límites. Diseño documentado; no se aprovisionó la nube.
+
+### Verificación de esta corrección
+`dart format` aplicado (17 archivos, sin cambios pendientes); análisis de archivos modificados sin errores, con 14 avisos informativos de estilo/contexto. `node --check server/service.mjs` correcto. Se compiló `build/app/outputs/flutter-apk/app-profile.apk` (109,7 MB, modo profile) y se verificó su firma: usa el certificado Android Debug, por lo que no actualiza encima de una versión beta firmada distinta; para instalarlo hay que desinstalar primero la versión anterior y se borran sus datos locales. No se ejecutaron pruebas automatizadas ni se abrió el emulador. La fluidez en Android 9 aún requiere comprobación en dispositivo. El código del cuestionario requiere desplegar el gateway actualizado antes de funcionar con IA remota.
+
+### Norma añadida por esta corrección
+Al añadir una función, conservar las funciones existentes: el resaltador se suma al control de color de texto con controles e iconos reconocibles. Las acciones de formato no deben mostrar el teclado; al cerrar diálogos de creación, los controladores de texto deben permanecer válidos durante la animación. Los textos de ayuda deben adaptarse a pantallas estrechas. El cuestionario solicitado es remoto vía IA, nunca una generación local. La cuadrícula de Preferencias define el papel de la hoja, no tarjetas de biblioteca; la personalización es el nombre/foto del perfil, no el nombre/icono del lanzador.
+
+## Correcciones posteriores de carpetas y paleta · 21/10/2026
+- [x] Añadir junto a “Nueva carpeta” el selector visual Lista/Cuadrícula; la cuadrícula muestra dos columnas de carpetas con previsualización y acceso a sus apuntes.
+- [x] Restaurar la paleta como control de color de texto dentro de la fila horizontal de formato; incluir colores Material, selector libre y “Sin color”.
+- [x] Colocar el resaltador al lado, con icono de marcador sin fondo amarillo y el mismo selector con “Sin relleno”.
+- [x] Cambiar el HEX visible de cada carpeta por una rueda multicolor y sumar una barra de tono arcoíris al selector de color de carpeta.
+
+Verificación: `dart format` aplicado; análisis de los archivos afectados sin errores (12 avisos informativos); `flutter build apk --profile` compilado correctamente. No se abrió el emulador ni se ejecutaron pruebas automatizadas. Cambios locales; sin commit, push ni release.
+
+### Norma añadida por esta corrección
+El selector Lista/Cuadrícula va junto a “Nueva carpeta” y modifica únicamente la disposición visual; la cuadrícula usa dos columnas. La paleta original de color de texto se conserva dentro de la fila de formato; el resaltador se añade al lado con icono de marcador sin fondo amarillo y el mismo selector, más “Sin relleno”. El control visible de color de carpeta es una rueda multicolor, nunca un HEX.
+
+### Ajustes de presentación posteriores · 21/10/2026
+- [x] En las tarjetas de carpeta de la cuadrícula, reducir “Abrir carpeta” a “Abrir”.
+- [x] Ordenar el encabezado de carpetas como “Nueva carpeta” y, a su derecha, el selector Lista/Cuadrícula.
+- [x] Sustituir el botón personalizado que dejaba un bloque vacío por el botón compacto de Quill, con marcador visible sin fondo amarillo y acceso al mismo selector de resaltado.
+
+Verificación: `dart format` aplicado; `dart analyze` de los tres archivos afectados sin errores (10 avisos informativos de estilo/contexto); `git diff --check` sin errores. APK profile compilado en `build/app/outputs/flutter-apk/app-profile.apk` (135005164 bytes); firma APK v2 verificada. SHA-256: `5D07027AE4428255EF6754E2124FB1E70885B4FE7D96DC372C543BB9F88C99BA`. No se ejecutaron pruebas ni emulador. Sin commit, push ni publicación.
+
+### Norma añadida por esta corrección
+El orden junto a “Tus carpetas” es “Nueva carpeta” primero y la pastilla de vista inmediatamente a su derecha. El botón de resaltado debe ser compacto, mostrar el icono de marcador sin fondo amarillo y usar el selector funcional; no usar `childBuilder` sin restricciones que expanda el botón en la fila de Quill.
+
+## Ajustes finales de formato e inserción · 21/10/2026
+- [x] Quitar el fondo amarillo del botón Resaltador y conservar únicamente el icono de marcador.
+- [x] Mantener activo el último color de texto y de resaltado durante la edición, incluso al mover el cursor, hasta que se elija otro color o se use “Sin color”/“Sin relleno”.
+- [x] Cambiar el selector de imágenes, cámara y archivos al panel común de acciones, con el estilo de “Nuevo” y “Más”.
+- [x] Preparar `docs/GCP_ACCOUNT_ENCRYPTION_PLAN.md` a partir del estado del gateway y la bóveda local. No se creó ningún recurso de nube.
+
+Verificación: `dart format` aplicado; análisis de los tres archivos afectados sin errores y con 4 avisos informativos; `git diff --check` sin errores (solo aviso de conversión CRLF/LF). APK profile compilado en `build/app/outputs/flutter-apk/app-profile.apk` (135005164 bytes), firma v2 verificada con certificado Android Debug. SHA-256: `9ECE32FDB920EE75B939D32FE13E7B4ACA11B8B23CB922E867493A6C687DB945`. No se ejecutaron pruebas ni emulador. No se creó GCP ni se modificó Git/release.
+
+### Norma añadida por esta corrección
+El resaltador no lleva fondo amarillo. Los colores elegidos se conservan como formato de escritura para el resto de la edición y solo cambian al elegir otro color o quitarlo. Insertar imágenes, abrir cámara o adjuntar archivos usa el mismo panel de acciones que “Nuevo” y “Más”. El plan de GCP debe partir de las cuotas vigentes del código, distinguir los límites temporales vencidos y explicar que una API key de proveedor vive solo en el servidor.
+
+## Mejoras solicitadas para la siguiente entrega beta.4 · 22/10/2026
+
+Cambios preparados en el código local de DraftAI, sin cambiar la versión `0.2.3-beta.4+9` ni publicar/actualizar el repositorio.
+
+- [x] PDF y Word muestran una previsualización con controles para tamaño de imágenes, tamaño de títulos, márgenes, fecha, pie de página y número de página. Para una selección múltiple se puede exportar en un archivo combinado o uno por apunte.
+- [x] TXT y Markdown incluyen el texto del apunte, títulos, temas, listas, tablas y resumen; sustituyen imágenes por marcadores con el nombre del archivo y no incluyen rutas internas.
+- [x] Las imágenes permanecen en la posición de inserción. En edición, al seleccionar una, aparecen tiradores en las esquinas para ajustar el ancho y controles de alineación izquierda/centro/derecha. El tamaño y alineación se guardan en el documento y se aplican a lectura, vista previa y PDF/Word.
+- [x] La categorización por lotes presenta una ruleta de tarjetas superpuestas: deslizar cambia la foto al frente, las demás rotan detrás y cada tarjeta muestra su número de selección original.
+- [x] “Nuevo apunte” se presenta como hoja inferior rediseñada y permite escoger carpeta o crear una nueva carpeta dentro del mismo flujo, también al crear desde una carpeta existente.
+- [x] Los estilos de hoja alinean renglones, cuadrícula y puntos con el desplazamiento y escala de lectura.
+- [x] Las fórmulas se renderizan desde notación TeX en lectura y se convierten a una representación textual matemática legible en exportaciones, sin dejar delimitadores o comandos LaTeX crudos.
+- [x] El menú de edición conserva “Insertar tabla” y ahora pregunta filas (1–12) y columnas (1–6); conserva las celdas escritas cuando se cambia el tamaño.
+- [x] Perfil presenta una foto circular grande centrada y el nombre con lápiz. Al elegir una foto se abre un recorte circular con desplazamiento y zoom para ajustar el encuadre; las demás opciones del perfil se mantienen.
+- [x] El traslado Invitado→Google ofrece “No volver a mostrar” y la preferencia puede volver a activarse en Preferencias. Preferencias también ofrece importar manualmente los apuntes de Invitado cuando se está usando una cuenta Google.
+- [x] El traslado conserva la biblioteca original ante fallos y solo la limpia tras volver a abrir y comparar apuntes, historial y bytes de adjuntos en la bóveda cifrada de destino.
+- [x] Preferencias permite elegir Inter, serif o monoespaciada para la interfaz; se añadieron etiquetas en inglés para los nuevos controles.
+- [ ] Configurar una API propia en modo Invitado: se difiere expresamente para la etapa posterior indicada por el propietario.
+
+Comprobación realizada: `dart format` en los 19 archivos Dart de esta entrega (sin cambios pendientes) y `git diff --check` sin errores. No se ejecutaron `dart analyze`, pruebas, compilación APK, emulador ni instalación en el teléfono, conforme a la instrucción de limitar esta etapa a código. La UI y los flujos aún deben comprobarse en el dispositivo cuando el propietario lo conecte. No hubo commit, push, release ni actualización de GitHub.
+
+### Normas añadidas por las aclaraciones del propietario · 22/10/2026
+
+- La exportación múltiple opera sobre los apuntes seleccionados y permite combinarlos o separarlos únicamente para PDF/Word.
+- Una imagen insertada en el apunte debe poder redimensionarse arrastrando sus esquinas y alinearse; sus cambios permanecen guardados.
+- La galería de categorización rota las fotos superpuestas y conserva a la vista el orden en que se seleccionaron.
+- El flujo “Nuevo apunte” permite crear una carpeta sin salir de la carpeta/pantalla actual.
+- El botón para insertar tablas está dentro del menú de edición y pide filas y columnas.
+- El perfil se inspira en la composición visual de WhatsApp, sin copiarla: avatar circular grande, recorte ajustable y nombre con lápiz; se conservan las demás opciones.
+- La API propia de invitado queda fuera de esta entrega.
+- No instalar ni trasladar al teléfono hasta que el propietario lo conecte después de completar el trabajo de código.
+
+## API en la nube preparada · 22/10/2026
+- [x] Añadir Azure Functions Node.js v4 como destino del gateway de IA, manteniendo Firebase Authentication para identificar cuentas Google.
+- [x] Verificar en el servidor el token Firebase y el proveedor Google; no enviar la clave de OpenAI ni una clave de función a la app.
+- [x] Persistir la cuota diaria por UID y el límite global del proveedor en Firestore, con 30 operaciones diarias por cuenta como valor inicial configurable.
+- [x] Conectar el cliente Flutter al endpoint Azure con AI_BASE_URL; cuando está configurado, utiliza automáticamente el ID token de Google y deja de pedir el código temporal de emparejamiento.
+- [x] Mantener notas y adjuntos en el teléfono; la API procesa solo el contenido que el usuario elige enviar a una acción de IA.
+- [ ] Crear el recurso de Azure, habilitar Firestore, guardar secretos en Key Vault, desplegar y configurar la URL real en la app.
+
+No se generó ni instaló APK para esta etapa. El archivo build/app/outputs/flutter-apk/app-profile.apk existente se creó antes de los últimos cambios de interfaz y API, por lo que no representa el código actual. No se ejecutaron pruebas ni análisis. No se crearon recursos de nube ni se enviaron claves o credenciales.
+
+## Separación de IA Google e Invitado · 22/10/2026
+- [x] Enrutar sesiones Google únicamente a Azure Functions con el token Firebase; si falta AI_BASE_URL, mostrar que el servicio administrado no está disponible sin ofrecer la conexión de Invitado.
+- [x] Enrutar Invitado únicamente a un proveedor configurable compatible con OpenAI Chat Completions; guardar URL base, modelo y clave en un único registro de almacenamiento seguro del dispositivo.
+- [x] Dejar la opción “Conecta tu IA de prueba para consultas reales” visible solo en el perfil Invitado. Para Google no aparece la opción de configurar una clave propia.
+- [x] Añadir operaciones de texto, cuestionarios y análisis de imágenes/texto para la ruta Invitado. No se hace una llamada de prueba al guardar; los límites los determina el proveedor. PDF no está admitido en esta ruta directa.
+- [x] Actualizar la documentación de configuración y separar la cuota Azure/Firestore de los límites del proveedor elegido por Invitado.
+
+No se compiló el APK, no se ejecutaron pruebas ni análisis, no se desplegó Azure y no se configuraron ni guardaron claves del propietario. El código requiere validar ambos caminos en el teléfono y desplegar Azure antes de que la IA de las cuentas Google funcione.
+
+### Norma añadida por la aclaración del propietario · 22/10/2026
+La clave OpenAI de DraftAI solo reside en Azure y se usa mediante sesión Google autenticada; nunca se incluye en Flutter ni en APK. Las cuentas Google no muestran la configuración de IA de Invitado. Invitado solo usa su URL/modelo/clave propios, guardados en el almacén seguro local, y no accede al backend Azure con esa credencial.

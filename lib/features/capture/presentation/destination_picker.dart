@@ -67,6 +67,16 @@ class _DestinationState extends ConsumerState<DestinationPicker> {
     });
   }
 
+  void rotate(int direction) {
+    if (drafts.length < 2) return;
+    setState(() {
+      index = (index + direction + drafts.length) % drafts.length;
+      step = 0;
+      search.clear();
+      createFolder = false;
+    });
+  }
+
   Future<void> dictate() async {
     await runAction(context, () async {
       if (voice) {
@@ -301,40 +311,20 @@ class _DestinationState extends ConsumerState<DestinationPicker> {
                   padding: const EdgeInsets.all(12),
                   child: Column(
                     children: [
-                      InkWell(
-                        onTap: () => previewPickedFile(context, d.file),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(9),
-                          child: SizedBox(
-                            height: 175,
-                            width: double.infinity,
-                            child: d.file.mime.startsWith('image/')
-                                ? Image.memory(
-                                    d.file.bytes,
-                                    fit: BoxFit.contain,
-                                    cacheWidth: 900,
-                                  )
-                                : Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(
-                                        d.file.mime == 'application/pdf'
-                                            ? Icons.picture_as_pdf_outlined
-                                            : Icons.description_outlined,
-                                        size: 44,
-                                      ),
-                                      const SizedBox(height: 12),
-                                      Text(
-                                        d.file.name,
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(fontSize: 11),
-                                      ),
-                                    ],
-                                  ),
-                          ),
+                      if (drafts.length > 1)
+                        _PhotoRoulette(
+                          drafts: drafts,
+                          selectedIndex: index,
+                          onRotate: rotate,
+                          onSelect: move,
+                        )
+                      else
+                        _PhotoCard(
+                          draft: d,
+                          order: index + 1,
+                          onTap: () => previewPickedFile(context, d.file),
+                          width: double.infinity,
                         ),
-                      ),
                       const SizedBox(height: 8),
                       Row(
                         children: [
@@ -592,6 +582,161 @@ class _DestinationState extends ConsumerState<DestinationPicker> {
                 const SizedBox(height: 20),
               ],
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PhotoRoulette extends StatelessWidget {
+  final List<SourceDraft> drafts;
+  final int selectedIndex;
+  final ValueChanged<int> onRotate, onSelect;
+  const _PhotoRoulette({
+    required this.drafts,
+    required this.selectedIndex,
+    required this.onRotate,
+    required this.onSelect,
+  });
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      final width = constraints.maxWidth;
+      final cardWidth = width * .56;
+      final previous = (selectedIndex - 1 + drafts.length) % drafts.length;
+      final next = (selectedIndex + 1) % drafts.length;
+      return SizedBox(
+        height: 190,
+        child: GestureDetector(
+          onHorizontalDragEnd: (details) {
+            final velocity = details.primaryVelocity ?? 0;
+            if (velocity.abs() > 100) onRotate(velocity < 0 ? 1 : -1);
+          },
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              if (drafts.length > 2)
+                Positioned(
+                  left: 0,
+                  child: _PhotoCard(
+                    draft: drafts[previous],
+                    order: previous + 1,
+                    width: cardWidth,
+                    onTap: () => onSelect(previous),
+                  ),
+                ),
+              Positioned(
+                right: 0,
+                child: _PhotoCard(
+                  draft: drafts[next],
+                  order: next + 1,
+                  width: cardWidth,
+                  onTap: () => onSelect(next),
+                ),
+              ),
+              _PhotoCard(
+                draft: drafts[selectedIndex],
+                order: selectedIndex + 1,
+                width: cardWidth,
+                onTap: () =>
+                    previewPickedFile(context, drafts[selectedIndex].file),
+                front: true,
+              ),
+            ],
+          ),
+        ),
+      );
+    },
+  );
+}
+
+class _PhotoCard extends StatelessWidget {
+  final SourceDraft draft;
+  final int order;
+  final double width;
+  final VoidCallback onTap;
+  final bool front;
+  const _PhotoCard({
+    required this.draft,
+    required this.order,
+    required this.width,
+    required this.onTap,
+    this.front = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final file = draft.file;
+    return Material(
+      elevation: front ? 8 : 2,
+      color: Theme.of(context).colorScheme.surfaceContainerLow,
+      borderRadius: BorderRadius.circular(14),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: SizedBox(
+          width: width,
+          height: 174,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              if (file.mime.startsWith('image/'))
+                Image.memory(
+                  file.bytes,
+                  fit: BoxFit.cover,
+                  cacheWidth: 640,
+                  gaplessPlayback: true,
+                )
+              else
+                Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        file.mime == 'application/pdf'
+                            ? Icons.picture_as_pdf_outlined
+                            : Icons.description_outlined,
+                        size: 42,
+                      ),
+                      const SizedBox(height: 8),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        child: Text(
+                          file.name,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(fontSize: 11),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              Positioned(
+                top: 8,
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 5,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.surface
+                          .withValues(alpha: .9),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      '$order',
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),

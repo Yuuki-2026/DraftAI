@@ -1,7 +1,7 @@
 name: draft_ai
 description: Apuntes locales con captura e inteligencia asistida.
 publish_to: none
-version: 0.2.3-beta.3+8
+version: 0.2.3-beta.4+9
 environment:
   sdk: '>=3.13.2 <3.14.0'
   flutter: '3.47.2'
@@ -29,6 +29,7 @@ dependencies:
   firebase_auth: 7.0.0
   google_sign_in: 7.2.0
   flutter_quill: 11.6.0
+  flutter_colorpicker: 1.1.0
   flutter_math_fork: 0.7.4
 dev_dependencies:
   flutter_test:

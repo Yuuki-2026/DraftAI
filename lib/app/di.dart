@@ -1,22 +1,17 @@
-import '../features/notes/data/example_library.dart';
-
-import 'dart:io';
 import 'dart:math';
 
 import 'package:get_it/get_it.dart';
 import 'package:http/http.dart' as http;
-import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import '../core/security/secure_store.dart';
 import '../features/notes/domain/ports.dart';
 import '../features/notes/domain/use_cases.dart';
-import '../features/notes/data/local/database.dart';
-import '../features/notes/data/local_notes_repository.dart';
-import '../features/capture/data/local_media_repository.dart';
 import '../features/capture/data/device_speech.dart';
+import '../features/notes/data/example_library.dart';
 import '../features/ai/data/gateway_ai.dart';
 import '../features/auth/data/google_identity.dart';
+import '../features/auth/data/profile_vaults.dart';
 import '../features/export/data/document_export.dart';
 
 final sl = GetIt.instance;
@@ -26,37 +21,41 @@ Future<void> configureApp() async {
   final root = await getApplicationSupportDirectory();
   await root.create(recursive: true);
   final cache = await getTemporaryDirectory();
-  final file = File(p.join(root.path, 'draftai.sqlite'));
-  final vault = await VaultCipher.open(
-    SystemSecureStore(),
-    existingData: await file.exists(),
+  final secure = SystemSecureStore();
+  final identity = GoogleIdentity();
+  try {
+    await identity.initialize();
+  } catch (_) {
+    // Guest notes remain available when Firebase is not configured yet.
+  }
+  final profiles = ProfileVaultManager(
+    root: root,
+    cache: cache,
+    secure: secure,
+    newId: newId,
   );
-  final db = AppDatabase.file(file);
-  sl.registerSingleton(db);
-  final notes = LocalNotesRepository(db, vault);
+  final restoredUser = identity.userId;
+  await profiles.activate(restoredUser ?? guestOwnerId);
+  if (restoredUser != null &&
+      await profiles.activeNotes.preference('entered') != 'true') {
+    // An interrupted sign-in should return to Guest so its migration question
+    // can be shown again instead of silently hiding that library.
+    await identity.signOut();
+    await profiles.activate(guestOwnerId);
+  }
+  final notes = ProfiledNotesRepository(profiles);
+  final media = ProfiledMediaRepository(profiles);
   sl.registerSingleton<NotesRepository>(notes);
+  sl.registerSingleton<MediaRepository>(media);
+  sl.registerSingleton<ProfileVaultService>(profiles);
+  sl.registerSingleton<ProfileVaultManager>(profiles);
   sl.registerSingleton(NoteActions(notes, DateTime.now, newId));
   sl.registerSingleton(AiPolicy(notes, DateTime.now));
-  final media = LocalMediaRepository(
-    Directory(p.join(root.path, 'media')),
-    cache,
-    vault,
-    newId,
-  );
-  sl.registerSingleton<MediaRepository>(media);
   sl.registerSingleton<ExportService>(DocumentExport(media, cache));
   sl.registerSingleton<ExampleService>(ExampleLibrary(notes, media, newId));
   sl.registerSingleton<SpeechService>(DeviceSpeech());
-  final identity = GoogleIdentity();
-  if (identity.configured) {
-    try {
-      await identity.idToken().timeout(const Duration(seconds: 5));
-    } catch (_) {
-      /* Local notes remain usable without remote identity. */
-    }
-  }
   sl.registerSingleton<IdentityService>(identity);
-  final gateway = GatewayAi(SystemSecureStore(), http.Client());
+  final gateway = GatewayAi(SystemSecureStore(), http.Client(), identity);
   await gateway.initialize();
   sl.registerSingleton<AiService>(gateway);
 }

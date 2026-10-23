@@ -12,8 +12,9 @@ abstract final class AppColors {
       muted = Color(0xFFA0A0A0);
 }
 
-ThemeData appTheme(Brightness brightness) {
+ThemeData appTheme(Brightness brightness, {String? fontFamily}) {
   final dark = brightness == Brightness.dark;
+  final selectedFont = fontFamily ?? 'Inter';
   final scheme =
       ColorScheme.fromSeed(
         seedColor: Colors.grey,
@@ -50,7 +51,7 @@ ThemeData appTheme(Brightness brightness) {
   return ThemeData(
     useMaterial3: true,
     colorScheme: scheme,
-    fontFamily: 'Inter',
+    fontFamily: selectedFont,
     scaffoldBackgroundColor: scheme.surface,
     dividerColor: scheme.outlineVariant,
     appBarTheme: AppBarTheme(
@@ -61,7 +62,7 @@ ThemeData appTheme(Brightness brightness) {
       centerTitle: false,
       toolbarHeight: 60,
       titleTextStyle: TextStyle(
-        fontFamily: 'Inter',
+        fontFamily: selectedFont,
         fontSize: 16,
         fontWeight: FontWeight.w600,
         color: scheme.onSurface,
@@ -90,8 +91,8 @@ ThemeData appTheme(Brightness brightness) {
       style: FilledButton.styleFrom(
         minimumSize: const Size(44, 44),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        textStyle: const TextStyle(
-          fontFamily: 'Inter',
+        textStyle: TextStyle(
+          fontFamily: selectedFont,
           fontSize: 12,
           fontWeight: FontWeight.w600,
         ),

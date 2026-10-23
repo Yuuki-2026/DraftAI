@@ -145,7 +145,7 @@ class NoteReader extends StatelessWidget {
       final date = RegExp(r'^\d{2}/\d{2}/\d{4}$').hasMatch(trim);
       final heading = line.attributes['header'] as int? ?? 0;
       final base = TextStyle(
-        fontFamily: 'Inter',
+        fontFamily: Theme.of(context).textTheme.bodyMedium?.fontFamily,
         fontSize: date
             ? 11
             : heading == 1
@@ -168,7 +168,10 @@ class NoteReader extends StatelessWidget {
         final value = op['insert'];
         if (value is Map) {
           final a = note.attachments
-              .where((a) => a.id == value[NoteDocument.mediaKey])
+              .where(
+                (a) =>
+                    a.id == NoteDocument.mediaId(value[NoteDocument.mediaKey]),
+              )
               .firstOrNull;
           if (a != null) {
             if (spans.isNotEmpty) {
@@ -177,17 +180,47 @@ class NoteReader extends StatelessWidget {
               );
               spans.clear();
             }
-            blocks.add(EmbeddedMedia(attachment: a, gallery: note.attachments));
+            blocks.add(
+              EmbeddedMedia(
+                attachment: a,
+                gallery: note.attachments,
+                widthFactor: NoteDocument.mediaWidth(
+                  value[NoteDocument.mediaKey],
+                ),
+                alignment: NoteDocument.mediaAlignment(
+                  value[NoteDocument.mediaKey],
+                ),
+              ),
+            );
+          }
+          final tableData = value[NoteDocument.tableKey];
+          if (tableData is String) {
+            if (spans.isNotEmpty) {
+              blocks.add(
+                Text.rich(TextSpan(style: base, children: List.of(spans))),
+              );
+              spans.clear();
+            }
+            blocks.add(NoteTableView(data: tableData));
           }
           continue;
         }
         final attrs = op['attributes'] as Map? ?? const {};
         Color? color;
+        Color? backgroundColor;
         final raw = attrs['color'];
+        final rawBackground = attrs['background'];
         if (!date &&
             raw is String &&
             RegExp(r'^#[0-9a-fA-F]{6}$').hasMatch(raw))
           color = Color(int.parse('FF${raw.substring(1)}', radix: 16));
+        if (!date &&
+            rawBackground is String &&
+            RegExp(r'^#[0-9a-fA-F]{6}$').hasMatch(rawBackground)) {
+          backgroundColor = Color(
+            int.parse('FF${rawBackground.substring(1)}', radix: 16),
+          );
+        }
         final style = base.copyWith(
           fontSize: date
               ? 11
@@ -199,6 +232,7 @@ class NoteReader extends StatelessWidget {
               ? FontStyle.italic
               : FontStyle.normal,
           color: color,
+          backgroundColor: backgroundColor,
           decoration: TextDecoration.combine([
             if (attrs['underline'] == true) TextDecoration.underline,
             if (attrs['strike'] == true) TextDecoration.lineThrough,

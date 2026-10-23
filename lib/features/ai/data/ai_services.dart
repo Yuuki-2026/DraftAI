@@ -30,6 +30,11 @@ class DemonstrationAi implements AiService {
   }
 
   @override
+  Future<List<AiQuizQuestion>> generateQuiz(String text) async {
+    throw const AppFailure('Conecta la IA para generar un cuestionario.');
+  }
+
+  @override
   Future<AnalysisProposal> analyze(
     List<PickedFile> files,
     Library library,
@@ -114,7 +119,8 @@ class RemoteAi implements AiService, AiRunMetadata, AiAccessProvider {
           error = jsonDecode(response.body) as Map<String, dynamic>;
         } catch (_) {}
         const allowed = {
-          'provider_configuration': 'El servidor no tiene permisos válidos con el proveedor. No es un problema de tu imagen.',
+          'provider_configuration':
+              'El servicio de IA no está configurado correctamente. Inténtalo más tarde.',
           'provider_quota':
               'La cuenta del proveedor no tiene saldo disponible.',
           'pro_unavailable': 'Falta configurar la clave Pro en el servidor.',
@@ -122,10 +128,17 @@ class RemoteAi implements AiService, AiRunMetadata, AiAccessProvider {
           'invalid_input':
               'Revisa el grupo de fuentes y los límites de tamaño.',
           'provider_unavailable': 'El proveedor no pudo leer esta fuente. Revisa el formato o inténtalo después.',
+          'auth_required': 'Inicia sesión con Google para usar la IA.',
+          'google_account_required':
+              'La IA está disponible para cuentas de Google.',
+          'server_configuration': 'El servicio de IA aún no está configurado.',
+          'quota_unavailable':
+              'No se pudo verificar tu límite de uso. Inténtalo de nuevo.',
+          'budget_unavailable': 'No se pudo verificar el límite del servicio. Inténtalo más tarde.',
 
           'content_blocked': 'Esta función no puede crear o mejorar instrucciones para causar daño. Puedes trabajar con apuntes educativos seguros.',
           'daily_limit': 'Alcanzaste el límite diario. Vuelve mañana.',
-          'global_limit': 'El servidor alcanzó su límite de pruebas por hoy.',
+          'global_limit': 'El servicio de IA alcanzó su límite diario. Vuelve mañana.',
           'pair_required':
               'Vuelve a conectar este dispositivo al servidor de prueba.',
           'pro_required': 'La lectura de imágenes necesita habilitación Pro en el servidor de prueba.',
@@ -168,6 +181,64 @@ class RemoteAi implements AiService, AiRunMetadata, AiAccessProvider {
       throw const AppFailure('La IA devolvió un texto vacío.');
     }
     return value;
+  }
+
+  @override
+  Future<List<AiQuizQuestion>> generateQuiz(String text) async {
+    if (text.trim().isEmpty || text.length > 12000) {
+      throw const AppFailure(
+        'El apunte debe tener texto y no superar 12000 caracteres.',
+      );
+    }
+    final response = await _post('v1/transform', {
+      'text': text,
+      'action': 'quiz',
+    });
+    final rawQuestions = response['questions'];
+    if (rawQuestions is! List ||
+        rawQuestions.length < 3 ||
+        rawQuestions.length > 5) {
+      throw const AppFailure('La IA devolvió un cuestionario incompleto.');
+    }
+    final questions = <AiQuizQuestion>[];
+    for (final raw in rawQuestions) {
+      if (raw is! Map) {
+        throw const AppFailure('La IA devolvió una pregunta no válida.');
+      }
+      final prompt = raw['question'];
+      final rawOptions = raw['options'];
+      final answerIndex = raw['answerIndex'];
+      final explanation = raw['explanation'];
+      if (prompt is! String ||
+          prompt.trim().isEmpty ||
+          rawOptions is! List ||
+          rawOptions.length != 4 ||
+          answerIndex is! int ||
+          answerIndex < 0 ||
+          answerIndex >= 4 ||
+          (explanation != null && explanation is! String) ||
+          rawOptions.any(
+            (option) => option is! String || option.trim().isEmpty,
+          )) {
+        throw const AppFailure('La IA devolvió una pregunta no válida.');
+      }
+      final options = rawOptions
+          .cast<String>()
+          .map((option) => option.trim())
+          .toList();
+      if (options.map((option) => option.toLowerCase()).toSet().length != 4) {
+        throw const AppFailure('La IA devolvió opciones repetidas.');
+      }
+      questions.add(
+        AiQuizQuestion(
+          prompt: prompt.trim(),
+          options: options,
+          answerIndex: answerIndex,
+          explanation: explanation is String ? explanation.trim() : '',
+        ),
+      );
+    }
+    return questions;
   }
 
   @override

@@ -5,6 +5,79 @@ import 'entities.dart';
 /// Portable document operations. Only attachment identifiers enter the document.
 abstract final class NoteDocument {
   static const mediaKey = 'draftai-media';
+  static const tableKey = 'draftai-table';
+
+  /// Reads both the original attachment-id embed and resizable-image embeds.
+  static String? mediaId(dynamic data) {
+    if (data is! String || data.isEmpty) return null;
+    try {
+      final decoded = jsonDecode(data);
+      if (decoded is Map && decoded['id'] is String) {
+        return decoded['id'] as String;
+      }
+    } catch (_) {
+      // Existing notes store the attachment id directly.
+    }
+    return data;
+  }
+
+  static double mediaWidth(dynamic data) {
+    try {
+      final decoded = jsonDecode(data as String);
+      final width = decoded is Map ? decoded['width'] : null;
+      if (width is num) return width.toDouble().clamp(.2, 1).toDouble();
+    } catch (_) {
+      // Existing image embeds use the full available width.
+    }
+    return 1;
+  }
+
+  static String mediaAlignment(dynamic data) {
+    try {
+      final decoded = jsonDecode(data as String);
+      final alignment = decoded is Map ? decoded['alignment'] : null;
+      if (alignment == 'left' || alignment == 'right') return alignment;
+    } catch (_) {
+      // Existing image embeds are centered by default.
+    }
+    return 'center';
+  }
+
+  static String mediaData(
+    String id, {
+    double width = 1,
+    String alignment = 'center',
+  }) => jsonEncode({
+    'id': id,
+    'width': width.clamp(.2, 1).toDouble(),
+    'alignment': alignment == 'left' || alignment == 'right'
+        ? alignment
+        : 'center',
+  });
+
+  static List<List<String>> tableRows(dynamic data) {
+    try {
+      final decoded = jsonDecode(data as String);
+      if (decoded is! Map || decoded['rows'] is! List) return const [];
+      return (decoded['rows'] as List)
+          .take(12)
+          .map(
+            (row) => row is List
+                ? row.take(6).map((cell) {
+                    final text = cell.toString();
+                    return text.length <= 500 ? text : text.substring(0, 500);
+                  }).toList()
+                : <String>[],
+          )
+          .where((row) => row.isNotEmpty)
+          .toList();
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  static String tableText(dynamic data) =>
+      tableRows(data).map((row) => row.join(' | ')).join('\n');
   static List<Map<String, dynamic>> delta(Note note) {
     List<Map<String, dynamic>> ops;
     try {
@@ -25,7 +98,7 @@ abstract final class NoteDocument {
     }
     final used = ops
         .where((o) => o['insert'] is Map)
-        .map((o) => (o['insert'] as Map)[mediaKey])
+        .map((o) => mediaId((o['insert'] as Map)[mediaKey]))
         .whereType<String>()
         .toSet();
     // Legacy notes stored their media outside the document. Append them once.
@@ -48,7 +121,7 @@ abstract final class NoteDocument {
           .whereType<Map>()
           .map((o) => o['insert'])
           .whereType<Map>()
-          .map((m) => m[mediaKey])
+          .map((m) => mediaId(m[mediaKey]))
           .whereType<String>()
           .toSet();
     } catch (_) {
@@ -104,8 +177,21 @@ abstract final class NoteDocument {
           result.add(DocumentPart(text: text));
           text = '';
         }
-        final id = value[mediaKey];
-        if (id is String) result.add(DocumentPart(attachmentId: id));
+        final id = mediaId(value[mediaKey]);
+        if (id is String) {
+          result.add(
+            DocumentPart(
+              attachmentId: id,
+              imageWidth: mediaWidth(value[mediaKey]),
+              imageAlignment: mediaAlignment(value[mediaKey]),
+            ),
+          );
+        }
+        final table = value[tableKey];
+        if (table is String) {
+          final plain = tableText(table);
+          if (plain.isNotEmpty) result.add(DocumentPart(text: plain));
+        }
       } else if (value is String) {
         final lines = value.split('\n');
         for (var i = 0; i < lines.length; i++) {
@@ -162,10 +248,14 @@ class DocumentPart {
   final String? attachmentId;
   final int heading;
   final bool bullet;
+  final double imageWidth;
+  final String imageAlignment;
   const DocumentPart({
     this.text = '',
     this.attachmentId,
     this.heading = 0,
     this.bullet = false,
+    this.imageWidth = 1,
+    this.imageAlignment = 'center',
   });
 }

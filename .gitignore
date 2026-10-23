@@ -61,6 +61,8 @@ coverage/
 
 node_modules/
 !server/.env.example
+server/local.settings.json
+server/.azure/
 
 *.dpapi
 APIKey*.txt
