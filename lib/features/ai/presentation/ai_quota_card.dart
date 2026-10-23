@@ -11,7 +11,9 @@ class AiQuotaCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final service = ref.watch(aiPort);
-    final connection = service is AiConnection ? service : null;
+    final AiConnection? connection = service is AiConnection
+        ? service as AiConnection
+        : null;
     if (connection != null && !connection.isGoogleAccount) {
       return Surface(
         child: Column(

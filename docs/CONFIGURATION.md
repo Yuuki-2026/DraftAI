@@ -31,14 +31,22 @@ Después de desplegar Azure Functions, recompilar la app con AI_BASE_URL apuntan
 Contrato: POST v1/transform recibe {text, action: summarize|improve|quiz}; resumen/mejora devuelven {text} y cuestionarios devuelven {questions: [{question, options, answerIndex, explanation}]}. POST v1/analyze procesa fuentes dentro de los límites del servicio. La API requiere una cuenta Google, rechaza entradas inválidas o excesivas y no devuelve credenciales del proveedor.
 
 ## Firma Android
-La firma de esta entrega se conserva localmente en `android/draftai-release.jks`; las contraseñas están en `android/key.properties`, ambos ignorados por Git. Copiar ambos a un respaldo privado del propietario. Nunca adjuntarlos a una release. Se necesita la misma firma para actualizar una instalación existente.
+La beta 4 usa una firma nueva conservada localmente en `android/draftai-release.jks`; sus contraseñas están en `android/key.properties`. Ambos archivos están ignorados por Git. Guardar una copia privada y conservarlos para firmar también la beta 5; nunca adjuntarlos a una release. La beta 4 no actualiza instalaciones firmadas con la clave anterior: requiere desinstalar la versión previa, lo cual borra sus datos locales.
 
 ## Copias locales
 SQLite cifra los contenidos, no las fechas ni los identificadores. Las exportaciones y copias ZIP se entregan legibles por petición explícita del usuario. El ZIP contiene library.json y attachments/; no incluye credenciales ni la clave de cifrado. Actualmente puede recuperarse fuera de la app; no hay importador de copias ZIP en esta versión.
 
-## Certificado público de la release 0.1.0
-SHA-1 para Firebase: `57:6E:26:AB:21:54:B1:E6:BF:6F:0E:B1:6E:D9:28:5E:5C:1A:26:6E`
+## Certificado público de beta 4
+Añadir esta SHA-1 en Firebase → Configuración del proyecto → Tus apps → DraftAI Android → Huellas digitales SHA. Luego descargar el `google-services.json` actualizado y reemplazar `android/app/google-services.json` antes de compilar para habilitar Google Sign-In con esta firma.
 
-SHA-256 del certificado: `35:78:18:AA:CA:9A:DB:9F:DC:D7:85:5D:C2:92:30:75:30:95:47:FF:C6:49:B5:87:C4:D1:1F:2F:50:68:32:2D`
+SHA-1: `BA:91:5F:8D:C3:A4:5F:5C:A6:FD:39:BD:90:5C:10:03:7A:1D:80:3B`
+
+SHA-256: `D3:4C:2B:F5:EF:AA:9A:5D:D3:AC:43:D4:4C:0B:FD:CA:C2:4F:DF:D1:C5:34:62:1B:10:2B:32:43:EB:71:5F:94`
+
+Huellas históricas de la release 0.1.0:
+
+SHA-1: `57:6E:26:AB:21:54:B1:E6:BF:6F:0E:B1:6E:D9:28:5E:5C:1A:26:6E`
+
+SHA-256: `35:78:18:AA:CA:9A:DB:9F:DC:D7:85:5D:C2:92:30:75:30:95:47:FF:C6:49:B5:87:C4:D1:1F:2F:50:68:32:2D`
 
 Estos valores son públicos; no contienen la clave privada.

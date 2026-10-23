@@ -193,8 +193,9 @@ class GatewayAi
   @override
   String get lastModel {
     final service = _activeService;
-    if (service is AiRunMetadata && service.lastModel.isNotEmpty) {
-      return service.lastModel;
+    if (service is AiRunMetadata) {
+      final metadata = service as AiRunMetadata;
+      if (metadata.lastModel.isNotEmpty) return metadata.lastModel;
     }
     return model;
   }

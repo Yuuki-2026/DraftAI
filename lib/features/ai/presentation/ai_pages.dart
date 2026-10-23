@@ -59,7 +59,9 @@ class _AiPageState extends ConsumerState<AiPage> {
 
   Future<void> _verifyConnection() async {
     final service = ref.read(aiPort);
-    final connection = service is AiConnection ? service : null;
+    final AiConnection? connection = service is AiConnection
+        ? service as AiConnection
+        : null;
     if (connection == null || !service.configured) {
       if (mounted) setState(() => verified = false);
       return;
