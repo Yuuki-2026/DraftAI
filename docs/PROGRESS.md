@@ -265,3 +265,11 @@ No se compiló el APK, no se ejecutaron pruebas ni análisis, no se desplegó Az
 
 ### Norma añadida por la aclaración del propietario · 22/10/2026
 La clave OpenAI de DraftAI solo reside en Azure y se usa mediante sesión Google autenticada; nunca se incluye en Flutter ni en APK. Las cuentas Google no muestran la configuración de IA de Invitado. Invitado solo usa su URL/modelo/clave propios, guardados en el almacén seguro local, y no accede al backend Azure con esa credencial.
+
+## Publicación beta 4 · 22/10/2026
+
+**Publicado:** [DraftAI 0.2.3-beta.4 · Android · Beta testing](https://github.com/Yuuki-2026/DraftAI/releases/tag/v0.2.3-beta.4), con `DraftAI-0.2.3-beta.4-android.apk` y `SHA256SUMS.txt`. Tag compilado: `v0.2.3-beta.4`, commit `40a25a8`.
+
+Versión `0.2.3-beta.4+9`, APK de 85,863,143 bytes. Firma de lanzamiento nueva para este build; solo esquema APK v2 verificado. SHA-256 del APK: `a57c7cbdbdd9fc5bc5dbeaab8987ed9414d6561cc78c2927a2cdb903bf33b626`. La huella de firma y los pasos de configuración de Firebase están en `docs/CONFIGURATION.md`. Para las siguientes actualizaciones, conservar los archivos locales ignorados `android/draftai-release.jks` y `android/key.properties`.
+
+Compilación `flutter build apk --release` completada. No se ejecutaron pruebas automatizadas, no se instaló el APK ni se probó en el teléfono. Al cambiar la firma, se requiere instalación limpia; registrar la SHA-1 de beta 4 y actualizar la configuración Firebase antes de usar Google Sign-In. El endpoint Azure sigue pendiente y la IA de Google se configurará para beta 5.
