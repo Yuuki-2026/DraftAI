@@ -273,3 +273,17 @@ La clave OpenAI de DraftAI solo reside en Azure y se usa mediante sesión Google
 Versión `0.2.3-beta.4+9`, APK de 85,863,143 bytes. Firma de lanzamiento nueva para este build; solo esquema APK v2 verificado. SHA-256 del APK: `a57c7cbdbdd9fc5bc5dbeaab8987ed9414d6561cc78c2927a2cdb903bf33b626`. La huella de firma y los pasos de configuración de Firebase están en `docs/CONFIGURATION.md`. Para las siguientes actualizaciones, conservar los archivos locales ignorados `android/draftai-release.jks` y `android/key.properties`.
 
 Compilación `flutter build apk --release` completada. No se ejecutaron pruebas automatizadas, no se instaló el APK ni se probó en el teléfono. Al cambiar la firma, se requiere instalación limpia; registrar la SHA-1 de beta 4 y actualizar la configuración Firebase antes de usar Google Sign-In. El endpoint Azure sigue pendiente y la IA de Google se configurará para beta 5.
+
+## Correcciones locales de exportación, edición y perfil · 22/10/2026
+
+- [x] Reemplazar `android/app/google-services.json` por el archivo descargado más reciente; se verificó que es JSON válido, declara el paquete Android de DraftAI y contiene tres entradas OAuth.
+- [x] Hacer cuadrado y adaptable al espacio de pantalla el recorte circular de la foto de perfil. El recorte se centra al abrir y conserva la resolución de origen disponible; el avatar usa una resolución de caché acorde a su tamaño en pantalla.
+- [x] Añadir un botón de tabla visible en la barra de edición, insertar filas y columnas, editar la tabla y representarla como cuadrícula en el apunte.
+- [x] Mostrar controles de esquina al seleccionar una imagen insertada, para cambiar su ancho y alineación.
+- [x] En la previsualización PDF/Word, quitar el control global de tamaño; cada imagen se selecciona en la hoja para ajustar el tamaño, alineación y posición por arrastre.
+- [x] Corregir exportación y copia TXT/Markdown: el texto queda en su orden y las imágenes se representan en línea como `<<nombre-del-archivo>>`, sin lista de adjuntos ni URI `content://` al copiar.
+- [x] Mejorar el diálogo de fórmula LaTeX para previsualizar la fórmula y restaurar la selección original del editor al insertar.
+- [x] Mantener el icono de nota y ubicar el control de selección al extremo derecho en la vista de lista.
+- [x] Ajustar el paso de las líneas, cuadrícula y puntos al desplazamiento y estilo de escritura; ampliar traducciones al inglés para los diálogos, errores, exportación, preferencias, cuota y contenido de ayuda.
+
+Comprobaciones realizadas: `dart format` en 18 archivos Dart; `git diff --check` sin errores; lectura del JSON de Firebase y comprobación del identificador de paquete. No se ejecutaron análisis estáticos, pruebas, emulador ni compilación APK. No se instaló en el teléfono ni se cambió GitHub. Pendiente: comprobar las interacciones y el acceso Google en el teléfono. Azure no está desplegado y esta modificación no genera un APK beta.

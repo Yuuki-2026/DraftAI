@@ -251,7 +251,7 @@ class _NotePageState extends ConsumerState<NotePage> {
           status = 'No se pudo guardar. Toca Guardar para reintentar.';
         });
       }
-      if (mounted) message(context, '$e');
+      if (mounted) message(context, localizedFailure(context, e));
       return false;
     }
   }
@@ -554,7 +554,7 @@ class _NotePageState extends ConsumerState<NotePage> {
                   ),
                 if (saving || aiBusy) const LinearProgressIndicator(),
                 if (dirty && !saving && status.startsWith('No se pudo'))
-                  Text(status),
+                  Text(tr(context, status)),
                 if (editing)
                   TextField(
                     key: const Key('note-title'),
@@ -656,7 +656,11 @@ class _NotePageState extends ConsumerState<NotePage> {
                       style: pageStyle,
                       color: Theme.of(context).colorScheme.onSurface,
                       scale: reading ? readingScale : 1,
-                      scrollController: editing ? editorScroll : null,
+                      scrollController: editing
+                          ? editorScroll
+                          : reading
+                          ? scroll
+                          : null,
                     ),
                     child: MediaQuery(
                       data: MediaQuery.of(context).copyWith(
@@ -839,6 +843,7 @@ class _NotePageState extends ConsumerState<NotePage> {
                             NoteFormatBar(
                               controller: editor,
                               onFormula: _formula,
+                              onInsertTable: _insertTable,
                               onDismissKeyboard: _dismissEditorKeyboard,
                               onPersistentColorChanged:
                                   _setPersistentEditorColor,
@@ -1310,16 +1315,16 @@ class _NotePageState extends ConsumerState<NotePage> {
   }
 
   Future<void> _insertTable() async {
+    final selection = editor.selection;
+    _dismissEditorKeyboard();
     final rows = await _tableDialog();
     if (rows == null || !mounted) return;
     final data = jsonEncode({
       'id': ref.read(controllerProvider.notifier).newId(),
       'rows': rows,
     });
-    var position = editor.selection.extentOffset.clamp(
-      0,
-      editor.document.length - 1,
-    );
+    editor.updateSelection(selection, q.ChangeSource.local);
+    var position = selection.extentOffset.clamp(0, editor.document.length - 1);
     editor.replaceText(
       position,
       0,
@@ -1388,39 +1393,67 @@ class _NotePageState extends ConsumerState<NotePage> {
   Future<void> _formula() async {
     var input = '';
     final selection = editor.selection;
+    _dismissEditorKeyboard();
     final value = await showDialog<String>(
       context: context,
-      builder: (c) => AlertDialog(
-        title: Text(tr(c, 'Fórmula')),
-        content: TextField(
-          onChanged: (value) => input = value,
-          autofocus: true,
-          minLines: 1,
-          maxLines: 4,
-          decoration: InputDecoration(
-            hintText: r'\frac{a}{b} = \sqrt{x}',
-            helperText: tr(
-              c,
-              'La fórmula se verá renderizada al guardar el apunte.',
+      builder: (c) => StatefulBuilder(
+        builder: (c, setDialogState) {
+          final preview = input.trim().isEmpty
+              ? ''
+              : noteMathPattern.hasMatch(input)
+              ? input
+              : r'\(' + input + r'\)';
+          return AlertDialog(
+            title: Text(tr(c, 'Fórmula')),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                TextField(
+                  onChanged: (value) => setDialogState(() => input = value),
+                  autofocus: true,
+                  minLines: 1,
+                  maxLines: 4,
+                  decoration: InputDecoration(
+                    hintText: r'\frac{a}{b} = \sqrt{x}',
+                    helperText: tr(
+                      c,
+                      'La fórmula se verá renderizada al guardar el apunte.',
+                    ),
+                  ),
+                ),
+                if (preview.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  Surface(
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: NoteMathText(preview),
+                    ),
+                  ),
+                ],
+              ],
             ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(c),
-            child: Text(tr(c, 'Cancelar')),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(c, input.trim()),
-            child: Text(tr(c, 'Insertar')),
-          ),
-        ],
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(c),
+                child: Text(tr(c, 'Cancelar')),
+              ),
+              FilledButton(
+                onPressed: input.trim().isEmpty
+                    ? null
+                    : () => Navigator.pop(c, input.trim()),
+                child: Text(tr(c, 'Insertar')),
+              ),
+            ],
+          );
+        },
       ),
     );
     if (value == null || value.isEmpty || !mounted) return;
     final start = selection.start.clamp(0, editor.document.length - 1);
-    final length =
-        selection.end.clamp(start, editor.document.length - 1) - start;
+    final end = selection.end.clamp(start, editor.document.length - 1);
+    final length = end - start;
+    editor.updateSelection(selection, q.ChangeSource.local);
     final formula = noteMathPattern.hasMatch(value)
         ? value
         : r'\(' + value + r'\)';
@@ -1972,6 +2005,7 @@ Future<void> exportMenu(
   if (format == null || !context.mounted) return;
   var options = const ExportOptions();
   var separateFiles = false;
+  String? textDelivery;
   if (format == ExportFormat.pdf || format == ExportFormat.word) {
     final request = await Navigator.of(context).push<ExportRequest>(
       MaterialPageRoute(
@@ -1982,39 +2016,43 @@ Future<void> exportMenu(
     options = request.options;
     separateFiles = request.separateFiles;
   } else {
-    final imageNames = <String>{
-      for (final note in notes)
-        for (final part in NoteDocument.parts(note))
-          if (part.attachmentId != null)
-            for (final attachment in note.attachments)
-              if (attachment.id == part.attachmentId &&
-                  attachment.mime.startsWith('image/'))
-                attachment.name.split(RegExp(r'[/\\]')).last,
-    };
-    if (imageNames.isNotEmpty) {
-      final proceed = await showDialog<bool>(
-        context: context,
-        builder: (dialogContext) => AlertDialog(
-          title: Text(tr(dialogContext, 'Antes de exportar')),
-          content: Text(
-            '${tr(dialogContext, 'Las imágenes no se incrustan en este formato; se marcará su posición con el nombre del archivo.')}\n\n${imageNames.take(8).map((name) => '• $name').join('\n')}',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, false),
-              child: Text(tr(dialogContext, 'Cancelar')),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(dialogContext, true),
-              child: Text(tr(dialogContext, 'Exportar')),
-            ),
-          ],
+    textDelivery = await showActionPanel<String>(
+      context,
+      title: tr(context, 'Exportar texto'),
+      caption: 'ELIGE CÓMO CONTINUAR',
+      choice: true,
+      actions: const [
+        PanelAction(
+          'copy',
+          'Copiar contenido',
+          'Copiar el texto para pegarlo en otra aplicación',
+          Icons.content_copy_outlined,
         ),
-      );
-      if (proceed != true || !context.mounted) return;
-    }
+        PanelAction(
+          'file',
+          'Compartir archivo',
+          'Crear un archivo .txt o .md',
+          Icons.share_outlined,
+        ),
+      ],
+    );
+    if (textDelivery == null || !context.mounted) return;
   }
   final exporter = ref.read(exportPort);
+  if (textDelivery == 'copy') {
+    if (exporter is! PlainTextExportService) return;
+    await Clipboard.setData(
+      ClipboardData(
+        text: exporter.plainText(
+          notes,
+          markdown: format == ExportFormat.markdown,
+        ),
+      ),
+    );
+    if (context.mounted)
+      message(context, tr(context, 'Copiado al portapapeles.'));
+    return;
+  }
   await runAction(context, () async {
     if (exporter is ConfigurableExportService) {
       await exporter.exportConfigured(

@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app/di.dart';
 import 'core/presentation/design.dart';
+import 'core/presentation/strings.dart';
 import 'features/notes/domain/ports.dart';
 import 'features/notes/domain/use_cases.dart';
 import 'features/notes/presentation/controller.dart';
@@ -52,34 +53,56 @@ Future<void> main() async {
         child: const DraftApp(),
       ),
     );
-  } catch (e) {
+  } catch (_) {
     runApp(
       MaterialApp(
         theme: appTheme(Brightness.dark),
-        home: Scaffold(
-          body: SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.lock_outline, size: 48),
-                  const SizedBox(height: 20),
-                  const Text('No se pudo abrir tu biblioteca'),
-                  const SizedBox(height: 12),
-                  Text('$e'),
-                  const SizedBox(height: 20),
-                  const Text(
-                    'Tus datos no se han borrado. Cierra la app, desbloquea el dispositivo y vuelve a intentar.',
-                  ),
-                ],
-              ),
-            ),
-          ),
+        locale: Locale(
+          WidgetsBinding.instance.platformDispatcher.locale.languageCode == 'en'
+              ? 'en'
+              : 'es',
         ),
+        supportedLocales: const [Locale('es'), Locale('en')],
+        localizationsDelegates: const [
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+          FlutterQuillLocalizations.delegate,
+        ],
+        home: const _StartupErrorPage(),
       ),
     );
   }
+}
+
+class _StartupErrorPage extends StatelessWidget {
+  const _StartupErrorPage();
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    body: SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.lock_outline, size: 48),
+            const SizedBox(height: 20),
+            Text(tr(context, 'No se pudo abrir tu biblioteca')),
+            const SizedBox(height: 12),
+            Text(tr(context, 'Ocurrió un error. Inténtalo de nuevo.')),
+            const SizedBox(height: 20),
+            Text(
+              tr(
+                context,
+                'Tus datos no se han borrado. Cierra la app, desbloquea el dispositivo y vuelve a intentar.',
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
 }
 
 class DraftApp extends ConsumerWidget {
@@ -113,7 +136,11 @@ class DraftApp extends ConsumerWidget {
         data: (s) => s.entered ? const LibraryPage() : const WelcomePage(),
         loading: () =>
             const Scaffold(body: Center(child: CircularProgressIndicator())),
-        error: (e, _) => Scaffold(body: Center(child: Text('$e'))),
+        error: (_, _) => Scaffold(
+          body: Center(
+            child: Text(tr(context, 'Ocurrió un error. Inténtalo de nuevo.')),
+          ),
+        ),
       ),
     );
   }

@@ -295,6 +295,7 @@ class _EmbeddedMediaState extends ConsumerState<EmbeddedMedia> {
                                   child: _ResizableMediaImage(
                                     bytes: s.data!,
                                     widthFactor: widthFactor,
+                                    maxWidth: width,
                                     editable: selected,
                                     onResize: selected ? widget.onResize : null,
                                     onResizePreview: selected
@@ -394,7 +395,7 @@ class _ImageAlignmentControls extends StatelessWidget {
 
 class _ResizableMediaImage extends StatefulWidget {
   final Uint8List bytes;
-  final double widthFactor;
+  final double widthFactor, maxWidth;
   final bool editable;
   final ValueChanged<double>? onResize;
   final ValueChanged<double>? onResizePreview;
@@ -402,6 +403,7 @@ class _ResizableMediaImage extends StatefulWidget {
   const _ResizableMediaImage({
     required this.bytes,
     required this.widthFactor,
+    required this.maxWidth,
     required this.editable,
     required this.onResize,
     required this.onResizePreview,
@@ -414,8 +416,6 @@ class _ResizableMediaImage extends StatefulWidget {
 
 class _ResizableMediaImageState extends State<_ResizableMediaImage> {
   late double widthFactor = widget.widthFactor;
-  double dragDirection = 1;
-  double dragWidth = 0;
 
   @override
   void didUpdateWidget(covariant _ResizableMediaImage oldWidget) {
@@ -425,38 +425,55 @@ class _ResizableMediaImageState extends State<_ResizableMediaImage> {
     }
   }
 
-  Widget _handle(double direction, Alignment alignment) => Align(
-    alignment: alignment,
-    child: GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onPanStart: (_) {
-        dragDirection = direction;
-        dragWidth = context.size?.width ?? 1;
-      },
-      onPanUpdate: (details) => setState(() {
-        widthFactor =
-            (widthFactor + details.delta.dx * dragDirection / dragWidth)
-                .clamp(.2, 1)
-                .toDouble();
-        widget.onResizePreview?.call(widthFactor);
-      }),
-      onPanEnd: (_) => widget.onResize?.call(widthFactor),
-      child: Padding(
-        padding: const EdgeInsets.all(5),
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surface,
-            border: Border.all(
-              color: Theme.of(context).colorScheme.primary,
-              width: 1.5,
+  Widget _handle(
+    Alignment alignment, {
+    required double horizontal,
+    required double vertical,
+  }) {
+    final screenAnchor = switch (alignment) {
+      Alignment.topLeft => (left: -8.0, right: null, top: -8.0, bottom: null),
+      Alignment.topRight => (left: null, right: -8.0, top: -8.0, bottom: null),
+      Alignment.bottomLeft => (
+        left: -8.0,
+        right: null,
+        top: null,
+        bottom: -8.0,
+      ),
+      _ => (left: null, right: -8.0, top: null, bottom: -8.0),
+    };
+    return Positioned(
+      left: screenAnchor.left,
+      right: screenAnchor.right,
+      top: screenAnchor.top,
+      bottom: screenAnchor.bottom,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onPanUpdate: (details) => setState(() {
+          final delta =
+              (details.delta.dx * horizontal + details.delta.dy * vertical) /
+              2 /
+              widget.maxWidth;
+          widthFactor = (widthFactor + delta).clamp(.2, 1).toDouble();
+          widget.onResizePreview?.call(widthFactor);
+        }),
+        onPanEnd: (_) => widget.onResize?.call(widthFactor),
+        child: Padding(
+          padding: const EdgeInsets.all(2),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surface,
+              border: Border.all(
+                color: Theme.of(context).colorScheme.primary,
+                width: 1.5,
+              ),
+              borderRadius: BorderRadius.circular(3),
             ),
-            borderRadius: BorderRadius.circular(3),
+            child: const SizedBox(width: 14, height: 14),
           ),
-          child: const SizedBox(width: 12, height: 12),
         ),
       ),
-    ),
-  );
+    );
+  }
 
   @override
   Widget build(BuildContext context) => Stack(
@@ -472,10 +489,10 @@ class _ResizableMediaImageState extends State<_ResizableMediaImage> {
             Text(tr(context, 'No se pudo abrir la imagen.')),
       ),
       if (widget.editable && widget.onResize != null) ...[
-        _handle(-1, Alignment.topLeft),
-        _handle(1, Alignment.topRight),
-        _handle(-1, Alignment.bottomLeft),
-        _handle(1, Alignment.bottomRight),
+        _handle(Alignment.topLeft, horizontal: -1, vertical: -1),
+        _handle(Alignment.topRight, horizontal: 1, vertical: -1),
+        _handle(Alignment.bottomLeft, horizontal: -1, vertical: 1),
+        _handle(Alignment.bottomRight, horizontal: 1, vertical: 1),
       ],
     ],
   );

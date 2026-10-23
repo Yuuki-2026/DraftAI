@@ -61,7 +61,7 @@ Future<bool> connectAiDialog(
                   autocorrect: false,
                   decoration: InputDecoration(
                     labelText: tr(dialog, 'Modelo'),
-                    hintText: 'nombre-del-modelo',
+                    hintText: tr(dialog, 'nombre-del-modelo'),
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -123,7 +123,7 @@ Future<bool> connectAiDialog(
                       } catch (e) {
                         if (dialog.mounted) {
                           set(() {
-                            error = '$e';
+                            error = localizedFailure(context, e);
                             busy = false;
                           });
                         }

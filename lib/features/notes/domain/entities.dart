@@ -121,20 +121,24 @@ enum ExportFormat { pdf, word, text, markdown }
 
 /// Presentation controls shared by PDF and Word exports.
 class ExportOptions {
-  final double imageScale;
   final double titleSize;
   final double pageMargin;
   final bool showPageNumbers;
   final bool includeDate;
   final String footer;
+  final Map<String, double> imageWidths;
+  final Map<String, String> imageAlignments;
+  final Map<String, List<int>> partOrder;
 
   const ExportOptions({
-    this.imageScale = 1,
     this.titleSize = 24,
     this.pageMargin = 36,
     this.showPageNumbers = true,
     this.includeDate = true,
     this.footer = '',
+    this.imageWidths = const {},
+    this.imageAlignments = const {},
+    this.partOrder = const {},
   });
 }
 

@@ -41,7 +41,7 @@ const english = <String, String>{
   "DE": "OF",
   "Seleccionar": "Select",
   "Actualizado": "Updated",
-  "Hace": "Ago",
+  "Hace": "ago",
   "días": "days",
   "La fórmula se verá renderizada al guardar el apunte.":
       "The formula will be rendered after saving the note.",
@@ -290,6 +290,11 @@ const english = <String, String>{
   'El límite se reinicia a medianoche, hora de Lima. Cada operación correcta cuenta como un uso.': 'The limit resets at midnight Lima time. Each successful operation counts as one use.',
   'El servidor de IA no tiene habilitado el análisis de imágenes.':
       'Image analysis is not enabled on the AI server.',
+  'Funciones': 'Features',
+  'Sí': 'Yes',
+  'Pro demo': 'Pro demo',
+  'Acceso Pro autorizado': 'Authorized Pro access',
+  'nombre-del-modelo': 'model-name',
   'Conectar': 'Connect',
   'Desconectar': 'Disconnect',
   'IA conectada': 'AI connected',
@@ -671,6 +676,189 @@ const extraEnglish = <String, String>{
   'Incluir fecha': 'Include date',
   'Mostrar número de página': 'Show page number',
   'Las imágenes no se incrustan en este formato; se marcará su posición con el nombre del archivo.': 'Images are not embedded in this format; their position will be marked with the file name.',
+  'Añadir': 'Add',
+  'Bienvenido': 'Welcome',
+  'Captura': 'Capture',
+  'Cargar biblioteca de ejemplo': 'Load sample library',
+  'Carpeta': 'Folder',
+  'Conecta la IA para resumir tus apuntes. No se generará un resultado simulado.': 'Connect an AI service to summarize your notes. No simulated result will be generated.',
+  'Desinstalar la app elimina sus datos y su clave. Exporta antes los apuntes que quieras conservar.': 'Uninstalling the app deletes its data and key. Export any notes you want to keep first.',
+  'Escribe la carpeta y el título del apunte.':
+      'Enter the folder and note title.',
+  'Explora las herramientas inteligentes. Los planes son demostrativos: no se realizan cobros.':
+      'Explore the smart tools. Plans are demonstrations; no charges are made.',
+  'Extracción parcial: revisa el original antes de guardar.':
+      'Partial extraction: review the original before saving.',
+  'Guardado': 'Saved',
+  'Guardar en': 'Save to',
+  'Hasta 20 fuentes por lote. La IA procesa grupos de hasta 5 y 10 MB; PDF de hasta 12 páginas, TXT/MD y fotos.': 'Up to 20 sources per batch. AI processes groups of up to 5 files and 10 MB; PDFs up to 12 pages, TXT/MD files, and photos.',
+  'La IA lee las fuentes, prepara un resumen interno y sugiere carpeta y apunte.': 'AI reads the sources, prepares an internal summary, and suggests a folder and note.',
+  'La IA necesita conexión. Gratis usa Groq; Pro autorizado usa GPT-5 nano para texto, imágenes, PDF y TXT/MD. Cada resultado indica el modelo utilizado. Los planes no procesan pagos.': 'AI requires an internet connection. Free uses Groq; authorized Pro uses GPT-5 nano for text, images, PDF, and TXT/MD. Each result shows the model used. Plans do not process payments.',
+  'Licencias': 'Licenses',
+  'Mueve los apuntes o elimínalos definitivamente de la papelera antes de borrar la carpeta.': 'Move the notes or permanently delete them from the trash before deleting the folder.',
+  'No se pudo consultar la cuota. Actualiza para reintentar.':
+      'Could not check the quota. Refresh to try again.',
+  'No se pudo leer con claridad. Puedes adjuntarlo manualmente.':
+      'The content could not be read clearly. You can attach it manually.',
+  'Nuevo apunte': 'New note',
+  'Privacidad': 'Privacy',
+  'Propuesta': 'Suggestion',
+  'Selecciona al menos una fuente.': 'Select at least one source.',
+  'Sin resultados': 'No results',
+  'Solo se muestran resultados cuando el proveedor responde. No se guarda nada sin tu revisión.': 'Results appear only when the provider responds. Nothing is saved without your review.',
+  'Todos / ninguno': 'All / none',
+  'Tus apuntes e imágenes permanecen cifrados en el almacenamiento privado de la app. La clave se protege con Keystore/Keychain. No existe sincronización entre dispositivos.': 'Your notes and images stay encrypted in the app’s private storage. The key is protected by Keystore/Keychain. There is no device-to-device sync.',
+  'Usos de IA': 'AI usage',
+  'Exportar texto': 'Export text',
+  'Copiar contenido': 'Copy content',
+  'Copiar el texto para pegarlo en otra aplicación':
+      'Copy text to paste into another app',
+  'Compartir archivo': 'Share file',
+  'Crear un archivo .txt o .md': 'Create a .txt or .md file',
+  'Apunte anterior': 'Previous note',
+  'Siguiente apunte': 'Next note',
+  'Mantén pulsado y arrastra para mover': 'Press and hold, then drag to move',
+  'Seleccionar apunte': 'Select note',
+  'Texto copiado al portapapeles.': 'Text copied to clipboard.',
+  'Abrir perfil': 'Open profile',
+  'Actualizar': 'Refresh',
+  'apuntes': 'notes',
+  'elementos': 'items',
+  'seleccionados': 'selected',
+  'Alcanzaste el límite diario de IA. Podrás volver a usarla mañana.':
+      'You reached the daily AI limit. You can use it again tomorrow.',
+  'Alcanzaste el límite diario de IA. Vuelve a intentarlo mañana.':
+      'You reached the daily AI limit. Try again tomorrow.',
+  'Archivo vacío o mayor de 15 MB.': 'The file is empty or larger than 15 MB.',
+  'Cada archivo debe pesar menos de 15 MB.':
+      'Each file must be smaller than 15 MB.',
+  'Cada fuente para IA debe pesar hasta 8 MB.':
+      'Each AI source must be no larger than 8 MB.',
+  'Cada imagen debe pesar menos de 15 MB.':
+      'Each image must be smaller than 15 MB.',
+  'Conecta la IA para generar un cuestionario.':
+      'Connect an AI service to generate a quiz.',
+  'Divide el lote: admite hasta 60 MB en total.':
+      'Split the batch. The total limit is 60 MB.',
+  'El OCR está disponible en la vista previa de Pro. En Gratis puedes adjuntar imágenes sin procesarlas.': 'OCR is available in the Pro preview. On Free, you can attach images without processing them.',
+  'El PDF está dañado, protegido o no es compatible.':
+      'The PDF is damaged, protected, or unsupported.',
+  'El apunte no contiene texto para procesar.':
+      'The note has no text to process.',
+  'El archivo supera 15 MB.': 'The file is larger than 15 MB.',
+  'El contenido de un apunte no se pudo trasladar. Tus datos de Invitado siguen intactos.':
+      'A note could not be transferred. Your Guest data is still intact.',
+  'El contenido del archivo no coincide con su formato o supera los límites permitidos.': 'The file content does not match its format or exceeds the allowed limits.',
+  'El historial de destino no coincide. Los apuntes de Invitado siguen intactos.': 'The destination history does not match. Your Guest notes are still intact.',
+  'El lote admite hasta 20 fuentes.': 'A batch can contain up to 20 sources.',
+  'El proveedor devolvió un resultado no válido.':
+      'The provider returned an invalid result.',
+  'El servicio de IA alcanzó su límite diario. Vuelve a intentarlo mañana.':
+      'The AI service reached its daily limit. Try again tomorrow.',
+  'El servicio de IA debe usar HTTPS.': 'The AI service must use HTTPS.',
+  'El título debe tener entre 1 y 200 caracteres.':
+      'The title must contain 1 to 200 characters.',
+  'Escribe una categoría de hasta 80 caracteres.':
+      'Enter a category name up to 80 characters long.',
+  'Espera a que termine la operación actual.':
+      'Wait for the current operation to finish.',
+  'Falta la clave de los datos existentes. No se reemplazará ni borrará tu biblioteca.': 'The key for existing data is missing. Your library will not be replaced or deleted.',
+  'Falta un resultado por fuente.':
+      'A result is missing for one of the sources.',
+  'Faltan resultados de algunas fuentes.': 'Some sources are missing results.',
+  'Formato de apunte no compatible.': 'Unsupported note format.',
+  'Google no devolvió un token de acceso válido.':
+      'Google did not return a valid access token.',
+  'Google no devolvió una cuenta válida.':
+      'Google did not return a valid account.',
+  'Identificador de archivo no válido.': 'Invalid file identifier.',
+  'Imagen demasiado grande.': 'The image is too large.',
+  'Inicia sesión con Google para usar el servicio de IA.':
+      'Sign in with Google to use the AI service.',
+  'La IA devolvió opciones repetidas.': 'The AI returned duplicate options.',
+  'La IA devolvió un cuestionario incompleto.':
+      'The AI returned an incomplete quiz.',
+  'La IA devolvió un texto vacío.': 'The AI returned empty text.',
+  'La IA devolvió una pregunta no válida.':
+      'The AI returned an invalid question.',
+  'La IA devolvió una respuesta estructurada no válida.':
+      'The AI returned an invalid structured response.',
+  'La carpeta debe tener entre 1 y 80 caracteres.':
+      'The folder name must contain 1 to 80 characters.',
+  'La categoría no pertenece a esta carpeta.':
+      'This category does not belong to the selected folder.',
+  'La conexión de IA de Google se administra desde DraftAI.':
+      'Google AI access is managed by DraftAI.',
+  'La imagen está dañada o excede el tamaño permitido.':
+      'The image is damaged or exceeds the allowed size.',
+  'Los ejemplos ya están cargados.': 'The sample notes are already loaded.',
+  'Mueve o elimina definitivamente los apuntes de esta carpeta primero.':
+      'Move or permanently delete this folder’s notes first.',
+  'No se pudo abrir el almacén seguro. Desbloquea el dispositivo y vuelve a intentar.':
+      'Could not open secure storage. Unlock the device and try again.',
+  'No se pudo abrir la cámara o los archivos. Revisa los permisos del dispositivo.':
+      'Could not open the camera or files. Check device permissions.',
+  'No se pudo conectar con la IA o su respuesta no es válida.':
+      'Could not connect to AI, or its response was invalid.',
+  'No se pudo identificar esta cuenta de Google.':
+      'Could not identify this Google account.',
+  'No se pudo identificar la cuenta de destino.':
+      'Could not identify the destination account.',
+  'No se pudo iniciar Firebase. Revisa la configuración de Android y vuelve a intentarlo.': 'Could not start Firebase. Check the Android configuration and try again.',
+  'No se pudo iniciar sesión con Google. Revisa la cuenta y la conexión, e inténtalo de nuevo.': 'Could not sign in with Google. Check the account and connection, then try again.',
+  'No se pudo leer el archivo adjunto.': 'Could not read the attachment.',
+  'No se pudo preparar una imagen para Word.':
+      'Could not prepare an image for Word.',
+  'No se pudo proteger la clave de los apuntes.':
+      'Could not protect the notes key.',
+  'No se pudo retirar la clave de los apuntes.':
+      'Could not remove the notes key.',
+  'No se pudo verificar el contenido de un apunte. Los apuntes de Invitado siguen intactos; vuelve a intentarlo.':
+      'Could not verify a note. Your Guest notes are still intact; try again.',
+  'No se pudo verificar el contenido del historial. Los apuntes de Invitado siguen intactos; vuelve a intentarlo.': 'Could not verify the note history. Your Guest notes are still intact; try again.',
+  'No se pudo verificar el historial de un apunte. Los apuntes de Invitado siguen intactos; vuelve a intentarlo.': 'Could not verify a note history. Your Guest notes are still intact; try again.',
+  'No se pudo verificar la integridad del contenido cifrado.':
+      'Could not verify the integrity of the encrypted content.',
+  'No se pudo verificar todo el traslado. Tus apuntes de Invitado siguen intactos; vuelve a intentarlo.': 'Could not verify the full transfer. Your Guest notes are still intact; try again.',
+  'No se pudo verificar un archivo trasladado. Los apuntes de Invitado siguen intactos; vuelve a intentarlo.': 'Could not verify a transferred file. Your Guest notes are still intact; try again.',
+  'No se pudo verificar una versión del historial. Los apuntes de Invitado siguen intactos.':
+      'Could not verify a history version. Your Guest notes are still intact.',
+  'Operación cancelada. Tus archivos se conservan.':
+      'Operation cancelled. Your files are preserved.',
+  'Selecciona al menos una imagen o documento.':
+      'Select at least one image or document.',
+  'Selecciona al menos un apunte.': 'Select at least one note.',
+  'Selecciona texto de hasta 12000 caracteres.':
+      'Select text up to 12,000 characters long.',
+  'Un archivo de destino no coincide con el original. Los apuntes de Invitado siguen intactos.': 'A destination file does not match the original. Your Guest notes are still intact.',
+  'No se pudo abrir tu biblioteca': 'Could not open your library',
+  'Tus datos no se han borrado. Cierra la app, desbloquea el dispositivo y vuelve a intentar.': 'Your data has not been deleted. Close the app, unlock your device, and try again.',
+  'Despliega o contrae la lista para revisar los apuntes':
+      'Expand or collapse the list to review the notes',
+  'Captura para revisar': 'Capture to review',
+  'Fuentes analizadas': 'Sources analyzed',
+  'El reconocimiento de voz no está disponible. Revisa el permiso de micrófono o escribe tu consulta.': 'Voice recognition is unavailable. Check microphone permission or type your query.',
+  'Selecciona solo texto para mejorarlo.': 'Select text only to improve it.',
+  'Ocurrió un error. Inténtalo de nuevo.': 'Something went wrong. Try again.',
+  'Renombrar apunte': 'Rename note',
+  'Analizar fuentes': 'Analyze sources',
+  'Importación manual': 'Manual import',
+  'Lectura de fuentes con IA': 'AI source reading',
+  'Elegir carpeta': 'Choose a folder',
+  'Los apuntes y archivos se cifran en el teléfono con una clave protegida por el sistema. Invitado y cada cuenta de Google tienen una bóveda local independiente. Las notas todavía no se sincronizan con la nube.': 'Notes and files are encrypted on this phone with a system-protected key. Guest and each Google account have separate local vaults. Notes are not synced to the cloud yet.',
+  'Español (América Latina)': 'Spanish (Latin America)',
+  'Google se usa para identificar la cuenta y abrir su bóveda local. Las funciones de IA envían al servicio externo únicamente el contenido que confirmes procesar. Las notas y sus archivos permanecen cifrados en el teléfono hasta habilitar la sincronización en la nube.': 'Google identifies your account and opens its local vault. AI features send only the content you confirm for processing to the external service. Your notes and files remain encrypted on this phone until cloud sync is enabled.',
+  'La voz usa el reconocedor del sistema, que puede necesitar red. Cámara y micrófono se solicitan al usarlos. No se incluye publicidad ni analítica de seguimiento.': 'Voice uses the system recognizer, which may require a network connection. Camera and microphone access are requested only when needed. The app has no ads or tracking analytics.',
+  'Los archivos que exportas se pueden leer fuera de la aplicación. Limpiar caché elimina las copias temporales de exportación. La papelera permite restaurar notas antes de eliminarlas definitivamente.': 'Exported files can be read outside the app. Clearing the cache removes temporary export copies. You can restore notes from the trash before permanently deleting them.',
+  'DraftAI permite crear y organizar notas con texto e imágenes guardadas en el dispositivo. Puedes agruparlas en carpetas, buscar su contenido y exportarlas para compartir. Los planes y precios son demostrativos; no se procesan pagos.': 'DraftAI lets you create and organize notes with text and images stored on your device. Group them into folders, search their content, and export them to share. Plans and prices are for demonstration; no payments are processed.',
+  'Revisa cualquier extracción o resumen antes de guardarlo. Los modelos externos pueden cometer errores. Sin API configurada, las demostraciones se identifican expresamente.': 'Review any extraction or summary before saving it. External models can make mistakes. Demonstrations are clearly labeled when no API is configured.',
+  'Conserva copias de los apuntes importantes. Al desinstalar se eliminan los datos locales. La aplicación no mantiene copias en un servidor.': 'Keep backups of important notes. Uninstalling removes local data. The app does not keep copies on a server.',
+  'En Inicio pulsa Nueva nota o + Nuevo → Escribir nota. Elige una carpeta. El editor guarda automáticamente y permite guardar de forma explícita.': 'On Home, tap New note or + New → Write note. Choose a folder. The editor saves automatically and also lets you save explicitly.',
+  'Usa + Nuevo para cámara, imágenes o archivos. Revisa cada elemento y elige carpeta. Gratis guarda las imágenes sin OCR. Puedes añadir archivos también desde el editor.': 'Use + New for the camera, images, or files. Review each item and choose a folder. Free mode stores images without OCR. You can also add files from the editor.',
+  'Abre el historial en la esquina superior del apunte. Puedes restaurar una versión anterior. La barra de edición también incluye deshacer y rehacer.': 'Open the history from the top corner of a note to restore an earlier version. The editing toolbar also includes undo and redo.',
+  'Desde Más → Herramientas de IA selecciona temas o fechas. Genera un resumen o prepara un prompt para copiar a una herramienta externa.': 'From More → AI tools, choose topics or dates. Generate a summary or prepare a prompt to copy into an external tool.',
+  'Restaura desde Papelera. En Exportar elige PDF, Word, texto o Markdown. Almacenamiento permite crear una copia ZIP local.': 'Restore notes from Trash. In Export, choose PDF, Word, text, or Markdown. Storage lets you create a local ZIP backup.',
+  'La copia ZIP contiene tus notas e imágenes sin cifrar para que puedas recuperarlas fuera de DraftAI. Guárdala en un lugar protegido.': 'The ZIP backup contains unencrypted copies of your notes and images so you can recover them outside DraftAI. Store it somewhere secure.',
 };
 
 String _dynamicEnglish(String value) {
@@ -688,5 +876,81 @@ String _dynamicEnglish(String value) {
   if (selected != null) return '${selected[1]} selected';
   final insert = RegExp(r'^Insertar (\d+) archivos$').firstMatch(value);
   if (insert != null) return 'Insert ${insert[1]} files';
+  final inRange = RegExp(r'^(\d+) apuntes en el rango$').firstMatch(value);
+  if (inRange != null) return '${inRange[1]} notes in range';
+  final sources = RegExp(r'^(\d+) fuentes en este grupo$').firstMatch(value);
+  if (sources != null) return '${sources[1]} sources in this group';
+  final sourceConfirmation = RegExp(
+    r'^Se enviarán (\d+) fuentes y los nombres de tus carpetas/apuntes al servicio de IA\. Se procesarán en (\d+) grupos de hasta 5\. Revisarás cada destino antes de guardar\.$',
+  ).firstMatch(value);
+  if (sourceConfirmation != null) {
+    return 'This will send ${sourceConfirmation[1]} sources and your folder and note names to the AI service. They will be processed in ${sourceConfirmation[2]} groups of up to 5. You can review each destination before saving.';
+  }
+  final countOf = RegExp(r'^(\d+) / (\d+)$').firstMatch(value);
+  if (countOf != null) return '${countOf[1]} of ${countOf[2]}';
+  final quota = RegExp(r'^(\d+) de (\d+) usos · (\d+) disponibles$')
+      .firstMatch(value);
+  if (quota != null) {
+    return '${quota[1]} of ${quota[2]} uses · ${quota[3]} available';
+  }
+  final remainingUses = RegExp(r'^(\d+) usos disponibles$').firstMatch(value);
+  if (remainingUses != null) return '${remainingUses[1]} uses available';
+  final serverQuota = RegExp(r'^Servidor: (\d+) de (\d+) llamadas disponibles$')
+      .firstMatch(value);
+  if (serverQuota != null) {
+    return 'Server: ${serverQuota[1]} of ${serverQuota[2]} calls available';
+  }
+  final deleteSelected = RegExp(
+    r'^Se eliminarán (\d+) apuntes seleccionados y sus archivos\. Esta acción no se puede deshacer\.$',
+  ).firstMatch(value);
+  if (deleteSelected != null) {
+    return 'Permanently delete ${deleteSelected[1]} selected notes and their files? This cannot be undone.';
+  }
+  final viewNotes = RegExp(r'^Ver (\d+) apuntes$').firstMatch(value);
+  if (viewNotes != null) return 'View ${viewNotes[1]} notes';
+  final libraryFailure = RegExp(r'^No se pudo abrir la biblioteca: .+$')
+      .firstMatch(value);
+  if (libraryFailure != null) return 'Could not open the library. Try again.';
+  final rangeSummary = RegExp(
+    r'^(\d+) apuntes · (\d+) carpetas · (\d+) en papelera$',
+  ).firstMatch(value);
+  if (rangeSummary != null) {
+    return '${rangeSummary[1]} notes · ${rangeSummary[2]} folders · ${rangeSummary[3]} in trash';
+  }
+  final formatPreview = RegExp(r'^Vista previa de (PDF|Word)$')
+      .firstMatch(value);
+  if (formatPreview != null) return '${formatPreview[1]} preview';
+  final version = RegExp(r'^Versión (.+) · Build (\d+)$').firstMatch(value);
+  if (version != null) return 'Version ${version[1]} · Build ${version[2]}';
+  final price = RegExp(r'^\$(\d+(?:\.\d{2})?) / mes$').firstMatch(value);
+  if (price != null) return '\$${price[1]} / month';
+  final revision = RegExp(r'^(\d{2}/\d{2}/\d{4}) · (.+)$').firstMatch(value);
+  if (revision != null) {
+    final reason =
+        <String, String>{
+          'Edición': 'Edit',
+          'Resumen de IA': 'AI summary',
+          'Restauración de historial': 'History restore',
+          'Importación': 'Import',
+        }[revision[2]] ??
+        revision[2];
+    return '${revision[1]} · $reason';
+  }
+  final reviewedSources = RegExp(r'^Fuentes revisadas · (.+)$')
+      .firstMatch(value);
+  if (reviewedSources != null) {
+    return 'Reviewed sources · ${reviewedSources[1]}';
+  }
+  final batchQuota = RegExp(
+    r'^Este lote necesita (\d+) acciones y quedan (\d+)\. Reduce el lote o espera al próximo día\.$',
+  ).firstMatch(value);
+  if (batchQuota != null) {
+    return 'This batch needs ${batchQuota[1]} actions, but only ${batchQuota[2]} remain. Reduce the batch or wait until tomorrow.';
+  }
+  final cacheCleared = RegExp(r'^Caché temporal limpia: (.+) liberados\.$')
+      .firstMatch(value);
+  if (cacheCleared != null) {
+    return 'Temporary cache cleared: ${cacheCleared[1]} freed.';
+  }
   return value;
 }

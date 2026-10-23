@@ -74,8 +74,11 @@ class AiQuotaCard extends ConsumerWidget {
                 children: [
                   Text(
                     access.limit > 0
-                        ? '${access.used} de ${access.limit} usos · ${access.remaining} disponibles'
-                        : '${access.remaining} usos disponibles',
+                        ? tr(
+                            context,
+                            '${access.used} de ${access.limit} usos · ${access.remaining} disponibles',
+                          )
+                        : tr(context, '${access.remaining} usos disponibles'),
                   ),
                   if (access.limit > 0) ...[
                     const SizedBox(height: 8),
@@ -86,7 +89,10 @@ class AiQuotaCard extends ConsumerWidget {
                   if (access.globalRemaining >= 0) ...[
                     const SizedBox(height: 10),
                     Text(
-                      'Servidor: ${access.globalRemaining} de ${access.globalLimit} llamadas disponibles',
+                      tr(
+                        context,
+                        'Servidor: ${access.globalRemaining} de ${access.globalLimit} llamadas disponibles',
+                      ),
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                   ],

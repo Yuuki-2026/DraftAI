@@ -6,16 +6,18 @@ import '../../../core/presentation/strings.dart';
 
 typedef PersistentColorChanged = void Function(bool isBackground, String? hex);
 
-/// Compact seven-control row from the editor mockup; additional formatting lives in Tipos.
+/// Compact format row; additional formatting lives in Tipos.
 class NoteFormatBar extends StatelessWidget {
   final q.QuillController controller;
   final VoidCallback onFormula;
+  final VoidCallback onInsertTable;
   final VoidCallback onDismissKeyboard;
   final PersistentColorChanged onPersistentColorChanged;
   const NoteFormatBar({
     super.key,
     required this.controller,
     required this.onFormula,
+    required this.onInsertTable,
     required this.onDismissKeyboard,
     required this.onPersistentColorChanged,
   });
@@ -99,6 +101,11 @@ class NoteFormatBar extends StatelessWidget {
                 'Fórmula',
                 const Text('ƒx', style: TextStyle(fontStyle: FontStyle.italic)),
                 onFormula,
+              ),
+              button(
+                'Insertar tabla',
+                const Icon(Icons.table_chart_outlined, size: 19),
+                onInsertTable,
               ),
               button('Deshacer', const Icon(Icons.undo, size: 20), () {
                 onDismissKeyboard();

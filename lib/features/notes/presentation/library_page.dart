@@ -279,7 +279,10 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
                   child: Padding(
                     padding: const EdgeInsets.all(24),
                     child: Text(
-                      tr(context, 'No se pudo abrir la biblioteca: $e'),
+                      localizedFailure(
+                        context,
+                        'No se pudo abrir la biblioteca: $e',
+                      ),
                     ),
                   ),
                 ),
@@ -540,14 +543,7 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
                           alignment: Alignment.centerLeft,
                           minimumSize: const Size(double.infinity, 44),
                         ),
-                        icon: Icon(
-                          selecting
-                              ? (selectedIds.contains(n.id)
-                                    ? Icons.check_box
-                                    : Icons.check_box_outline_blank)
-                              : Icons.description_outlined,
-                          size: 16,
-                        ),
+                        icon: Icon(Icons.description_outlined, size: 16),
                         label: Text(
                           n.title,
                           maxLines: 2,
@@ -556,7 +552,20 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
                         ),
                       ),
                     ),
-                    if (!selecting) _noteMenu(n, inTrash: false),
+                    if (selecting)
+                      IconButton(
+                        tooltip: tr(context, 'Seleccionar apunte'),
+                        visualDensity: VisualDensity.compact,
+                        onPressed: () => _toggleSelection(n.id),
+                        icon: Icon(
+                          selectedIds.contains(n.id)
+                              ? Icons.check_box
+                              : Icons.check_box_outline_blank,
+                          size: 20,
+                        ),
+                      )
+                    else
+                      _noteMenu(n, inTrash: false),
                   ],
                 ),
               ),
@@ -949,11 +958,9 @@ class NoteTile extends StatelessWidget {
         child: Row(
           children: [
             Icon(
-              selected ? Icons.check_circle : Icons.description_outlined,
+              Icons.description_outlined,
               size: 20,
-              color: selected
-                  ? Theme.of(context).colorScheme.primary
-                  : Theme.of(context).colorScheme.onSurfaceVariant,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
             SizedBox(width: 12),
             Expanded(
@@ -977,8 +984,13 @@ class NoteTile extends StatelessWidget {
                 ],
               ),
             ),
-            trailing ??
-                Icon(selected ? Icons.check : Icons.chevron_right, size: 18),
+            selected
+                ? Icon(
+                    Icons.check_box,
+                    size: 20,
+                    color: Theme.of(context).colorScheme.primary,
+                  )
+                : trailing ?? const Icon(Icons.chevron_right, size: 18),
           ],
         ),
       ),

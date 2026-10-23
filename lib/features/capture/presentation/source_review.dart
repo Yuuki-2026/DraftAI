@@ -97,7 +97,7 @@ class _AnalysisState extends ConsumerState<SourceAnalysisPage> {
     } catch (e) {
       if (mounted && !cancelled) {
         setState(() {
-          error = '$e';
+          error = localizedFailure(context, e);
           running = false;
         });
       }
@@ -679,7 +679,9 @@ class _ReviewState extends ConsumerState<SourceReviewPage> {
                             : () => setState(() => index--),
                         icon: const Icon(Icons.chevron_left),
                       ),
-                      Text('${index + 1} / ${widget.drafts.length}'),
+                      Text(
+                        tr(context, '${index + 1} / ${widget.drafts.length}'),
+                      ),
                       IconButton(
                         onPressed: index + 1 >= widget.drafts.length || busy
                             ? null

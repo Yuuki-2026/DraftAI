@@ -69,7 +69,9 @@ class _NoteQuizPageState extends ConsumerState<NoteQuizPage> {
         finished = false;
       });
     } catch (exception) {
-      if (mounted) setState(() => error = '$exception');
+      if (mounted) {
+        setState(() => error = localizedFailure(context, exception));
+      }
     } finally {
       if (mounted) setState(() => loading = false);
     }

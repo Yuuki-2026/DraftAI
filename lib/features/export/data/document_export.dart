@@ -14,7 +14,8 @@ import '../../notes/domain/note_document.dart';
 import '../../notes/domain/ports.dart';
 import '../../notes/data/note_mapper.dart';
 
-class DocumentExport implements ConfigurableExportService {
+class DocumentExport
+    implements ConfigurableExportService, PlainTextExportService {
   final MediaRepository media;
   final Directory cache;
   DocumentExport(this.media, this.cache);
@@ -181,7 +182,7 @@ class DocumentExport implements ConfigurableExportService {
       } else {
         bytes = Uint8List.fromList(
           utf8.encode(
-            _plainDocument(batch, markdown: format == ExportFormat.markdown),
+            plainText(batch, markdown: format == ExportFormat.markdown),
           ),
         );
       }
@@ -195,7 +196,8 @@ class DocumentExport implements ConfigurableExportService {
     }
   }
 
-  String _plainDocument(List<Note> notes, {required bool markdown}) {
+  @override
+  String plainText(List<Note> notes, {required bool markdown}) {
     final documents = <String>[];
     for (final note in notes) {
       final out = StringBuffer();
@@ -206,31 +208,75 @@ class DocumentExport implements ConfigurableExportService {
         );
       }
       out.writeln();
-      for (final part in NoteDocument.parts(note)) {
-        if (part.attachmentId != null) {
-          final attachment = note.attachments
-              .where((a) => a.id == part.attachmentId)
-              .firstOrNull;
-          if (attachment == null) continue;
-          final filename = _attachmentName(attachment.name);
-          if (attachment.mime.startsWith('image/')) {
-            out.writeln('<< $filename >>');
-          } else {
-            out.writeln(
-              '[${markdown ? 'Archivo adjunto' : 'Adjunto'}: $filename]',
-            );
+      var line = StringBuffer();
+      for (final op in NoteDocument.delta(note)) {
+        final insert = op['insert'];
+        if (insert is String) {
+          final attributes = op['attributes'] is Map
+              ? op['attributes'] as Map
+              : const {};
+          final pieces = insert.split('\n');
+          for (var index = 0; index < pieces.length; index++) {
+            final piece = _readableText(pieces[index]);
+            if (markdown && piece.isNotEmpty) {
+              line.write(
+                '${attributes['bold'] == true ? '**' : ''}'
+                '${attributes['italic'] == true ? '*' : ''}'
+                '$piece'
+                '${attributes['italic'] == true ? '*' : ''}'
+                '${attributes['bold'] == true ? '**' : ''}',
+              );
+            } else {
+              line.write(piece);
+            }
+            if (index < pieces.length - 1) {
+              final heading = markdown
+                  ? (attributes['header'] as int? ?? 0).clamp(0, 6)
+                  : 0;
+              final text = line.toString();
+              if (heading > 0) {
+                out.write('${'#' * heading} $text');
+              } else if (markdown && attributes['list'] == 'bullet') {
+                out.write('- $text');
+              } else {
+                out.write(text);
+              }
+              out.write('\n');
+              line = StringBuffer();
+            }
           }
-          continue;
+        } else if (insert is Map) {
+          final id = NoteDocument.mediaId(insert[NoteDocument.mediaKey]);
+          if (id != null) {
+            final attachment = note.attachments
+                .where((a) => a.id == id)
+                .firstOrNull;
+            if (attachment?.mime.startsWith('image/') == true) {
+              line.write('<<${_attachmentName(attachment!.name)}>>');
+            }
+          }
+          final table = insert[NoteDocument.tableKey];
+          if (table is String) line.write(NoteDocument.tableText(table));
         }
-        final heading = markdown && part.heading > 0
-            ? '${'#' * part.heading} '
-            : '';
-        final bullet = part.bullet ? '- ' : '';
-        out.writeln('$heading$bullet${_readableText(part.text)}');
       }
+      out.write(line.toString());
       documents.add(out.toString().trimRight());
     }
     return documents.join('\n\n${markdown ? '---' : '────────────────'}\n\n');
+  }
+
+  List<DocumentPart> _orderedParts(Note note, ExportOptions options) {
+    final parts = NoteDocument.parts(note);
+    final order = options.partOrder[note.id];
+    if (order == null || order.isEmpty) return parts;
+    final seen = <int>{};
+    final indexes = <int>[
+      for (final index in order)
+        if (index >= 0 && index < parts.length && seen.add(index)) index,
+      for (var index = 0; index < parts.length; index++)
+        if (seen.add(index)) index,
+    ];
+    return indexes.map((index) => parts[index]).toList();
   }
 
   Future<(double, double)> _imageSize(Uint8List bytes) async {
@@ -267,7 +313,7 @@ class DocumentExport implements ConfigurableExportService {
     final contentWidth = PdfPageFormat.a4.width - 2 * margin;
     for (final note in notes) {
       final content = <pw.Widget>[];
-      for (final part in NoteDocument.parts(note)) {
+      for (final part in _orderedParts(note, options)) {
         if (part.attachmentId != null) {
           final attachment = note.attachments
               .where((a) => a.id == part.attachmentId)
@@ -275,13 +321,15 @@ class DocumentExport implements ConfigurableExportService {
           if (attachment != null && attachment.mime.startsWith('image/')) {
             final bytes = await media.read(attachment);
             final (imageWidth, imageHeight) = await _imageSize(bytes);
-            final factor = (part.imageWidth * options.imageScale)
-                .clamp(.2, 1.6)
-                .toDouble();
+            final factor =
+                (options.imageWidths[attachment.id] ?? part.imageWidth)
+                    .clamp(.2, 1.0)
+                    .toDouble();
             final width = (contentWidth * factor)
                 .clamp(80, contentWidth)
                 .toDouble();
-            final alignment = switch (part.imageAlignment) {
+            final alignment = switch (options.imageAlignments[attachment.id] ??
+                part.imageAlignment) {
               'left' => pw.Alignment.centerLeft,
               'right' => pw.Alignment.centerRight,
               _ => pw.Alignment.center,
@@ -440,7 +488,7 @@ class DocumentExport implements ConfigurableExportService {
           '<w:p><w:r><w:rPr><w:sz w:val="18"/></w:rPr><w:t>${n.createdAt.toLocal().toIso8601String().substring(0, 10)}</w:t></w:r></w:p>',
         );
       }
-      for (final part in NoteDocument.parts(n)) {
+      for (final part in _orderedParts(n, options)) {
         if (part.attachmentId == null) {
           final text = _readableText('${part.bullet ? '• ' : ''}${part.text}');
           final headingSize =
@@ -462,7 +510,8 @@ class DocumentExport implements ConfigurableExportService {
           continue;
         }
         imageId++;
-        final paragraphAlignment = switch (part.imageAlignment) {
+        final paragraphAlignment = switch (options.imageAlignments[a.id] ??
+            part.imageAlignment) {
           'left' => 'left',
           'right' => 'right',
           _ => 'center',
@@ -472,7 +521,11 @@ class DocumentExport implements ConfigurableExportService {
         final codec = await ui.instantiateImageCodec(bytes);
         final frame = await codec.getNextFrame();
         var imageWidth =
-            (widthEmu * (part.imageWidth * options.imageScale).clamp(.2, 1.6))
+            (widthEmu *
+                    (options.imageWidths[a.id] ?? part.imageWidth).clamp(
+                      .2,
+                      1.0,
+                    ))
                 .round()
                 .clamp(1, widthEmu);
         var imageHeight = (imageWidth * frame.image.height / frame.image.width)

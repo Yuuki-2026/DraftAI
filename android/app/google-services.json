@@ -22,6 +22,14 @@
           }
         },
         {
+          "client_id": "609273882661-d6k7rl2hd4hqmefii97icgifao6ils5l.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "pe.edu.uandina.draft_ai",
+            "certificate_hash": "ba915f8dc3a45f5ca6fd39bd905c10037a1d803b"
+          }
+        },
+        {
           "client_id": "609273882661-538u83kd0j7bm0ouu09tkq0o062ccd5v.apps.googleusercontent.com",
           "client_type": 3
         }

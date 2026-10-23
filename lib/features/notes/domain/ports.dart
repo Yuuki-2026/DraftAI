@@ -38,6 +38,10 @@ abstract interface class ConfigurableExportService implements ExportService {
   });
 }
 
+abstract interface class PlainTextExportService {
+  String plainText(List<Note> notes, {required bool markdown});
+}
+
 abstract interface class SpeechService {
   Future<bool> listen(void Function(String) onResult);
   Future<void> stop();

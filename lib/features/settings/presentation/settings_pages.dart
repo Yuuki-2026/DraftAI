@@ -4,6 +4,7 @@ import '../../../core/presentation/strings.dart';
 import '../../../core/presentation/user_avatar.dart';
 
 import 'dart:convert';
+import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
@@ -239,9 +240,8 @@ class ProfilePage extends ConsumerWidget {
       try {
         final file = await ImagePicker().pickImage(
           source: ImageSource.gallery,
-          maxWidth: 1600,
-          maxHeight: 1600,
-          imageQuality: 88,
+          maxWidth: 2048,
+          maxHeight: 2048,
         );
         if (file == null || !context.mounted) return;
         final bytes = await file.readAsBytes();
@@ -521,15 +521,18 @@ class _ProfilePhotoCropDialog extends StatefulWidget {
 class _ProfilePhotoCropDialogState extends State<_ProfilePhotoCropDialog> {
   final cropKey = GlobalKey();
   final transform = TransformationController();
-  late final Future<double> imageAspect = _readImageAspect();
+  late final Future<Size> sourceSize = _readImageSize();
   bool saving = false, imageReady = false;
 
-  Future<double> _readImageAspect() async {
+  Future<Size> _readImageSize() async {
     final codec = await ui.instantiateImageCodec(widget.bytes);
     try {
       final frame = await codec.getNextFrame();
       try {
-        return frame.image.width / frame.image.height;
+        return Size(
+          frame.image.width.toDouble(),
+          frame.image.height.toDouble(),
+        );
       } finally {
         frame.image.dispose();
       }
@@ -552,7 +555,11 @@ class _ProfilePhotoCropDialogState extends State<_ProfilePhotoCropDialog> {
       final boundary =
           cropKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
       if (boundary == null) throw StateError('No crop render boundary');
-      final image = await boundary.toImage(pixelRatio: 2);
+      final original = await sourceSize;
+      final side = math.min(original.width, original.height);
+      final cropDimension = boundary.size.shortestSide;
+      final pixelRatio = (side / cropDimension).clamp(1.0, 8.0).toDouble();
+      final image = await boundary.toImage(pixelRatio: pixelRatio);
       final data = await image.toByteData(format: ui.ImageByteFormat.png);
       image.dispose();
       if (data == null) throw StateError('No crop image bytes');
@@ -566,94 +573,130 @@ class _ProfilePhotoCropDialogState extends State<_ProfilePhotoCropDialog> {
   }
 
   @override
-  Widget build(BuildContext context) => AlertDialog(
-    title: Text(tr(context, 'Ajustar foto de perfil')),
-    content: Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          tr(
-            context,
-            'Arrastra la imagen o usa dos dedos para ajustar el encuadre.',
+  Widget build(BuildContext context) {
+    final screen = MediaQuery.sizeOf(context);
+    final cropDimension = math
+        .min(screen.width - 128, screen.height - 260)
+        .clamp(96.0, 320.0)
+        .toDouble();
+    return AlertDialog(
+      title: Text(tr(context, 'Ajustar foto de perfil')),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            tr(
+              context,
+              'Arrastra la imagen o usa dos dedos para ajustar el encuadre.',
+            ),
+            style: Theme.of(context).textTheme.bodySmall,
           ),
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
-        const SizedBox(height: 16),
-        FutureBuilder<double>(
-          future: imageAspect,
-          builder: (context, snapshot) {
-            if (!snapshot.hasData) {
-              return const SizedBox.square(
-                dimension: 264,
-                child: Center(child: CircularProgressIndicator()),
-              );
-            }
-            final aspect = snapshot.data!;
-            final imageWidth = aspect >= 1 ? 264 * aspect : 264.0;
-            final imageHeight = aspect >= 1 ? 264.0 : 264 / aspect;
-            return RepaintBoundary(
-              key: cropKey,
-              child: ClipOval(
-                child: SizedBox(
-                  width: 264,
-                  height: 264,
-                  child: ColoredBox(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .surfaceContainerHighest,
-                    child: InteractiveViewer(
-                      transformationController: transform,
-                      constrained: false,
-                      alignment: Alignment.center,
-                      minScale: 1,
-                      maxScale: 4,
-                      boundaryMargin: const EdgeInsets.all(80),
-                      child: Image.memory(
-                        widget.bytes,
-                        width: imageWidth,
-                        height: imageHeight,
-                        fit: BoxFit.fill,
-                        gaplessPlayback: true,
-                        frameBuilder: (context, child, frame, sync) {
-                          if (sync || frame != null) {
-                            if (!imageReady) {
-                              WidgetsBinding.instance.addPostFrameCallback((_) {
-                                if (mounted) setState(() => imageReady = true);
-                              });
-                            }
-                            return child;
-                          }
-                          return const Center(
-                            child: CircularProgressIndicator(),
-                          );
-                        },
-                      ),
+          const SizedBox(height: 16),
+          FutureBuilder<Size>(
+            future: sourceSize,
+            builder: (context, snapshot) {
+              if (snapshot.hasError) {
+                return Text(tr(context, 'No se pudo abrir la imagen.'));
+              }
+              if (!snapshot.hasData) {
+                return SizedBox.square(
+                  dimension: cropDimension,
+                  child: const Center(child: CircularProgressIndicator()),
+                );
+              }
+              final size = snapshot.data!;
+              final aspect = size.width / size.height;
+              final imageWidth = aspect >= 1
+                  ? cropDimension * aspect
+                  : cropDimension;
+              final imageHeight = aspect >= 1
+                  ? cropDimension
+                  : cropDimension / aspect;
+              return RepaintBoundary(
+                key: cropKey,
+                child: ClipOval(
+                  child: SizedBox.square(
+                    dimension: cropDimension,
+                    child: Stack(
+                      children: [
+                        ColoredBox(
+                          color: Theme.of(context)
+                              .colorScheme
+                              .surfaceContainerHighest,
+                          child: SizedBox.expand(
+                            child: InteractiveViewer(
+                              transformationController: transform,
+                              constrained: false,
+                              alignment: Alignment.center,
+                              minScale: 1,
+                              maxScale: 4,
+                              boundaryMargin: const EdgeInsets.all(80),
+                              child: Image.memory(
+                                widget.bytes,
+                                width: imageWidth,
+                                height: imageHeight,
+                                fit: BoxFit.fill,
+                                gaplessPlayback: true,
+                                frameBuilder: (context, child, frame, sync) {
+                                  if (sync || frame != null) {
+                                    if (!imageReady) {
+                                      WidgetsBinding.instance
+                                          .addPostFrameCallback((_) {
+                                            if (mounted) {
+                                              setState(() => imageReady = true);
+                                            }
+                                          });
+                                    }
+                                    return child;
+                                  }
+                                  return const Center(
+                                    child: CircularProgressIndicator(),
+                                  );
+                                },
+                              ),
+                            ),
+                          ),
+                        ),
+                        IgnorePointer(
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: Theme.of(context).colorScheme.primary
+                                    .withValues(alpha: .75),
+                                width: 1,
+                              ),
+                            ),
+                            child: const SizedBox.expand(),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
-              ),
-            );
-          },
+              );
+            },
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: saving ? null : () => Navigator.pop(context),
+          child: Text(tr(context, 'Cancelar')),
+        ),
+        FilledButton.icon(
+          onPressed: saving || !imageReady ? null : save,
+          icon: saving
+              ? const SizedBox.square(
+                  dimension: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(Icons.check),
+          label: Text(tr(context, 'Usar foto')),
         ),
       ],
-    ),
-    actions: [
-      TextButton(
-        onPressed: saving ? null : () => Navigator.pop(context),
-        child: Text(tr(context, 'Cancelar')),
-      ),
-      FilledButton.icon(
-        onPressed: saving || !imageReady ? null : save,
-        icon: saving
-            ? const SizedBox.square(
-                dimension: 16,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              )
-            : const Icon(Icons.check),
-        label: Text(tr(context, 'Usar foto')),
-      ),
-    ],
-  );
+    );
+  }
 }
 
 class PlansPage extends ConsumerWidget {
@@ -672,7 +715,7 @@ class PlansPage extends ConsumerWidget {
               Meta(tr(context, 'PLAN ACTUAL')),
               SizedBox(height: 8),
               Text(
-                pro ? 'Pro · demostración' : 'Gratis',
+                tr(context, pro ? 'Pro · demostración' : 'Gratis'),
                 style: Theme.of(context).textTheme.titleLarge,
               ),
               SizedBox(height: 8),
@@ -726,7 +769,12 @@ class PlansPage extends ConsumerWidget {
                       }),
                       icon: Icon(pro ? Icons.undo : Icons.check, size: 18),
                       label: Text(
-                        pro ? 'Volver a Gratis' : 'Activar vista previa de Pro',
+                        tr(
+                          context,
+                          pro
+                              ? 'Volver a Gratis'
+                              : 'Activar vista previa de Pro',
+                        ),
                       ),
                     ),
                   ],
@@ -769,7 +817,7 @@ class PlansPage extends ConsumerWidget {
                               (s) => Padding(
                                 padding: const EdgeInsets.all(11),
                                 child: Text(
-                                  s,
+                                  tr(context, s),
                                   style: const TextStyle(fontSize: 11),
                                 ),
                               ),
@@ -862,7 +910,7 @@ class PreferencesPage extends ConsumerWidget {
                     ])
                       ListTile(
                         leading: const Icon(Icons.translate),
-                        title: Text(language.$2),
+                        title: Text(tr(context, language.$2)),
                         trailing: Icon(
                           (settings?.locale ?? 'es') == language.$1
                               ? Icons.radio_button_checked
@@ -1220,7 +1268,10 @@ class _StoragePageState extends ConsumerState<StoragePage> {
                       }),
                 icon: const Icon(Icons.archive_outlined, size: 18),
                 label: Text(
-                  busy ? 'Preparando copia…' : 'Exportar copia local',
+                  tr(
+                    context,
+                    busy ? 'Preparando copia…' : 'Exportar copia local',
+                  ),
                 ),
               ),
               SizedBox(height: 16),
@@ -1392,7 +1443,7 @@ class InformationPage extends StatelessWidget {
             ),
           ];
     return Scaffold(
-      appBar: AppBar(title: Text(title)),
+      appBar: AppBar(title: Text(tr(context, title))),
       body: SafeArea(
         child: ResponsiveBody(
           maxWidth: 720,

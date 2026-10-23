@@ -252,9 +252,19 @@ Future<void> runAction(
   } catch (e) {
     if (context.mounted) {
       ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(tr(context, '$e'))));
+          .showSnackBar(SnackBar(content: Text(localizedFailure(context, e))));
     }
   }
+}
+
+String localizedFailure(BuildContext context, Object error) {
+  final raw = error.toString();
+  final translated = tr(context, raw);
+  if (Localizations.localeOf(context).languageCode == 'en' &&
+      translated == raw) {
+    return tr(context, 'Ocurrió un error. Inténtalo de nuevo.');
+  }
+  return translated;
 }
 
 void message(BuildContext context, String text) =>

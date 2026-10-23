@@ -12,6 +12,10 @@ class UserAvatar extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final settings = ref.watch(controllerProvider).value;
+    final cacheSide = (size * MediaQuery.devicePixelRatioOf(context))
+        .round()
+        .clamp(96, 960)
+        .toInt();
     const fallback = 'assets/images/12225881.png';
     final encoded = settings?.profileImage ?? '';
     if (encoded.isNotEmpty) {
@@ -21,7 +25,8 @@ class UserAvatar extends ConsumerWidget {
             base64Decode(encoded),
             width: size,
             height: size,
-            cacheWidth: 144,
+            cacheWidth: cacheSide,
+            cacheHeight: cacheSide,
             fit: BoxFit.cover,
             errorBuilder: (_, _, _) => _fallback(fallback),
           ),
@@ -40,7 +45,8 @@ class UserAvatar extends ConsumerWidget {
           photoUrl,
           width: size,
           height: size,
-          cacheWidth: 144,
+          cacheWidth: cacheSide,
+          cacheHeight: cacheSide,
           fit: BoxFit.cover,
           frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
             if (wasSynchronouslyLoaded || frame != null) return child;
@@ -59,7 +65,8 @@ class UserAvatar extends ConsumerWidget {
       width: size,
       height: size,
       fit: BoxFit.cover,
-      cacheWidth: 144,
+      cacheWidth: cacheSide,
+      cacheHeight: cacheSide,
     ),
   );
 }
