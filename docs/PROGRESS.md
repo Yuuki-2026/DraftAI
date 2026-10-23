@@ -1,3 +1,7 @@
+# Publicación · 0.2.3 Beta 4 build 10 · 2026-10-23
+
+Publicado en el release existente [v0.2.3-beta.4](https://github.com/Yuuki-2026/DraftAI/releases/tag/v0.2.3-beta.4). APK firmado con el certificado original de Beta 4, versión `0.2.3-beta.4` (versionCode 10), Android min API 26 / target 36. Build compilado desde `db7a56f`. El nuevo APK está completo en GitHub (86,207,451 bytes); SHA-256 `f576f4cfc87bd534116acaff80ec52fe7b98039a9fe3332f01bc21f5d12fb55c`. Se conserva el archivo APK anterior y el texto del release recomienda el build 10; no contiene SHA-1. No se ejecutaron pruebas funcionales ni se validó en teléfono para esta publicación. Azure/OpenAI administrado sigue pendiente; Firebase Google Sign-In y las mejoras anteriores están incluidas. Próximo paso: probar instalación/Google en dispositivo y continuar backend de IA.
+
 # Corrección UI · recorte de perfil y botón de tablas · 2026-10-22
 
 El selector de foto limita el área de recorte al espacio real disponible y captura un viewport cuadrado con máscara circular; los avatares fuerzan un contenedor cuadrado antes del recorte para evitar óvalos por restricciones de pantalla. El botón Insertar tabla ahora usa un icono de cuadrícula más grande y un fondo tonal para distinguirlo en la barra de edición. El análisis estático también encontró y se corrigieron dos errores de compilación preexistentes: un método `didUpdateWidget` duplicado y el acceso a `plainText` mediante una interfaz explícita.
