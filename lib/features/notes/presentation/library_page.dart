@@ -1542,7 +1542,14 @@ Future<void> editFolder(
   var name = folder?.name ?? '';
   var color = folder?.color ?? 0xFFFFFFFF;
   final original = color;
+  var selectedHue = HSVColor.fromColor(Color(color)).hue;
   var hex = _folderHex(color);
+  void selectColor(int value, {double? hue}) {
+    color = value;
+    selectedHue = hue ?? HSVColor.fromColor(Color(value)).hue;
+    hex = _folderHex(value);
+  }
+
   final result = await showDialog<Folder>(
     context: context,
     builder: (dialog) => StatefulBuilder(
@@ -1591,24 +1598,25 @@ Future<void> editFolder(
                   SizedBox(
                     height: 140,
                     child: _ColorSpectrum(
-                      color: Color(color),
-                      onChanged: (next) => set(() {
-                        color = next.toARGB32();
-                        hex = _folderHex(color);
-                      }),
+                      hsv: HSVColor.fromColor(Color(color))
+                          .withHue(selectedHue),
+                      onChanged: (next) => set(
+                        () => selectColor(next.toARGB32(), hue: selectedHue),
+                      ),
                     ),
                   ),
                   _HueSpectrumSlider(
-                    value: HSVColor.fromColor(Color(color)).hue,
+                    value: selectedHue,
                     onChanged: (hue) => set(() {
                       final hsv = HSVColor.fromColor(Color(color));
-                      color = HSVColor.fromAHSV(
+                      final next = HSVColor.fromAHSV(
                         1,
                         hue,
                         hsv.saturation < .1 ? .65 : hsv.saturation,
                         hsv.value < .1 ? .85 : hsv.value,
-                      ).toColor().toARGB32();
-                      hex = _folderHex(color);
+                      ).toColor();
+                      // RGB cannot distinguish the two red ends of the slider.
+                      selectColor(next.toARGB32(), hue: hue);
                     }),
                   ),
                   InputDecorator(
@@ -1631,10 +1639,7 @@ Future<void> editFolder(
                         0xFFE7D28D,
                       ])
                         InkWell(
-                          onTap: () => set(() {
-                            color = value;
-                            hex = _folderHex(value);
-                          }),
+                          onTap: () => set(() => selectColor(value)),
                           customBorder: const CircleBorder(),
                           child: Container(
                             width: 36,
@@ -1659,10 +1664,7 @@ Future<void> editFolder(
                     ],
                   ),
                   TextButton(
-                    onPressed: () => set(() {
-                      color = original;
-                      hex = _folderHex(color);
-                    }),
+                    onPressed: () => set(() => selectColor(original)),
                     child: Text(tr(dialog, 'Restaurar original')),
                   ),
                 ],
@@ -1907,13 +1909,12 @@ class _SearchPageState extends ConsumerState<SearchPage> {
 }
 
 class _ColorSpectrum extends StatelessWidget {
-  final Color color;
+  final HSVColor hsv;
   final ValueChanged<Color> onChanged;
-  const _ColorSpectrum({required this.color, required this.onChanged});
+  const _ColorSpectrum({required this.hsv, required this.onChanged});
   @override
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, box) {
-      final hsv = HSVColor.fromColor(color);
       void choose(Offset point) {
         onChanged(
           HSVColor.fromAHSV(
