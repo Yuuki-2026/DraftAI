@@ -13,7 +13,8 @@ final noteMathPattern = RegExp(
 class NoteMathText extends StatelessWidget {
   final String text;
   final TextStyle? style;
-  const NoteMathText(this.text, {super.key, this.style});
+  final TextAlign? textAlign;
+  const NoteMathText(this.text, {super.key, this.style, this.textAlign});
   static List<InlineSpan> spans(
     BuildContext context,
     String text,
@@ -70,6 +71,7 @@ class NoteMathText extends StatelessWidget {
             .copyWith(fontSize: 15, height: 1.65);
     return Text.rich(
       TextSpan(style: base, children: spans(context, text, base)),
+      textAlign: textAlign,
     );
   }
 }
@@ -114,6 +116,13 @@ class NoteReader extends StatelessWidget {
     var ordered = 0;
     for (var i = 0; i < lines.length; i++) {
       final line = lines[i];
+      final textAlign = switch (line.attributes['align']) {
+        'left' => TextAlign.left,
+        'center' => TextAlign.center,
+        'right' => TextAlign.right,
+        'justify' => TextAlign.justify,
+        _ => TextAlign.start,
+      };
       var text = line.text;
       final trim = text.trim();
       final delimiter = trim.startsWith(r'$$')
@@ -135,7 +144,7 @@ class NoteReader extends StatelessWidget {
           blocks.add(
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 8),
-              child: NoteMathText(text),
+              child: NoteMathText(text, textAlign: textAlign),
             ),
           );
           i = end;
@@ -176,7 +185,10 @@ class NoteReader extends StatelessWidget {
           if (a != null) {
             if (spans.isNotEmpty) {
               blocks.add(
-                Text.rich(TextSpan(style: base, children: List.of(spans))),
+                Text.rich(
+                  TextSpan(style: base, children: List.of(spans)),
+                  textAlign: textAlign,
+                ),
               );
               spans.clear();
             }
@@ -197,7 +209,10 @@ class NoteReader extends StatelessWidget {
           if (tableData is String) {
             if (spans.isNotEmpty) {
               blocks.add(
-                Text.rich(TextSpan(style: base, children: List.of(spans))),
+                Text.rich(
+                  TextSpan(style: base, children: List.of(spans)),
+                  textAlign: textAlign,
+                ),
               );
               spans.clear();
             }
@@ -245,7 +260,7 @@ class NoteReader extends StatelessWidget {
           ),
         );
       }
-      if (spans.isNotEmpty || line.runs.isEmpty)
+      if (spans.isNotEmpty || line.runs.isEmpty) {
         blocks.add(
           Padding(
             padding: EdgeInsets.only(
@@ -258,9 +273,13 @@ class NoteReader extends StatelessWidget {
             ),
             child: spans.isEmpty
                 ? const SizedBox(height: 5)
-                : Text.rich(TextSpan(style: base, children: spans)),
+                : Text.rich(
+                    TextSpan(style: base, children: spans),
+                    textAlign: textAlign,
+                  ),
           ),
         );
+      }
     }
     return SelectionArea(
       child: Column(
