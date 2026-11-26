@@ -1,6 +1,6 @@
 # Hito · Inicio del mantenimiento correctivo · 2026-11-25
 
-Base: beta 4 build 10, `74cab89`. La incidencia 1 (IA) se aplaza hasta acordar con el equipo cómo se conectarán los proveedores. Se trabaja desde la incidencia 2, una corrección por commit.
+Base: beta 4 build 10, `74cab89`. La incidencia 1 (IA) se aplaza hasta acordar con el equipo cómo se conectarán los proveedores. Se trabaja desde la incidencia 2, una corrección por commit, con mensaje en español.
 
 Antes de editar, ubicar el archivo y las líneas, explicar la causa comprobada o la hipótesis y proponer el cambio mínimo. Las buenas prácticas de cara a un futuro análisis SonarQube se aplican al código añadido o modificado: nombres claros, funciones con una responsabilidad y constantes para reglas compartidas cuando aporten claridad. La refactorización general se reserva para una etapa posterior. SonarQube aún no está instalado; este hito no implica configurarlo o ejecutarlo.
 
@@ -11,11 +11,19 @@ Verificar cada cambio con pruebas pertinentes y, en fallos de interfaz, comproba
 El selector personalizado convertía el estado del gesto de HSV a RGB antes de reconstruir el diálogo. El tono se perdía al arrastrar desde negro. `note_format_bar.dart` conserva HSV y obtiene RGB para mostrar HEX y aplicar el formato. El selector sigue usando la misma dependencia y permite elegir muestras Material o escribir HEX.
 
 - La prueba dirigida reprodujo el fallo antes del cambio. Después pasó en Flutter local y en el emulador Android 14 `Emulador_D`: comprueba arrastre desde negro, toque, tono del cuadro y formato de la selección.
-- La prueba general Android de creación de notas falló al esperar el título del editor, antes de abrir el selector. Flutter tuvo que reinstalar su APK de depuración en el emulador por una firma incompatible. El emulador quedó apagado.
-- `flutter test`: 28 pruebas aprobadas y 13 fallos, repartidos entre pruebas de IA, editor, Google, exportación y tamaños de pantalla. No se repitió la suite completa sobre la revisión base.
-- `flutter analyze --fatal-infos`: 35 hallazgos, incluidos dos errores ya presentes en una prueba de IA que usa la firma anterior de `GatewayAi`. En los archivos Dart tocados solo se reportaron dos avisos informativos en líneas sin cambios. `git diff --check` correcto.
+- Flutter reinstaló su APK de depuración en el emulador por una firma incompatible. El emulador quedó apagado. Antes de una nueva prueba Android, comprobar el espacio libre y la firma instalada en el AVD.
+- Los dos archivos Dart modificados pasan `dart format --output=none --set-exit-if-changed`. `git diff --check` correcto.
 
-Pendiente: incidencia 3, filtro por tema. Antes de una nueva prueba Android, comprobar espacio disponible y la firma instalada en el AVD.
+Pendiente de la lista original: incidencia 3, filtro por tema.
+
+## Hallazgos adicionales fuera de la lista de mantenimiento
+
+Detectados durante la verificación de la incidencia 2. Quedan registrados para revisión aparte.
+
+- **GitHub Actions:** la [verificación de `3bfdcab`](https://github.com/Yuuki-2026/DraftAI/actions/runs/45729688507) se detuvo en la comprobación global de formato Dart, antes de ejecutar el análisis y las pruebas en CI.
+- **Integración Android:** la prueba general de creación de notas no encontró el campo del título antes de abrir el selector de color.
+- **Suite Flutter:** 28 pruebas aprobadas y 13 fallos en los grupos de IA, editor, Google, exportación y tamaños de pantalla. No se repitió la suite completa sobre la revisión base para atribuir cada fallo.
+- **Análisis estático:** 35 hallazgos, incluidos dos errores preexistentes en `test/ai_selection_regression_test.dart`, que usa la firma anterior de `GatewayAi`. En los archivos Dart tocados solo se reportaron dos avisos informativos en líneas sin cambios.
 
 # Publicación · 0.2.3 Beta 4 build 10 · 2026-10-23
 
