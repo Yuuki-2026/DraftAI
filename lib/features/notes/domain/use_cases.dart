@@ -73,10 +73,14 @@ class NoteFilter {
           !date.isBefore(DateTime(until.year, until.month, until.day + 1))) {
         return false;
       }
+      if (needle.isEmpty) return true;
+      if (mode == 'Tema') {
+        return _normalize(n.topic).contains(needle) ||
+            NoteSections.topicTitles(n)
+                .any((title) => _normalize(title).contains(needle));
+      }
       final text = mode == 'Título'
           ? n.title
-          : mode == 'Tema'
-          ? n.topic
           : '${n.title} ${n.topic} ${n.plainText}';
       return _normalize(text).contains(needle);
     }).toList()..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));

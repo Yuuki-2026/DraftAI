@@ -4,9 +4,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:draft_ai/features/notes/domain/entities.dart';
 import 'package:draft_ai/features/notes/domain/note_document.dart';
 import 'package:draft_ai/features/notes/domain/note_sections.dart';
+import 'package:draft_ai/features/notes/domain/use_cases.dart';
 
-Note example(String content) => Note(
-  id: 'os',
+Note example(String content, {String id = 'os'}) => Note(
+  id: id,
   folderId: 'f',
   title: 'Sistemas operativos',
   document: jsonEncode(NoteDocument.formatted(content)),
@@ -16,6 +17,31 @@ Note example(String content) => Note(
 );
 
 void main() {
+  test('Tema encuentra encabezados sin confundirlos con título o cuerpo', () {
+    final withHeading = example('## Memória virtual\nPaginación');
+    final legacy = example(
+      'Contenido antiguo',
+      id: 'legacy',
+    ).copyWith(topic: 'Memoria caché');
+    final titleOnly = example(
+      'Contenido general',
+      id: 'title',
+    ).copyWith(title: 'Memoria principal');
+    final bodyOnly = example('La memoria del equipo', id: 'body');
+    final notes = [withHeading, legacy, titleOnly, bodyOnly];
+
+    expect(
+      NoteFilter.apply(notes, query: 'MEMORIA', mode: 'Tema').map((n) => n.id),
+      unorderedEquals([withHeading.id, legacy.id]),
+    );
+    expect(
+      NoteFilter.apply(notes, query: 'MEMORIA', mode: 'Título').single.id,
+      titleOnly.id,
+    );
+    expect(NoteFilter.apply(notes, query: 'MEMORIA'), hasLength(notes.length));
+    expect(NoteFilter.apply(notes, mode: 'Tema'), hasLength(notes.length));
+  });
+
   test('same-day edits keep one date per topic, later edits touch only changed topic', () {
     final first = NoteSections.stamp(
       example('## Memoria\nPaginación\n## Señales\nEventos'),

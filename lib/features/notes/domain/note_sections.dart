@@ -53,6 +53,9 @@ abstract final class NoteSections {
       line.map((o) => o['insert'] is String ? o['insert'] : '').join().trim();
   static bool _heading(List<Map<String, dynamic>> line) =>
       [1, 2].contains((line.last['attributes'] as Map?)?['header']);
+  static Iterable<String> topicTitles(Note note) =>
+      _lines(note).where(_heading).map(_text);
+
   static List<NoteSection> read(Note n) {
     final lines = _lines(n), result = <NoteSection>[];
     var ops = <Map<String, dynamic>>[],
