@@ -356,14 +356,15 @@ class _SelectionColorPickerDialogState
     Colors.black,
   ];
 
-  late Color selectedColor;
+  late HSVColor selectedHsvColor;
+  Color get selectedColor => selectedHsvColor.toColor();
   late final TextEditingController hexController;
   _ColorPickerTab tab = _ColorPickerTab.material;
 
   @override
   void initState() {
     super.initState();
-    selectedColor = widget.initialColor;
+    selectedHsvColor = HSVColor.fromColor(widget.initialColor);
     hexController = TextEditingController(
       text: color_picker.colorToHex(
         selectedColor,
@@ -379,11 +380,11 @@ class _SelectionColorPickerDialogState
     super.dispose();
   }
 
-  void _select(Color color) {
+  void _select(HSVColor color) {
     setState(() {
-      selectedColor = color;
+      selectedHsvColor = color;
       hexController.text = color_picker.colorToHex(
-        color,
+        selectedColor,
         includeHashSign: true,
         enableAlpha: false,
       );
@@ -395,6 +396,7 @@ class _SelectionColorPickerDialogState
     final width = (MediaQuery.sizeOf(context).width - 64)
         .clamp(250.0, 340.0)
         .toDouble();
+    final selectedArgb = selectedColor.toARGB32();
     final title = tr(
       context,
       widget.isBackground ? 'Color de resaltado' : 'Selecciona un color',
@@ -432,10 +434,11 @@ class _SelectionColorPickerDialogState
                   ),
                   itemBuilder: (context, index) {
                     final color = _materialColors[index];
+                    final isSelected = color.toARGB32() == selectedArgb;
                     return Center(
                       child: InkWell(
                         customBorder: const CircleBorder(),
-                        onTap: () => _select(color),
+                        onTap: () => _select(HSVColor.fromColor(color)),
                         child: Container(
                           width: 32,
                           height: 32,
@@ -443,15 +446,15 @@ class _SelectionColorPickerDialogState
                             color: color,
                             shape: BoxShape.circle,
                             border: Border.all(
-                              color: color == selectedColor
+                              color: isSelected
                                   ? Theme.of(context).colorScheme.onSurface
                                   : Theme.of(context)
                                         .colorScheme
                                         .outlineVariant,
-                              width: color == selectedColor ? 2 : 1,
+                              width: isSelected ? 2 : 1,
                             ),
                           ),
-                          child: color == selectedColor
+                          child: isSelected
                               ? Icon(
                                   Icons.check,
                                   size: 18,
@@ -472,7 +475,10 @@ class _SelectionColorPickerDialogState
               else
                 color_picker.ColorPicker(
                   pickerColor: selectedColor,
-                  onColorChanged: _select,
+                  // RGB conversion loses the hue of black, white and grays.
+                  pickerHsvColor: selectedHsvColor,
+                  onHsvColorChanged: _select,
+                  onColorChanged: (_) {},
                   colorPickerWidth: width,
                   pickerAreaHeightPercent: .55,
                   enableAlpha: false,
@@ -487,7 +493,11 @@ class _SelectionColorPickerDialogState
                 maxLength: 7,
                 onChanged: (value) {
                   final parsed = _parseColor(value);
-                  if (parsed != null) setState(() => selectedColor = parsed);
+                  if (parsed != null) {
+                    setState(
+                      () => selectedHsvColor = HSVColor.fromColor(parsed),
+                    );
+                  }
                 },
                 decoration: InputDecoration(
                   labelText: tr(context, 'HEX'),
