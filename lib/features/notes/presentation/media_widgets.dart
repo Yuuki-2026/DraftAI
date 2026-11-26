@@ -433,13 +433,9 @@ class _ResizableMediaImageState extends State<_ResizableMediaImage> {
     final screenAnchor = switch (alignment) {
       Alignment.topLeft => (left: -8.0, right: null, top: -8.0, bottom: null),
       Alignment.topRight => (left: null, right: -8.0, top: -8.0, bottom: null),
-      Alignment.bottomLeft => (
-        left: -8.0,
-        right: null,
-        top: null,
-        bottom: -8.0,
-      ),
-      _ => (left: null, right: -8.0, top: null, bottom: -8.0),
+      // A Stack paints overflow with Clip.none, but does not hit-test it.
+      Alignment.bottomLeft => (left: 0.0, right: null, top: null, bottom: 0.0),
+      _ => (left: null, right: 0.0, top: null, bottom: 0.0),
     };
     return Positioned(
       left: screenAnchor.left,
