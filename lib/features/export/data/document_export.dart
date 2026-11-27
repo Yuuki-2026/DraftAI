@@ -13,12 +13,18 @@ import '../../notes/domain/entities.dart';
 import '../../notes/domain/note_document.dart';
 import '../../notes/domain/ports.dart';
 import '../../notes/data/note_mapper.dart';
+import 'pdf_formula.dart';
 
 class DocumentExport
     implements ConfigurableExportService, PlainTextExportService {
   final MediaRepository media;
   final Directory cache;
   DocumentExport(this.media, this.cache);
+
+  static final _formulaPattern = RegExp(
+    r'\$\$([\s\S]+?)\$\$|\\\[([\s\S]+?)\\\]|\\\(([\s\S]+?)\\\)|(?<!\\)\$([^\n$]+?)(?<!\\)\$',
+  );
+
   Future<void> _share(String name, List<int> bytes, String mime) async {
     final dir = Directory(p.join(cache.path, 'draftai_exports'));
     await dir.create(recursive: true);
@@ -109,10 +115,7 @@ class DocumentExport
   }
 
   String _readableText(String source) {
-    const formula =
-        r'\$\$([\s\S]+?)\$\$|\\\[([\s\S]+?)\\\]|\\\(([\s\S]+?)\\\)|(?<!\\)\$([^\n$]+?)(?<!\\)\$';
-    final pattern = RegExp(formula);
-    return source.replaceAllMapped(pattern, (match) {
+    return source.replaceAllMapped(_formulaPattern, (match) {
       final tex =
           match.group(1) ?? match.group(2) ?? match.group(3) ?? match.group(4)!;
       return _mathText(tex);
@@ -279,6 +282,90 @@ class DocumentExport
     return indexes.map((index) => parts[index]).toList();
   }
 
+  Iterable<DocumentPart> _pdfParts(List<DocumentPart> parts) sync* {
+    var index = 0;
+    while (index < parts.length) {
+      if (parts[index].attachmentId != null) {
+        yield parts[index++];
+        continue;
+      }
+      var end = index;
+      while (end < parts.length && parts[end].attachmentId == null) {
+        end++;
+      }
+      final text = parts
+          .getRange(index, end)
+          .map((part) => part.text)
+          .join('\n');
+      final matches = _formulaPattern
+          .allMatches(text)
+          .where((match) => match.group(0)!.contains('\n'))
+          .iterator;
+      var hasMatch = matches.moveNext();
+      var start = 0;
+      // Keep the preview's part order and only rejoin lines within a formula.
+      for (; index < end; index++) {
+        final part = parts[index];
+        var stop = start + part.text.length;
+        if (hasMatch && matches.current.start < stop) {
+          do {
+            while (stop < matches.current.end) {
+              stop += 1 + parts[++index].text.length;
+            }
+            hasMatch = matches.moveNext();
+          } while (hasMatch && matches.current.start < stop);
+          yield DocumentPart(
+            text: text.substring(start, stop),
+            heading: part.heading,
+            bullet: part.bullet,
+          );
+        } else {
+          yield part;
+        }
+        start = stop + 1;
+      }
+    }
+  }
+
+  Future<pw.RichText> _pdfText(
+    String text,
+    double maxWidth, {
+    pw.TextStyle? style,
+    pw.TextAlign? align,
+    pw.TextOverflow? overflow,
+  }) async {
+    final spans = <pw.InlineSpan>[];
+    var cursor = 0;
+    for (final match in _formulaPattern.allMatches(text)) {
+      if (cursor < match.start) {
+        spans.add(pw.TextSpan(text: text.substring(cursor, match.start)));
+      }
+      final tex = match[1] ?? match[2] ?? match[3] ?? match[4]!;
+      final image = await renderPdfFormula(
+        tex,
+        display: match[1] != null || match[2] != null,
+        fontSize: style?.fontSize ?? pw.TextStyle.defaultStyle().fontSize!,
+        maxWidth: maxWidth,
+      );
+      spans.add(image ?? pw.TextSpan(text: match[0]));
+      cursor = match.end;
+    }
+    return pw.RichText(
+      text: cursor == 0
+          ? pw.TextSpan(text: text, style: style)
+          : pw.TextSpan(
+              style: style,
+              children: [
+                ...spans,
+                if (cursor < text.length)
+                  pw.TextSpan(text: text.substring(cursor)),
+              ],
+            ),
+      textAlign: align,
+      overflow: overflow,
+    );
+  }
+
   Future<(double, double)> _imageSize(Uint8List bytes) async {
     final codec = await ui.instantiateImageCodec(bytes);
     try {
@@ -313,7 +400,7 @@ class DocumentExport
     final contentWidth = PdfPageFormat.a4.width - 2 * margin;
     for (final note in notes) {
       final content = <pw.Widget>[];
-      for (final part in _orderedParts(note, options)) {
+      for (final part in _pdfParts(_orderedParts(note, options))) {
         if (part.attachmentId != null) {
           final attachment = note.attachments
               .where((a) => a.id == part.attachmentId)
@@ -363,7 +450,7 @@ class DocumentExport
             pw.Padding(
               padding: const pw.EdgeInsets.only(top: 8, bottom: 2),
               child: pw.Text(
-                _readableText(part.text),
+                part.text,
                 style: const pw.TextStyle(
                   fontSize: 9,
                   color: PdfColors.grey700,
@@ -375,8 +462,9 @@ class DocumentExport
           content.add(
             pw.Padding(
               padding: const pw.EdgeInsets.only(top: 7, bottom: 4),
-              child: pw.Text(
-                _readableText(part.text),
+              child: await _pdfText(
+                part.text,
+                contentWidth,
                 style: pw.TextStyle(
                   fontSize: (options.titleSize - part.heading * 3)
                       .clamp(11, 32)
@@ -388,14 +476,31 @@ class DocumentExport
           );
         } else {
           content.add(
-            pw.Paragraph(
-              text: '${part.bullet ? '• ' : ''}${_readableText(part.text)}',
-              style: const pw.TextStyle(lineSpacing: 3),
+            pw.Container(
+              margin: const pw.EdgeInsets.only(bottom: 5 * PdfPageFormat.mm),
+              child: await _pdfText(
+                '${part.bullet ? '• ' : ''}${part.text}',
+                contentWidth,
+                style: const pw.TextStyle(lineSpacing: 3),
+                align: pw.TextAlign.justify,
+                overflow: pw.TextOverflow.span,
+              ),
             ),
           );
         }
       }
       final footerText = options.footer.trim();
+      final title = await _pdfText(
+        note.title,
+        contentWidth,
+        style: pw.TextStyle(
+          fontSize: options.titleSize.clamp(16, 36).toDouble(),
+          fontWeight: pw.FontWeight.bold,
+        ),
+      );
+      final topic = note.topic.isEmpty
+          ? null
+          : await _pdfText(note.topic, contentWidth);
       doc.addPage(
         pw.MultiPage(
           pageFormat: PdfPageFormat.a4,
@@ -429,17 +534,11 @@ class DocumentExport
                 )
               : null,
           build: (_) => [
-            pw.Text(
-              _readableText(note.title),
-              style: pw.TextStyle(
-                fontSize: options.titleSize.clamp(16, 36).toDouble(),
-                fontWeight: pw.FontWeight.bold,
-              ),
-            ),
-            if (note.topic.isNotEmpty)
+            title,
+            if (topic != null)
               pw.Padding(
                 padding: const pw.EdgeInsets.only(top: 6, bottom: 10),
-                child: pw.Text(_readableText(note.topic)),
+                child: topic,
               ),
             ...content,
           ],
