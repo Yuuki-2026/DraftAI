@@ -343,11 +343,10 @@ class ProfilePage extends ConsumerWidget {
                     Meta(tr(context, 'Datos en este dispositivo')),
                     const SizedBox(height: 8),
                     Pill(
-                      googleAccountAvailable
-                          ? settings?.pro == true
-                                ? 'Pro · demo'
-                                : 'Gratis'
-                          : tr(context, 'Invitado'),
+                      tr(
+                        context,
+                        googleAccountAvailable ? 'Google' : 'Invitado',
+                      ),
                     ),
                   ],
                 ),
@@ -362,16 +361,6 @@ class ProfilePage extends ConsumerWidget {
                   'Conectar IA',
                   '',
                   const AiPage(),
-                ),
-              if (googleAccountAvailable)
-                _item(
-                  context,
-                  Icons.auto_awesome_outlined,
-                  settings?.pro == true
-                      ? 'Plan Pro demostrativo'
-                      : 'Ver Plan Pro',
-                  'Sin cobros ni compra real',
-                  const PlansPage(),
                 ),
               _item(
                 context,
@@ -712,151 +701,6 @@ class _ProfilePhotoCropDialogState extends State<_ProfilePhotoCropDialog> {
           label: Text(tr(context, 'Usar foto')),
         ),
       ],
-    );
-  }
-}
-
-class PlansPage extends ConsumerWidget {
-  const PlansPage({super.key});
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final pro = ref.watch(controllerProvider).value?.pro ?? false;
-    return Scaffold(
-      appBar: AppBar(title: Text(tr(context, 'Suscripción'))),
-      body: SafeArea(
-        child: ResponsiveBody(
-          maxWidth: 640,
-          child: ListView(
-            children: [
-              SizedBox(height: 18),
-              Meta(tr(context, 'PLAN ACTUAL')),
-              SizedBox(height: 8),
-              Text(
-                tr(context, pro ? 'Pro · demostración' : 'Gratis'),
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              SizedBox(height: 8),
-              Text(
-                tr(
-                  context,
-                  'Explora las herramientas inteligentes. Los planes son demostrativos: no se realizan cobros.',
-                ),
-              ),
-              SizedBox(height: 16),
-              Surface(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(child: Meta(tr(context, 'PLAN PRO'))),
-                        Pill(tr(context, 'Vista previa')),
-                      ],
-                    ),
-                    SizedBox(height: 12),
-                    Text(
-                      tr(context, 'Hasta 10 acciones de IA al día'),
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    SizedBox(height: 10),
-                    Text(
-                      tr(context, '\$4.99 / mes'),
-                      style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    Meta(tr(context, 'Precio ilustrativo · sin facturación')),
-                    SizedBox(height: 18),
-                    FilledButton.icon(
-                      key: const Key('toggle-pro'),
-                      onPressed: () => runAction(context, () async {
-                        await ref.read(controllerProvider.notifier).plan(!pro);
-                        if (context.mounted) {
-                          message(
-                            context,
-                            pro
-                                ? 'Volviste a Gratis. Tus apuntes se conservan.'
-                                : 'Vista previa de Pro activada. No se ha realizado ningún cobro.',
-                          );
-                        }
-                      }),
-                      icon: Icon(pro ? Icons.undo : Icons.check, size: 18),
-                      label: Text(
-                        tr(
-                          context,
-                          pro
-                              ? 'Volver a Gratis'
-                              : 'Activar vista previa de Pro',
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              SectionTitle('Comparativa de planes'),
-              Surface(
-                padding: EdgeInsets.zero,
-                child: Table(
-                  columnWidths: const {
-                    0: FlexColumnWidth(2),
-                    1: FlexColumnWidth(),
-                    2: FlexColumnWidth(),
-                  },
-                  defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-                  children: [
-                    for (final row in [
-                      ['Funciones', 'Gratis', 'Pro demo'],
-                      ['Apuntes e imágenes', 'Sí', 'Sí'],
-                      ['Acciones IA al día', '2', '10'],
-                      [
-                        'Lectura de fuentes con IA',
-                        'No',
-                        'Acceso Pro autorizado',
-                      ],
-                      ['Exportar PDF, Word, texto', 'Sí', 'Sí'],
-                      ['Contexto para IA externa', 'Sí', 'Sí'],
-                      ['Almacenamiento local', 'Sí', 'Sí'],
-                    ])
-                      TableRow(
-                        decoration: BoxDecoration(
-                          border: Border(
-                            bottom: BorderSide(
-                              color: Theme.of(context).dividerColor,
-                            ),
-                          ),
-                        ),
-                        children: row
-                            .map(
-                              (s) => Padding(
-                                padding: const EdgeInsets.all(11),
-                                child: Text(
-                                  tr(context, s),
-                                  style: const TextStyle(fontSize: 11),
-                                ),
-                              ),
-                            )
-                            .toList(),
-                      ),
-                  ],
-                ),
-              ),
-              SizedBox(height: 12),
-              Text(
-                tr(
-                  context,
-                  'La IA necesita conexión. Gratis usa Groq; Pro autorizado usa GPT-5 nano para texto, imágenes, PDF y TXT/MD. Cada resultado indica el modelo utilizado. Los planes no procesan pagos.',
-                ),
-                style: TextStyle(fontSize: 11, color: AppColors.muted),
-              ),
-              SizedBox(height: 28),
-            ],
-          ),
-        ),
-      ),
     );
   }
 }
@@ -1426,7 +1270,7 @@ class InformationPage extends StatelessWidget {
         ? [
             (
               'Uso de DraftAI',
-              'DraftAI permite crear y organizar notas con texto e imágenes guardadas en el dispositivo. Puedes agruparlas en carpetas, buscar su contenido y exportarlas para compartir. Los planes y precios son demostrativos; no se procesan pagos.',
+              'DraftAI permite crear y organizar notas con texto e imágenes guardadas en el dispositivo. Puedes agruparlas en carpetas, buscar su contenido y exportarlas para compartir.',
             ),
             (
               'Revisión del contenido',

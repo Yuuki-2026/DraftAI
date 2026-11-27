@@ -73,14 +73,7 @@ void main() {
         expect(tester.takeException(), isNull);
         Navigator.of(rootContext).pop();
         await tester.pumpAndSettle();
-        // Also inspect dense plan comparison at the same breakpoint.
         final context = tester.element(find.text('Tus carpetas'));
-        Navigator.of(context)
-            .push(MaterialPageRoute<void>(builder: (_) => const PlansPage()));
-        await tester.pumpAndSettle(const Duration(milliseconds: 100));
-        expect(tester.takeException(), isNull);
-        Navigator.of(context).pop();
-        await tester.pumpAndSettle();
         Navigator.of(context).push(
           MaterialPageRoute<void>(
             builder: (_) =>
