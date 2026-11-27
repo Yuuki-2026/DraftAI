@@ -2012,8 +2012,9 @@ class _HueSpectrumSlider extends StatelessWidget {
         height: 34,
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
-          onPanDown: (event) => update(event.localPosition),
-          onPanUpdate: (event) => update(event.localPosition),
+          onTapUp: (event) => update(event.localPosition),
+          onHorizontalDragStart: (event) => update(event.localPosition),
+          onHorizontalDragUpdate: (event) => update(event.localPosition),
           child: Stack(
             alignment: Alignment.centerLeft,
             children: [
