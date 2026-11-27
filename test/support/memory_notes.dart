@@ -64,3 +64,23 @@ class MemoryNotes implements NotesRepository {
   @override
   Future<String?> preference(String key) async => prefs[key];
 }
+
+class MemoryProfiles implements ProfileVaultService {
+  @override
+  String activeOwnerId = guestProfileId;
+
+  @override
+  Future<int> guestNoteCount() async => 0;
+
+  @override
+  Future<bool> guestMovePromptEnabled() async => true;
+
+  @override
+  Future<void> setGuestMovePromptEnabled(bool enabled) async {}
+
+  @override
+  Future<void> activate(String ownerId) async => activeOwnerId = ownerId;
+
+  @override
+  Future<void> moveGuestTo(String ownerId) async {}
+}

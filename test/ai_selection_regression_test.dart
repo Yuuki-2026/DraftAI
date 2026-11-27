@@ -22,12 +22,12 @@ void main() {
     });
     final secure = MemorySecureStore();
     secure.values['test_ai_endpoint'] = 'https://example.test/';
-    final service = GatewayAi(secure, client);
-    await service.initialize();
+    final service = GatewayAi(secure, client, MemoryProfiles());
+    await service.loadProfile();
     expect(service.configured, false);
     secure.values['test_ai_device_token'] = 'a' * 64;
     secure.values['test_ai_expires'] = '1';
-    await service.initialize();
+    await service.loadProfile();
     expect(service.configured, false);
     expect(requests, 0);
     client.close();
@@ -52,8 +52,8 @@ void main() {
       repo.notes['a'] = chosen;
       repo.notes['b'] = make('b', 'Otra asignatura', 'CONTENIDO_NO_ELEGIDO');
       final client = MockClient((_) async => http.Response('{}', 401));
-      final service = GatewayAi(MemorySecureStore(), client);
-      await service.initialize();
+      final service = GatewayAi(MemorySecureStore(), client, MemoryProfiles());
+      await service.loadProfile();
       addTearDown(repo.close);
       addTearDown(client.close);
       await tester.pumpWidget(

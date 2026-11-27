@@ -103,31 +103,3 @@ class ContextPrompt {
         '# CONTEXTO\n${notes.map((n) => '<apunte>\nTítulo: ${n.title}\nTema: ${n.topic}\nFecha: ${n.createdAt.toLocal().toIso8601String()}\n${n.plainText}\n</apunte>').join('\n\n')}';
   }
 }
-
-class AiPolicy {
-  final NotesRepository repository;
-  final DateTime Function() clock;
-  AiPolicy(this.repository, this.clock);
-  Future<bool> get pro async =>
-      await repository.preference('plan') == 'pro_demo';
-  Future<int> used() async =>
-      int.tryParse(await repository.preference(_key) ?? '') ?? 0;
-  String get _key =>
-      'ai_usage_${clock().toLocal().toIso8601String().substring(0, 10)}';
-  Future<int> limit() async => await pro ? 10 : 2;
-  Future<void> check({bool ocr = false}) async {
-    if (ocr && !await pro) {
-      throw const AppFailure(
-        'El OCR está disponible en la vista previa de Pro. En Gratis puedes adjuntar imágenes sin procesarlas.',
-      );
-    }
-    if (await used() >= await limit()) {
-      throw const AppFailure(
-        'Alcanzaste el límite diario de IA. Podrás volver a usarla mañana.',
-      );
-    }
-  }
-
-  Future<void> recordSuccess() async =>
-      repository.setPreference(_key, '${await used() + 1}');
-}

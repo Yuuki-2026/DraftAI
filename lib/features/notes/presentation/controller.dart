@@ -24,26 +24,24 @@ final profileVaultPort = Provider<ProfileVaultService>(
 );
 final speechPort = Provider<SpeechService>((ref) => throw UnimplementedError());
 final actionsPort = Provider<NoteActions>((ref) => throw UnimplementedError());
-final policyPort = Provider<AiPolicy>((ref) => throw UnimplementedError());
 final idPort = Provider<String Function()>((ref) => throw UnimplementedError());
 final libraryProvider = StreamProvider<Library>(
   (ref) => ref.watch(notesPort).watch(),
 );
 
 class Settings {
-  final bool entered, pro;
+  final bool entered;
   final String theme, locale, profileName, profileImage, paperStyle, fontFamily;
-  final int used;
+
   const Settings({
     this.entered = false,
-    this.pro = false,
+
     this.theme = 'dark',
     this.locale = 'es',
     this.profileName = '',
     this.profileImage = '',
     this.paperStyle = 'plain',
     this.fontFamily = 'Inter',
-    this.used = 0,
   });
 }
 
@@ -57,14 +55,13 @@ class AppController extends AsyncNotifier<Settings> {
   @override
   Future<Settings> build() async => Settings(
     entered: await _repo.preference('entered') == 'true',
-    pro: await ref.read(policyPort).pro,
+
     theme: await _repo.preference('theme') ?? 'dark',
     locale: await _repo.preference('locale') ?? 'es',
     profileName: await _repo.preference('profile_name') ?? '',
     profileImage: await _repo.preference('profile_image') ?? '',
     paperStyle: _validPaperStyle(await _repo.preference('paper_style')),
     fontFamily: _validFont(await _repo.preference('font_family')),
-    used: await ref.read(policyPort).used(),
   );
 
   String _validPaperStyle(String? value) =>
@@ -77,48 +74,58 @@ class AppController extends AsyncNotifier<Settings> {
     state = AsyncData(await build());
   }
 
-  Future<void> enterGuest() async {
+  bool _changingProfile = false;
+
+  Future<void> _changeProfile(Future<void> Function() change) async {
+    if (_changingProfile) {
+      throw const AppFailure('Espera a que termine el cambio de perfil.');
+    }
+    final service = ref.read(aiPort);
+    final connection = service is AiConnection ? service as AiConnection : null;
+    _changingProfile = true;
+    try {
+      try {
+        await connection?.endProfileSession();
+        await change();
+      } finally {
+        await connection?.loadProfile();
+      }
+      ref.invalidate(libraryProvider);
+      await refresh();
+    } finally {
+      _changingProfile = false;
+    }
+  }
+
+  Future<void> enterGuest() => _changeProfile(() async {
     await ref.read(identityPort).signOut();
     await ref.read(profileVaultPort).activate(guestProfileId);
     await _repo.setPreference('entered', 'true');
-    ref.invalidate(libraryProvider);
-    await refresh();
-  }
+  });
 
-  Future<void> enterGoogle({required bool moveGuestNotes}) async {
-    final identity = ref.read(identityPort);
-    if (identity is! AccountIdentityService) {
-      throw const AppFailure('Google no devolvió una cuenta válida.');
-    }
-    final userId = (identity as AccountIdentityService).userId;
-    if (userId == null) {
-      throw const AppFailure('Google no devolvió una cuenta válida.');
-    }
-    final profiles = ref.read(profileVaultPort);
-    if (profiles.activeOwnerId == guestProfileId && moveGuestNotes) {
-      await profiles.moveGuestTo(userId);
-    }
-    await profiles.activate(userId);
-    await _repo.setPreference('entered', 'true');
-    ref.invalidate(libraryProvider);
-    ref.invalidate(aiAccessProvider);
-    await refresh();
-  }
+  Future<void> enterGoogle({required bool moveGuestNotes}) =>
+      _changeProfile(() async {
+        final identity = ref.read(identityPort);
+        final userId = identity is AccountIdentityService
+            ? (identity as AccountIdentityService).userId
+            : null;
+        if (userId == null) {
+          throw const AppFailure('Google no devolvió una cuenta válida.');
+        }
+        final profiles = ref.read(profileVaultPort);
+        if (profiles.activeOwnerId == guestProfileId && moveGuestNotes) {
+          await profiles.moveGuestTo(userId);
+        }
+        await profiles.activate(userId);
+        await _repo.setPreference('entered', 'true');
+      });
 
-  Future<void> leave() async {
+  Future<void> leave() => _changeProfile(() async {
     await _repo.setPreference('entered', 'false');
     await ref.read(identityPort).signOut();
     await ref.read(profileVaultPort).activate(guestProfileId);
     await _repo.setPreference('entered', 'false');
-    ref.invalidate(libraryProvider);
-    ref.invalidate(aiAccessProvider);
-    await refresh();
-  }
-
-  Future<void> plan(bool pro) async {
-    await _repo.setPreference('plan', pro ? 'pro_demo' : 'free');
-    await refresh();
-  }
+  });
 
   Future<void> theme(String v) async {
     await _repo.setPreference('theme', v);
@@ -190,66 +197,9 @@ class AppController extends AsyncNotifier<Settings> {
     await ref.read(examplesPort).load();
   }
 
-  Future<AiAccess?> syncAiAccess() async {
-    final service = ref.read(aiPort);
-    if (service is! AiAccessProvider) return null;
-    final access = await (service as AiAccessProvider).refreshAccess();
-    if (access.limit > 0 && state.value?.pro != access.pro) {
-      await plan(access.pro);
-    }
-    return access;
-  }
+  Future<String> transform(String text, AiAction action) =>
+      ref.read(aiPort).transform(text, action);
 
-  Future<void> _checkAccess(AiAccess? access, {bool sources = false}) async {
-    if (access == null) {
-      await ref.read(policyPort).check(ocr: sources);
-      return;
-    }
-    if (sources && !access.vision) {
-      throw const AppFailure(
-        'El servidor de IA no tiene habilitado el análisis de imágenes.',
-      );
-    }
-    if (access.remaining <= 0) {
-      throw const AppFailure(
-        'Alcanzaste el límite diario de IA. Vuelve a intentarlo mañana.',
-      );
-    }
-    if (access.globalRemaining == 0) {
-      throw const AppFailure(
-        'El servicio de IA alcanzó su límite diario. Vuelve a intentarlo mañana.',
-      );
-    }
-  }
-
-  Future<String> transform(String text, AiAction action) async {
-    await _checkAccess(await syncAiAccess());
-    try {
-      final result = await ref.read(aiPort).transform(text, action);
-      await ref.read(policyPort).recordSuccess();
-      await refresh();
-      return result;
-    } finally {
-      ref.invalidate(aiAccessProvider);
-    }
-  }
-
-  Future<AnalysisProposal> analyze(List<PickedFile> files, Library lib) async {
-    await _checkAccess(await syncAiAccess(), sources: true);
-    try {
-      final result = await ref.read(aiPort).analyze(files, lib);
-      await ref.read(policyPort).recordSuccess();
-      await refresh();
-      return result;
-    } finally {
-      ref.invalidate(aiAccessProvider);
-    }
-  }
+  Future<AnalysisProposal> analyze(List<PickedFile> files, Library lib) =>
+      ref.read(aiPort).analyze(files, lib);
 }
-
-// Server quota is authoritative for connected devices; local counts are demo-only.
-final aiAccessProvider = FutureProvider.autoDispose<AiAccess?>((ref) async {
-  final service = ref.watch(aiPort);
-  if (!service.configured || service is! AiAccessProvider) return null;
-  return (service as AiAccessProvider).refreshAccess();
-});

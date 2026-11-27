@@ -73,19 +73,7 @@ class _CaptureState extends ConsumerState<CapturePage> {
     }
     setState(() => busy = true);
     await runAction(context, () async {
-      final access = await ref.read(controllerProvider.notifier).syncAiAccess();
-      if (access != null && !access.vision) {
-        throw const AppFailure(
-          'El servidor de IA no tiene habilitado el análisis de imágenes.',
-        );
-      }
       final groups = sourceGroups(pendingFiles);
-      if (access != null && groups.length > access.remaining) {
-        throw AppFailure(
-          'Este lote necesita ${groups.length} acciones y quedan ${access.remaining}. Reduce el lote o espera al próximo día.',
-        );
-      }
-      if (!mounted) return;
       if (!await confirm(
         context,
         'Analizar fuentes',

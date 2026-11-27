@@ -356,6 +356,41 @@ const extraEnglish = <String, String>{
   'Elegir fotos de la galería': 'Choose photos from gallery',
   'Importar documentos compatibles': 'Import supported documents',
   'Conectar IA': 'Connect AI',
+  'Proveedor de IA': 'AI provider',
+  'Servidor personalizado': 'Custom server',
+  'Compatible con Chat Completions.': 'Chat Completions compatible.',
+  'Si mantienes el servidor, puedes dejar la clave vacía.':
+      'Leave the key blank to use the current server and key.',
+  'El proveedor recibe el contenido que selecciones y aplica sus tarifas y límites.': 'Your provider receives the content you select and sets its rates and limits.',
+  'La prueba envía un mensaje breve y puede consumir cuota.':
+      'The test sends a short message and may count toward your quota.',
+  'Probar y guardar': 'Check and save',
+  'Ya se está comprobando una conexión.':
+      'A connection check is already in progress.',
+  'Espera a que termine el cambio de perfil.':
+      'Wait for the profile switch to finish.',
+  'Cerrar sesión': 'Sign out',
+  'Se borrará la clave de IA de esta cuenta en este teléfono.':
+      'The AI key for this account will be deleted from this phone.',
+  'El proveedor rechazó la clave API.': 'The provider rejected the API key.',
+  'Revisa los permisos de la clave y su acceso al modelo.':
+      'Check the key permissions and model access.',
+  'El proveedor no acepta esta solicitud. Revisa el modelo y el contenido.':
+      'The provider rejected this request. Check the model and content.',
+
+  'Revisa el saldo o la facturación de tu cuenta con el proveedor.':
+      'Check your balance or billing with the provider.',
+  'Introduce la URL base HTTPS, sin credenciales ni parámetros.':
+      'Enter the HTTPS base URL without credentials or parameters.',
+  'Introduce la clave API de este proveedor.':
+      'Enter the API key for this provider.',
+  'El perfil cambió. Vuelve a abrir la conexión de IA.':
+      'The profile changed. Open the AI connection again.',
+  'Conecta un proveedor para usar IA.': 'Connect a provider to use AI.',
+  'No se pudo borrar la clave de IA del teléfono. Inténtalo de nuevo.':
+      'Could not delete the AI key from this phone. Try again.',
+  'No se pudo guardar la clave de IA en el teléfono.':
+      'Could not save the AI key on this phone.',
   'IA de Invitado': 'Guest AI',
   'Proveedor configurado. La cuota y disponibilidad dependen de ese proveedor.': 'Provider configured. Availability and usage limits depend on that provider.',
   'Conecta un proveedor compatible desde Herramientas de IA.':

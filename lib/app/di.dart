@@ -34,12 +34,14 @@ Future<void> configureApp() async {
     secure: secure,
     newId: newId,
   );
+  final gateway = GatewayAi(secure, http.Client(), profiles);
   final restoredUser = identity.userId;
   await profiles.activate(restoredUser ?? guestOwnerId);
   if (restoredUser != null &&
       await profiles.activeNotes.preference('entered') != 'true') {
     // An interrupted sign-in should return to Guest so its migration question
     // can be shown again instead of silently hiding that library.
+    await gateway.endProfileSession();
     await identity.signOut();
     await profiles.activate(guestOwnerId);
   }
@@ -50,12 +52,11 @@ Future<void> configureApp() async {
   sl.registerSingleton<ProfileVaultService>(profiles);
   sl.registerSingleton<ProfileVaultManager>(profiles);
   sl.registerSingleton(NoteActions(notes, DateTime.now, newId));
-  sl.registerSingleton(AiPolicy(notes, DateTime.now));
+
   sl.registerSingleton<ExportService>(DocumentExport(media, cache));
   sl.registerSingleton<ExampleService>(ExampleLibrary(notes, media, newId));
   sl.registerSingleton<SpeechService>(DeviceSpeech());
   sl.registerSingleton<IdentityService>(identity);
-  final gateway = GatewayAi(SystemSecureStore(), http.Client(), identity);
-  await gateway.initialize();
+  await gateway.loadProfile();
   sl.registerSingleton<AiService>(gateway);
 }

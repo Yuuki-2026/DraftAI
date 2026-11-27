@@ -5,234 +5,291 @@ import 'package:http/http.dart' as http;
 import '../../../core/security/secure_store.dart';
 import '../../notes/domain/entities.dart';
 import '../../notes/domain/ports.dart';
-import 'ai_services.dart';
-import 'guest_openai.dart';
+import 'direct_ai.dart';
 
-/// Routes Google sessions to the managed Azure API and Guest sessions to the
-/// provider configured by that guest on this device.
-class GatewayAi
-    implements AiService, AiConnection, AiRunMetadata, AiAccessProvider {
+class GatewayAi implements AiService, AiConnection, AiRunMetadata {
   final SecureStore secure;
   final http.Client client;
-  final IdentityService identity;
-  RemoteAi? _googleRemote;
-  GuestOpenAi? _guestRemote;
-  Uri? _googleEndpoint;
-  Uri? _guestEndpoint;
-  String _guestApiKey = '';
-  String _guestModel = '';
+  final ProfileVaultService profiles;
 
-  GatewayAi(this.secure, this.client, this.identity);
+  DirectAi? _remote;
+  DirectAi? _checking;
+  String? _loadedOwner;
+  AiProvider _provider = AiProvider.custom;
+  int _session = 0;
+  Future<void> _storage = Future.value();
 
-  Future<void> initialize() async {
-    final cloudEndpoint = const String.fromEnvironment('AI_BASE_URL').trim();
-    final cloudUri = Uri.tryParse(cloudEndpoint);
-    if (cloudUri != null &&
-        cloudUri.scheme == 'https' &&
-        cloudUri.host.isNotEmpty &&
-        cloudUri.userInfo.isEmpty &&
-        cloudUri.query.isEmpty &&
-        cloudUri.fragment.isEmpty) {
-      final base = _asBaseUri(cloudUri);
-      _googleEndpoint = base;
-      _googleRemote = RemoteAi(base, identity, client);
-    }
+  GatewayAi(this.secure, this.client, this.profiles);
 
-    final saved = await secure.read('guest_ai_config_v1');
-    if (saved == null || saved.isEmpty) return;
+  static const _changedProfile = AppFailure(
+    'El perfil cambió. Vuelve a abrir la conexión de IA.',
+  );
+
+  static String _key(String owner) => owner == guestProfileId
+      ? 'guest_ai_config_v1'
+      : 'account_ai_config_v1_$owner';
+
+  @override
+  String? get profileId =>
+      _loadedOwner == profiles.activeOwnerId ? _loadedOwner : null;
+
+  DirectAi? get _active => profileId == null ? null : _remote;
+
+  @override
+  AiProvider get provider => _active == null ? AiProvider.custom : _provider;
+
+  @override
+  bool get configured => _active != null;
+
+  @override
+  String get endpoint => _active?.endpoint.toString() ?? '';
+
+  @override
+  String get model => _active?.model ?? '';
+
+  Future<void> _queueStorage(Future<void> Function() change) {
+    final operation = _storage.then((_) => change());
+    _storage = operation.then<void>(
+      (_) {},
+      onError: (Object _, StackTrace _) {},
+    );
+    return operation;
+  }
+
+  Future<void> _deleteKey(String owner) async {
     try {
-      final value = jsonDecode(saved);
-      if (value is! Map<String, dynamic>) return;
-      final endpoint = value['endpoint'];
-      final apiKey = value['apiKey'];
-      final model = value['model'];
-      if (endpoint is! String || apiKey is! String || model is! String) return;
-      final uri = _validateEndpoint(endpoint);
-      if (apiKey.trim().isEmpty || !_validModel(model)) return;
-      _guestEndpoint = uri;
-      _guestApiKey = apiKey;
-      _guestModel = model.trim();
-      _guestRemote = _createGuestRemote();
-    } catch (_) {
-      // Keep malformed credentials unavailable without replacing them; the
-      // guest can reopen setup and save a valid configuration.
+      await secure.delete(_key(owner));
+    } on AppFailure {
+      throw const AppFailure(
+        'No se pudo borrar la clave de IA del teléfono. Inténtalo de nuevo.',
+      );
     }
   }
 
-  bool get _googleSession =>
-      identity is AccountIdentityService &&
-      (identity as AccountIdentityService).userId != null;
+  bool _isCurrent(String owner, int session) =>
+      profiles.activeOwnerId == owner && _session == session;
+
+  int _clearSession() {
+    cancel();
+    _checking = null;
+    _remote = null;
+    _loadedOwner = null;
+    _provider = AiProvider.custom;
+    return ++_session;
+  }
 
   @override
-  bool get isGoogleAccount => _googleSession;
+  Future<void> loadProfile() {
+    final owner = profiles.activeOwnerId;
+    final session = _clearSession();
+    return _queueStorage(() async {
+      DirectAi? remote;
+      var provider = AiProvider.custom;
+      try {
+        final saved = await secure.read(_key(owner));
+        if (saved != null) {
+          final json = jsonDecode(saved);
+          if (json case {
+            'endpoint': final String endpoint,
+            'apiKey': final String apiKey,
+            'model': final String model,
+          }) {
+            final selected = AiProvider.values
+                .where((value) => value.name == json['provider'])
+                .firstOrNull;
+            if (selected == null && json.containsKey('provider')) {
+              throw const FormatException();
+            }
+            provider = selected ?? AiProvider.custom;
+            final candidate = _buildRemote(
+              provider,
+              endpoint,
+              apiKey.trim(),
+              model,
+            );
+            if (candidate.endpoint == _validateEndpoint(endpoint)) {
+              remote = candidate;
+            }
+          }
+        }
+      } on FormatException {
+        // The form can replace a damaged record.
+      } on AppFailure {
+        // Notes stay accessible if the stored AI connection cannot be opened.
+      }
+      if (_isCurrent(owner, session)) {
+        _loadedOwner = owner;
+        _remote = remote;
+        _provider = provider;
+      }
+    });
+  }
 
   @override
-  bool get usesGoogleCloud => _googleSession;
-
-  AiService? get _activeService =>
-      _googleSession ? _googleRemote : _guestRemote;
-
-  String get _configurationFailure => _googleSession
-      ? 'El servicio de IA de tu cuenta todavía no está disponible. El backend de Azure debe estar configurado.'
-      : 'Configura un proveedor compatible con OpenAI para usar IA en Invitado.';
-
-  @override
-  bool get configured => _activeService?.configured ?? false;
+  Future<void> endProfileSession() {
+    final owner = profiles.activeOwnerId;
+    _clearSession();
+    return owner == guestProfileId
+        ? _storage
+        : _queueStorage(() => _deleteKey(owner));
+  }
 
   @override
-  bool get canDisconnect => !_googleSession && _guestRemote != null;
-
-  @override
-  String get endpoint => _googleSession
-      ? _googleEndpoint?.toString() ?? ''
-      : _guestEndpoint?.toString() ?? '';
-
-  @override
-  String get model => _googleSession
-      ? (_googleRemote?.lastModel.isNotEmpty == true
-            ? _googleRemote!.lastModel
-            : 'IA en la nube')
-      : _guestModel;
-
-  @override
-  Future<void> connect(String endpoint, String apiKey, String model) async {
-    if (_googleSession) {
-      throw const AppFailure(
-        'Las cuentas de Google usan el servicio de IA de DraftAI; no configuran una clave propia.',
-      );
+  Future<void> connect(
+    AiProvider provider,
+    String endpoint,
+    String apiKey,
+    String model,
+  ) async {
+    final owner = profileId;
+    if (owner == null) throw _changedProfile;
+    if (_checking != null) {
+      throw const AppFailure('Ya se está comprobando una conexión.');
     }
-    final uri = _validateEndpoint(endpoint);
-    final key = apiKey.trim().isEmpty ? _guestApiKey : apiKey.trim();
-    final selectedModel = model.trim();
-    if (key.isEmpty) {
-      throw const AppFailure('Introduce la clave API de tu proveedor.');
-    }
-    if (key.length > 4096 || key.contains(RegExp(r'\s'))) {
-      throw const AppFailure('La clave API no tiene un formato válido.');
-    }
-    if (!_validModel(selectedModel)) {
-      throw const AppFailure('Introduce el identificador del modelo.');
-    }
 
-    // Store the three values in one secure record so a partial write cannot
-    // leave a mismatched endpoint and credential behind.
-    await secure.write(
-      'guest_ai_config_v1',
-      jsonEncode({
-        'endpoint': uri.toString(),
-        'apiKey': key,
-        'model': selectedModel,
-      }),
-    );
-    _guestEndpoint = uri;
-    _guestApiKey = key;
-    _guestModel = selectedModel;
-    _guestRemote = _createGuestRemote();
+    final (url, name) = _providerSettings(provider, endpoint, model);
+    final uri = _validateEndpoint(url);
+    final previous = _active;
+    final key =
+        apiKey.trim().isEmpty &&
+            provider == this.provider &&
+            previous?.endpoint == uri
+        ? previous!.apiKey
+        : apiKey.trim();
+    final candidate = _buildRemote(provider, url, key, name);
+    final session = _session;
+    _checking = candidate;
+    try {
+      await candidate.checkConnection();
+      await _queueStorage(() async {
+        if (!_isCurrent(owner, session)) throw _changedProfile;
+        try {
+          await secure.write(
+            _key(owner),
+            jsonEncode({
+              'provider': provider.name,
+              'endpoint': candidate.endpoint.toString(),
+              'apiKey': candidate.apiKey,
+              'model': candidate.model,
+            }),
+          );
+        } on AppFailure {
+          throw const AppFailure(
+            'No se pudo guardar la clave de IA en el teléfono.',
+          );
+        }
+        if (!_isCurrent(owner, session)) throw _changedProfile;
+        _remote?.cancel();
+        _remote = candidate;
+        _provider = provider;
+      });
+    } finally {
+      if (identical(_checking, candidate)) _checking = null;
+    }
   }
 
   @override
   Future<void> disconnect() async {
-    if (_googleSession) {
-      throw const AppFailure(
-        'La conexión de IA de Google se administra desde DraftAI.',
-      );
+    final owner = profileId;
+    if (owner == null) throw _changedProfile;
+    final session = _clearSession();
+    try {
+      await _queueStorage(() => _deleteKey(owner));
+    } finally {
+      if (_isCurrent(owner, session)) await loadProfile();
     }
-    _guestRemote?.cancel();
-    await secure.delete('guest_ai_config_v1');
-    _guestRemote = null;
-    _guestEndpoint = null;
-    _guestApiKey = '';
-    _guestModel = '';
   }
 
-  GuestOpenAi _createGuestRemote() => GuestOpenAi(
-    endpoint: _guestEndpoint!,
-    apiKey: _guestApiKey,
-    model: _guestModel,
-    client: client,
-  );
+  DirectAi _buildRemote(
+    AiProvider provider,
+    String endpoint,
+    String apiKey,
+    String model,
+  ) {
+    final (url, name) = _providerSettings(provider, endpoint, model);
+    final uri = _validateEndpoint(url);
+    if (apiKey.isEmpty) {
+      throw const AppFailure('Introduce la clave API de este proveedor.');
+    }
+    if (apiKey.length > 4096 || apiKey.contains(RegExp(r'\s'))) {
+      throw const AppFailure('La clave API no tiene un formato válido.');
+    }
+    if (name.isEmpty || name.length > 120 || name.contains(RegExp(r'\s'))) {
+      throw const AppFailure('Introduce el identificador del modelo.');
+    }
+    return DirectAi(
+      endpoint: uri,
+      apiKey: apiKey,
+      model: name,
+      provider: provider,
+      client: client,
+    );
+  }
+
+  static (String, String) _providerSettings(
+    AiProvider provider,
+    String endpoint,
+    String model,
+  ) => switch (provider) {
+    AiProvider.openAi => ('https://api.openai.com/v1/', 'gpt-6-luna'),
+    AiProvider.claude => ('https://api.anthropic.com/v1/', 'claude-haiku-5-5'),
+    AiProvider.gemini => (
+      'https://generativelanguage.googleapis.com/v1beta/openai/',
+      'gemini-3.1-flash-lite',
+    ),
+    AiProvider.custom => (endpoint.trim(), model.trim()),
+  };
 
   static Uri _validateEndpoint(String value) {
-    final uri = Uri.tryParse(value.trim());
+    final uri = Uri.tryParse(value);
     if (uri == null ||
         uri.scheme != 'https' ||
         uri.host.isEmpty ||
-        uri.userInfo.isNotEmpty ||
-        uri.query.isNotEmpty ||
-        uri.fragment.isNotEmpty) {
+        uri.authority.contains('@') ||
+        uri.hasQuery ||
+        uri.hasFragment) {
       throw const AppFailure(
-        'Introduce la URL base HTTPS del proveedor, sin clave ni parámetros.',
+        'Introduce la URL base HTTPS, sin credenciales ni parámetros.',
       );
     }
-    return _asBaseUri(uri);
+    return uri.path.endsWith('/') ? uri : uri.replace(path: '${uri.path}/');
   }
-
-  static Uri _asBaseUri(Uri uri) => uri.replace(
-    path: uri.path.endsWith('/') ? uri.path : '${uri.path}/',
-    query: '',
-    fragment: '',
-  );
-
-  static bool _validModel(String value) =>
-      value.trim().isNotEmpty &&
-      value.trim().length <= 120 &&
-      !value.contains(RegExp(r'\s'));
 
   @override
   void cancel() {
-    _googleRemote?.cancel();
-    _guestRemote?.cancel();
-  }
-
-  AiService _requireActive() {
-    final service = _activeService;
-    if (service == null) throw AppFailure(_configurationFailure);
-    return service;
+    _remote?.cancel();
+    _checking?.cancel();
   }
 
   @override
   String get lastModel {
-    final service = _activeService;
-    if (service is AiRunMetadata) {
-      final metadata = service as AiRunMetadata;
-      if (metadata.lastModel.isNotEmpty) return metadata.lastModel;
-    }
-    return model;
+    final remote = _active;
+    if (remote == null) return '';
+    return remote.lastModel.isEmpty ? remote.model : remote.lastModel;
   }
 
   @override
   bool get lastWasDemonstration => false;
 
+  Future<T> _run<T>(Future<T> Function(DirectAi) action) async {
+    final remote = _active;
+    if (remote == null) {
+      throw const AppFailure('Conecta un proveedor para usar IA.');
+    }
+    final result = await action(remote);
+    if (!identical(remote, _active)) throw _changedProfile;
+    return result;
+  }
+
   @override
   Future<String> transform(String text, AiAction action) =>
-      _requireActive().transform(text, action);
+      _run((remote) => remote.transform(text, action));
 
   @override
   Future<List<AiQuizQuestion>> generateQuiz(String text) =>
-      _requireActive().generateQuiz(text);
+      _run((remote) => remote.generateQuiz(text));
 
   @override
   Future<AnalysisProposal> analyze(List<PickedFile> files, Library library) =>
-      _requireActive().analyze(files, library);
-
-  @override
-  Future<AiAccess> refreshAccess() async {
-    if (_googleSession) {
-      final remote = _googleRemote;
-      if (remote == null) throw AppFailure(_configurationFailure);
-      return remote.refreshAccess();
-    }
-    final guest = _guestRemote;
-    if (guest == null) throw AppFailure(_configurationFailure);
-    // The external provider owns its limits. A zero app limit marks this access
-    // as provider-managed; the controller must not enforce DraftAI's quota.
-    return AiAccess(
-      pro: false,
-      vision: true,
-      model: _guestModel,
-      remaining: 1 << 30,
-      limit: 0,
-      used: 0,
-    );
-  }
+      _run((remote) => remote.analyze(files, library));
 }

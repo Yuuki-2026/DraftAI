@@ -1,4 +1,3 @@
-import 'ai_quota_card.dart';
 import '../../notes/domain/note_sections.dart';
 
 import 'package:flutter/material.dart';
@@ -29,13 +28,12 @@ class _AiPageState extends ConsumerState<AiPage> {
   String instruction = 'Genera un mapa mental en Markdown y Mermaid.',
       result = '';
   String resultModel = '';
-  bool verified = false, checkingConnection = false;
+
   final selectedTopics = <String, Set<String>>{};
   @override
   void initState() {
     super.initState();
     selected.addAll(widget.initialNotes.map((n) => n.id));
-    WidgetsBinding.instance.addPostFrameCallback((_) => _verifyConnection());
   }
 
   Future<void> _date(bool start) async {
@@ -53,37 +51,6 @@ class _AiPageState extends ConsumerState<AiPage> {
           until = value;
         }
         result = '';
-      });
-    }
-  }
-
-  Future<void> _verifyConnection() async {
-    final service = ref.read(aiPort);
-    final AiConnection? connection = service is AiConnection
-        ? service as AiConnection
-        : null;
-    if (connection == null || !service.configured) {
-      if (mounted) setState(() => verified = false);
-      return;
-    }
-    if (!connection.isGoogleAccount) {
-      if (mounted) setState(() => verified = true);
-      return;
-    }
-    if (service is! AiAccessProvider) {
-      if (mounted) setState(() => verified = false);
-      return;
-    }
-    setState(() => checkingConnection = true);
-    var ok = false;
-    try {
-      await (service as AiAccessProvider).refreshAccess();
-      ok = true;
-    } catch (_) {}
-    if (mounted) {
-      setState(() {
-        verified = ok;
-        checkingConnection = false;
       });
     }
   }
@@ -147,7 +114,7 @@ class _AiPageState extends ConsumerState<AiPage> {
       if (mounted) {
         setState(() {
           result = value;
-          verified = true;
+
           resultModel = aiModelLabel(ref.read(aiPort));
         });
       }
@@ -168,66 +135,36 @@ class _AiPageState extends ConsumerState<AiPage> {
           maxWidth: 720,
           child: ListView(
             children: [
-              const AiQuotaCard(),
-              const SizedBox(height: 12),
               if (connection != null)
                 ListTile(
-                  leading: Icon(verified ? Icons.link : Icons.link_off),
+                  leading: Icon(
+                    connection.configured ? Icons.link : Icons.link_off,
+                  ),
                   title: Text(
                     tr(
                       context,
-                      checkingConnection
-                          ? 'Comprobando conexión…'
-                          : connection.isGoogleAccount
-                          ? verified
-                                ? 'IA de DraftAI'
-                                : 'IA en la nube no disponible'
-                          : verified
+                      connection.configured
                           ? 'Proveedor configurado'
                           : 'Conectar IA',
                     ),
                   ),
-                  subtitle: Text(
-                    connection.isGoogleAccount
-                        ? verified
-                              ? connection.model
-                              : tr(
-                                  context,
-                                  'La conexión de Azure se habilitará cuando el servicio esté configurado.',
-                                )
-                        : verified
-                        ? tr(
-                            context,
-                            'Cuota y disponibilidad según tu proveedor.',
-                          )
-                        : tr(
-                            context,
-                            'Configura URL, modelo y clave API para este dispositivo.',
-                          ),
-                  ),
-                  onTap: connection.isGoogleAccount
-                      ? null
-                      : () async {
-                          if (await connectAiDialog(context, connection) &&
-                              mounted) {
-                            await _verifyConnection();
-                            ref.invalidate(aiAccessProvider);
-                          }
-                        },
-                  trailing: service.configured && connection.canDisconnect
+                  subtitle: connection.configured
+                      ? Text(connection.model)
+                      : null,
+                  onTap: () async {
+                    if (await connectAiDialog(context, connection) && mounted) {
+                      setState(() {});
+                    }
+                  },
+                  trailing: connection.configured
                       ? IconButton(
                           tooltip: tr(context, 'Desconectar'),
                           onPressed: () async {
-                            await connection.disconnect();
-                            ref.invalidate(aiAccessProvider);
-                            if (mounted) setState(() => verified = false);
+                            await runAction(context, connection.disconnect);
+                            if (mounted) setState(() {});
                           },
-                          icon: const Icon(Icons.close),
+                          icon: const Icon(Icons.link_off),
                         )
-                      : connection.isGoogleAccount && service.configured
-                      ? const Icon(Icons.cloud_done_outlined)
-                      : connection.isGoogleAccount
-                      ? const Icon(Icons.cloud_off_outlined)
                       : const Icon(Icons.chevron_right),
                 ),
               SizedBox(height: 16),

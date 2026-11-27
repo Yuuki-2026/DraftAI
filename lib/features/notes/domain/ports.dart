@@ -166,15 +166,23 @@ abstract interface class ProfileVaultService {
 
 const guestProfileId = 'guest';
 
-/// AI routing and guest-owned provider configuration.
+enum AiProvider { openAi, claude, gemini, custom }
+
+/// Direct AI connection belonging to the active local profile.
 abstract interface class AiConnection {
   bool get configured;
-  bool get isGoogleAccount;
-  bool get usesGoogleCloud;
-  bool get canDisconnect;
+  String? get profileId;
+  AiProvider get provider;
   String get endpoint;
   String get model;
-  Future<void> connect(String endpoint, String apiKey, String model);
+  Future<void> loadProfile();
+  Future<void> endProfileSession();
+  Future<void> connect(
+    AiProvider provider,
+    String endpoint,
+    String apiKey,
+    String model,
+  );
   Future<void> disconnect();
 }
 

@@ -9,7 +9,8 @@ import 'app/di.dart';
 import 'core/presentation/design.dart';
 import 'core/presentation/strings.dart';
 import 'features/notes/domain/ports.dart';
-import 'features/notes/domain/use_cases.dart';
+import 'features/notes/domain/use_cases.dart' show NoteActions;
+
 import 'features/notes/presentation/controller.dart';
 import 'features/notes/presentation/library_page.dart';
 import 'features/settings/presentation/settings_pages.dart';
@@ -47,7 +48,7 @@ Future<void> main() async {
           identityPort.overrideWithValue(sl<IdentityService>()),
           profileVaultPort.overrideWithValue(sl<ProfileVaultService>()),
           actionsPort.overrideWithValue(sl<NoteActions>()),
-          policyPort.overrideWithValue(sl<AiPolicy>()),
+
           idPort.overrideWithValue(newId),
         ],
         child: const DraftApp(),

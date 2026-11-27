@@ -1,4 +1,4 @@
-import '../../ai/presentation/ai_quota_card.dart';
+import '../../ai/presentation/connection_dialog.dart';
 import 'example_page.dart';
 import '../../../core/presentation/strings.dart';
 import '../../../core/presentation/user_avatar.dart';
@@ -217,6 +217,8 @@ class ProfilePage extends ConsumerWidget {
         identity.configured &&
         identity is AccountIdentityService &&
         (identity as AccountIdentityService).userId != null;
+    final ai = ref.read(aiPort);
+    final connection = ai is AiConnection ? ai as AiConnection : null;
     final defaultName = identity.displayName ?? tr(context, 'Modo invitado');
     final profileName = settings?.profileName.trim().isNotEmpty == true
         ? settings!.profileName.trim()
@@ -351,17 +353,35 @@ class ProfilePage extends ConsumerWidget {
                   ],
                 ),
               ),
-              SizedBox(height: 12),
-              const AiQuotaCard(),
-              SizedBox(height: 16),
-              if (!googleAccountAvailable)
-                _item(
-                  context,
-                  Icons.key_outlined,
-                  'Conectar IA',
-                  '',
-                  const AiPage(),
+              const SizedBox(height: 16),
+              if (connection != null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Surface(
+                    padding: EdgeInsets.zero,
+                    child: ListTile(
+                      leading: const Icon(Icons.key_outlined, size: 21),
+                      title: Text(
+                        tr(context, 'Conectar IA'),
+                        style: const TextStyle(fontSize: 13),
+                      ),
+                      subtitle: connection.configured
+                          ? Text(
+                              connection.model,
+                              style: const TextStyle(fontSize: 11),
+                            )
+                          : null,
+                      trailing: const Icon(Icons.chevron_right, size: 18),
+                      onTap: () async {
+                        if (await connectAiDialog(context, connection) &&
+                            context.mounted) {
+                          await ref.read(controllerProvider.notifier).refresh();
+                        }
+                      },
+                    ),
+                  ),
                 ),
+
               _item(
                 context,
                 Icons.tune,
@@ -404,12 +424,24 @@ class ProfilePage extends ConsumerWidget {
                   tr(context, 'Salir'),
                   style: TextStyle(fontSize: 13),
                 ),
-                onTap: () => runAction(context, () async {
-                  await ref.read(controllerProvider.notifier).leave();
-                  if (context.mounted) {
-                    Navigator.of(context).popUntil((route) => route.isFirst);
+                onTap: () async {
+                  if (googleAccountAvailable &&
+                      connection?.configured == true &&
+                      !await confirm(
+                        context,
+                        'Cerrar sesión',
+                        'Se borrará la clave de IA de esta cuenta en este teléfono.',
+                      )) {
+                    return;
                   }
-                }),
+                  if (!context.mounted) return;
+                  await runAction(context, () async {
+                    await ref.read(controllerProvider.notifier).leave();
+                    if (context.mounted) {
+                      Navigator.of(context).popUntil((route) => route.isFirst);
+                    }
+                  });
+                },
               ),
               SizedBox(height: 24),
             ],
@@ -1270,11 +1302,11 @@ class InformationPage extends StatelessWidget {
         ? [
             (
               'Uso de DraftAI',
-              'DraftAI permite crear y organizar notas con texto e imágenes guardadas en el dispositivo. Puedes agruparlas en carpetas, buscar su contenido y exportarlas para compartir.',
+              'DraftAI permite crear y organizar notas con texto e imágenes guardadas en el dispositivo. Puedes agruparlas en carpetas, buscar su contenido y exportarlas para compartir. Cada proveedor de IA aplica sus propias tarifas y límites.',
             ),
             (
               'Revisión del contenido',
-              'Revisa cualquier extracción o resumen antes de guardarlo. Los modelos externos pueden cometer errores. Sin API configurada, las demostraciones se identifican expresamente.',
+              'Revisa cualquier extracción o resumen antes de guardarlo. Los modelos externos pueden cometer errores. La IA requiere que conectes un proveedor.',
             ),
             (
               'Conservación',

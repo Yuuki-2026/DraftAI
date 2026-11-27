@@ -105,23 +105,6 @@ void main() {
       'Renombrada',
     );
   });
-  test(
-    'free plan blocks OCR, daily quota resets and demo Pro changes limit',
-    () async {
-      var day = now;
-      final policy = AiPolicy(repo, () => day);
-      await expectLater(policy.check(ocr: true), throwsA(isA<AppFailure>()));
-      await policy.recordSuccess();
-      await policy.recordSuccess();
-      await expectLater(policy.check(), throwsA(isA<AppFailure>()));
-      day = now.add(const Duration(days: 1));
-      await policy.check();
-      expect(await policy.used(), 0);
-      await repo.setPreference('plan', 'pro_demo');
-      await policy.check(ocr: true);
-      expect(await policy.limit(), 10);
-    },
-  );
   test('filter includes end date and ignores accents', () {
     final notes = [
       note(),

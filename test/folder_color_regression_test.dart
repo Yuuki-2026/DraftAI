@@ -1,5 +1,5 @@
 import 'package:draft_ai/features/notes/domain/entities.dart';
-import 'package:draft_ai/features/notes/domain/use_cases.dart';
+
 import 'package:draft_ai/features/notes/presentation/controller.dart';
 import 'package:draft_ai/features/notes/presentation/library_page.dart';
 import 'package:flutter/gestures.dart';
@@ -32,10 +32,7 @@ Future<MemoryNotes> _openColorPicker(WidgetTester tester, double height) async {
   addTearDown(repo.close);
   await tester.pumpWidget(
     ProviderScope(
-      overrides: [
-        notesPort.overrideWithValue(repo),
-        policyPort.overrideWithValue(AiPolicy(repo, DateTime.now)),
-      ],
+      overrides: [notesPort.overrideWithValue(repo)],
       child: MaterialApp(
         locale: const Locale('es'),
         supportedLocales: const [Locale('es')],
