@@ -1218,7 +1218,7 @@ class AboutPage extends StatelessWidget {
                 style: TextStyle(fontSize: 24, fontWeight: FontWeight.w600),
               ),
             ),
-            Center(child: Meta(tr(context, 'Versión 0.2.3-beta.4 · Build 9'))),
+            Center(child: Meta(tr(context, 'Versión 0.2.3-beta.5 · Build 11'))),
             SizedBox(height: 20),
             Surface(
               child: Wrap(
@@ -1256,7 +1256,7 @@ class AboutPage extends StatelessWidget {
               onTap: () => showLicensePage(
                 context: context,
                 applicationName: 'DraftAI',
-                applicationVersion: '0.2.3-beta.4',
+                applicationVersion: '0.2.3-beta.5',
               ),
             ),
             SizedBox(height: 24),
