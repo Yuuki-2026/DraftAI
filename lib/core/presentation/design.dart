@@ -225,22 +225,37 @@ class Pill extends StatelessWidget {
 class SectionTitle extends StatelessWidget {
   final String text;
   final Widget? action;
-  const SectionTitle(this.text, {super.key, this.action});
+  final bool wrapAction;
+  const SectionTitle(
+    this.text, {
+    super.key,
+    this.action,
+    this.wrapAction = false,
+  });
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(top: 20, bottom: 10),
-    child: Row(
-      children: [
-        Expanded(
-          child: Text(
-            tr(context, text),
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-        ),
-        ?action,
-      ],
-    ),
-  );
+  Widget build(BuildContext context) {
+    final title = Text(
+      tr(context, text),
+      style: Theme.of(context).textTheme.titleMedium,
+    );
+    return Padding(
+      padding: const EdgeInsets.only(top: 20, bottom: 10),
+      child: wrapAction
+          ? OverflowBar(
+              alignment: MainAxisAlignment.spaceBetween,
+              overflowAlignment: OverflowBarAlignment.start,
+              spacing: 8,
+              overflowSpacing: 4,
+              children: [title, ?action],
+            )
+          : Row(
+              children: [
+                Expanded(child: title),
+                ?action,
+              ],
+            ),
+    );
+  }
 }
 
 Future<void> runAction(

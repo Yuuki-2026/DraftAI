@@ -441,8 +441,11 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
           ),
           SectionTitle(
             'Tus carpetas',
-            action: Row(
-              mainAxisSize: MainAxisSize.min,
+            wrapAction: true,
+            action: Wrap(
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 4,
+              runSpacing: 4,
               children: [
                 TextButton.icon(
                   onPressed: () => editFolder(context, ref),
