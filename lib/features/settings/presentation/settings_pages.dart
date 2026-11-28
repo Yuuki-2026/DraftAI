@@ -748,7 +748,7 @@ class PreferencesPage extends ConsumerWidget {
       ('lines', 'Renglones'),
       ('grid', 'Cuadrícula'),
       ('dots', 'Puntos'),
-      ('spaced', 'Interlineado amplio'),
+      (widePaperStyle, 'Interlineado amplio'),
     ];
     return Scaffold(
       appBar: AppBar(title: Text(tr(context, 'Preferencias'))),
@@ -1048,6 +1048,7 @@ class _PaperStyleChoice extends StatelessWidget {
                   painter: PaperPatternPainter(
                     style: id,
                     color: scheme.onSurface,
+                    scale: .5,
                   ),
                   child: const SizedBox.expand(),
                 ),

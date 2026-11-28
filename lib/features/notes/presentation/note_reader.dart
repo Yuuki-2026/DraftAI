@@ -4,6 +4,7 @@ import 'package:flutter_math_fork/flutter_math.dart';
 import '../domain/entities.dart';
 import '../domain/note_document.dart';
 import 'media_widgets.dart';
+import 'paper_pattern.dart';
 
 final noteMathPattern = RegExp(
   r'\$\$([\s\S]+?)\$\$|\\\[([\s\S]+?)\\\]|\\\(([\s\S]+?)\\\)|(?<!\\)\$([^\n$]+?)(?<!\\)\$',
@@ -86,7 +87,8 @@ class _ReadLine {
 
 class NoteReader extends StatelessWidget {
   final Note note;
-  const NoteReader({super.key, required this.note});
+  final bool wideSpacing;
+  const NoteReader({super.key, required this.note, this.wideSpacing = false});
   List<_ReadLine> _lines() {
     final lines = <_ReadLine>[], runs = <Map<String, dynamic>>[];
     for (final op in NoteDocument.delta(note)) {
@@ -164,7 +166,11 @@ class NoteReader extends StatelessWidget {
             : heading > 0
             ? 17
             : 15,
-        height: date ? 1.4 : 1.65,
+        height: date
+            ? 1.4
+            : heading == 0 && wideSpacing
+            ? widePaperLineHeight
+            : 1.65,
         color: date ? scheme.onSurfaceVariant : scheme.onSurface,
         fontWeight: !date && heading > 0 ? FontWeight.w600 : FontWeight.normal,
       );

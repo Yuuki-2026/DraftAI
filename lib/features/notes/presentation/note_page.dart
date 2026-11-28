@@ -400,6 +400,9 @@ class _NotePageState extends ConsumerState<NotePage> {
     final lib = ref.watch(libraryProvider).value;
     final pageStyle =
         ref.watch(controllerProvider).value?.paperStyle ?? 'plain';
+    final wideSpacing = pageStyle == widePaperStyle;
+    final textScale = MediaQuery.textScalerOf(context)
+        .scale(reading ? readingScale : 1);
 
     return PopScope(
       canPop: allowPop,
@@ -651,26 +654,20 @@ class _NotePageState extends ConsumerState<NotePage> {
                   Meta(NoteSections.label(note.updatedAt.toLocal())),
                 Surface(
                   key: const ValueKey('note-document-surface'),
-                  child: CustomPaint(
-                    painter: PaperPatternPainter(
+                  child: NotePaper(
+                    pattern: PaperPatternPainter(
                       style: pageStyle,
                       color: Theme.of(context).colorScheme.onSurface,
-                      scale: reading ? readingScale : 1,
-                      scrollController: editing
-                          ? editorScroll
-                          : reading
-                          ? scroll
-                          : null,
+                      scale: textScale,
                     ),
                     child: MediaQuery(
-                      data: MediaQuery.of(context).copyWith(
-                        textScaler: TextScaler.linear(
-                          MediaQuery.textScalerOf(context)
-                              .scale(reading ? readingScale : 1),
-                        ),
-                      ),
+                      data: MediaQuery.of(context)
+                          .copyWith(textScaler: TextScaler.linear(textScale)),
                       child: !editing
-                          ? NoteReader(note: _snapshot())
+                          ? NoteReader(
+                              note: _snapshot(),
+                              wideSpacing: wideSpacing,
+                            )
                           : q.QuillEditor(
                               controller: editor,
                               focusNode: focus,
@@ -687,7 +684,9 @@ class _NotePageState extends ConsumerState<NotePage> {
                                                 .bodyMedium!
                                                 .copyWith(
                                                   fontSize: 15,
-                                                  height: 1.6,
+                                                  height: wideSpacing
+                                                      ? widePaperLineHeight
+                                                      : 1.6,
                                                 ),
                                             verticalSpacing:
                                                 const q.VerticalSpacing(3, 7),
