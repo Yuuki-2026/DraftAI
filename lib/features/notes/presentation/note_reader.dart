@@ -20,49 +20,99 @@ class NoteMathText extends StatelessWidget {
     BuildContext context,
     String text,
     TextStyle style,
+  ) => _styledSpans(context, [TextSpan(text: text)], style);
+
+  static List<InlineSpan> _styledSpans(
+    BuildContext context,
+    List<TextSpan> runs,
+    TextStyle base,
   ) {
-    final spans = <InlineSpan>[];
+    // Find complete formulas before splitting the text back into styled runs.
+    final text = runs.map((run) => run.text!).join();
+    final matches = noteMathPattern.allMatches(text).iterator;
+    if (!matches.moveNext()) return List.of(runs);
+
+    final result = <InlineSpan>[];
+    var runIndex = 0;
+    var runStart = 0;
     var cursor = 0;
-    for (final m in noteMathPattern.allMatches(text)) {
-      if (m.start > cursor)
-        spans.add(TextSpan(text: text.substring(cursor, m.start)));
-      final tex = m.group(1) ?? m.group(2) ?? m.group(3) ?? m.group(4)!;
-      if (tex.length > 1500) {
-        spans.add(TextSpan(text: m.group(0)));
-      } else {
-        spans.add(
-          WidgetSpan(
-            alignment: PlaceholderAlignment.middle,
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                maxWidth: (MediaQuery.sizeOf(context).width - 88).clamp(
-                  120.0,
-                  640.0,
-                ),
-              ),
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 6),
-                  child: Math.tex(
-                    tex,
-                    mathStyle: m.group(1) != null || m.group(2) != null
-                        ? MathStyle.display
-                        : MathStyle.text,
-                    textStyle: style.copyWith(height: 1.2),
-                    onErrorFallback: (_) => Text(m.group(0)!, style: style),
-                  ),
-                ),
-              ),
-            ),
+
+    List<TextSpan> takeUntil(int end) {
+      final parts = <TextSpan>[];
+      while (cursor < end) {
+        final run = runs[runIndex];
+        final value = run.text!;
+        final runEnd = runStart + value.length;
+        final stop = end < runEnd ? end : runEnd;
+        parts.add(
+          TextSpan(
+            text: value.substring(cursor - runStart, stop - runStart),
+            style: run.style,
           ),
         );
+        cursor = stop;
+        if (cursor == runEnd) {
+          runIndex++;
+          runStart = runEnd;
+        }
       }
-      cursor = m.end;
+      return parts;
     }
-    if (cursor < text.length) spans.add(TextSpan(text: text.substring(cursor)));
-    return spans;
+
+    do {
+      final match = matches.current;
+      result.addAll(takeUntil(match.start));
+      final source = takeUntil(match.end);
+      final tex = match[1] ?? match[2] ?? match[3] ?? match[4]!;
+      if (tex.length > 1500) {
+        result.addAll(source);
+        continue;
+      }
+      final firstStyle = source.first.style ?? base;
+      final style = source.every((run) => (run.style ?? base) == firstStyle)
+          ? firstStyle
+          : base;
+      result.add(
+        _mathSpan(
+          context,
+          tex,
+          display: match[1] != null || match[2] != null,
+          style: style,
+          source: source,
+        ),
+      );
+    } while (matches.moveNext());
+    result.addAll(takeUntil(text.length));
+    return result;
   }
+
+  static WidgetSpan _mathSpan(
+    BuildContext context,
+    String tex, {
+    required bool display,
+    required TextStyle style,
+    required List<TextSpan> source,
+  }) => WidgetSpan(
+    alignment: PlaceholderAlignment.middle,
+    child: ConstrainedBox(
+      constraints: BoxConstraints(
+        maxWidth: (MediaQuery.sizeOf(context).width - 88).clamp(120.0, 640.0),
+      ),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          child: Math.tex(
+            tex,
+            mathStyle: display ? MathStyle.display : MathStyle.text,
+            textStyle: style.copyWith(height: 1.2),
+            onErrorFallback: (_) =>
+                Text.rich(TextSpan(style: style, children: source)),
+          ),
+        ),
+      ),
+    ),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -175,10 +225,18 @@ class NoteReader extends StatelessWidget {
         fontWeight: !date && heading > 0 ? FontWeight.w600 : FontWeight.normal,
       );
       ordered = line.attributes['list'] == 'ordered' ? ordered + 1 : 0;
-      final spans = <InlineSpan>[
+      final spans = <TextSpan>[
         if (line.attributes['list'] == 'bullet') const TextSpan(text: '• '),
         if (line.attributes['list'] == 'ordered') TextSpan(text: '$ordered. '),
       ];
+      Widget textBlock() => Text.rich(
+        TextSpan(
+          style: base,
+          children: NoteMathText._styledSpans(context, spans, base),
+        ),
+        textAlign: textAlign,
+      );
+
       for (final op in line.runs) {
         final value = op['insert'];
         if (value is Map) {
@@ -190,12 +248,7 @@ class NoteReader extends StatelessWidget {
               .firstOrNull;
           if (a != null) {
             if (spans.isNotEmpty) {
-              blocks.add(
-                Text.rich(
-                  TextSpan(style: base, children: List.of(spans)),
-                  textAlign: textAlign,
-                ),
-              );
+              blocks.add(textBlock());
               spans.clear();
             }
             blocks.add(
@@ -214,12 +267,7 @@ class NoteReader extends StatelessWidget {
           final tableData = value[NoteDocument.tableKey];
           if (tableData is String) {
             if (spans.isNotEmpty) {
-              blocks.add(
-                Text.rich(
-                  TextSpan(style: base, children: List.of(spans)),
-                  textAlign: textAlign,
-                ),
-              );
+              blocks.add(textBlock());
               spans.clear();
             }
             blocks.add(NoteTableView(data: tableData));
@@ -259,12 +307,7 @@ class NoteReader extends StatelessWidget {
             if (attrs['strike'] == true) TextDecoration.lineThrough,
           ]),
         );
-        spans.add(
-          TextSpan(
-            style: style,
-            children: NoteMathText.spans(context, value as String, style),
-          ),
-        );
+        spans.add(TextSpan(text: value as String, style: style));
       }
       if (spans.isNotEmpty || line.runs.isEmpty) {
         blocks.add(
@@ -277,12 +320,7 @@ class NoteReader extends StatelessWidget {
                   : 2,
               bottom: date ? 2 : 8,
             ),
-            child: spans.isEmpty
-                ? const SizedBox(height: 5)
-                : Text.rich(
-                    TextSpan(style: base, children: spans),
-                    textAlign: textAlign,
-                  ),
+            child: spans.isEmpty ? const SizedBox(height: 5) : textBlock(),
           ),
         );
       }
