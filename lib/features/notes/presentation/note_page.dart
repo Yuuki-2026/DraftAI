@@ -1066,9 +1066,9 @@ class _NotePageState extends ConsumerState<NotePage> {
     if (source != null && mounted) await _attach(source);
   }
 
-  Future<void> _types() {
+  Future<void> _types() async {
     _dismissEditorKeyboard();
-    return showModalBottomSheet<void>(
+    final insertTable = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       builder: (c) => SafeArea(
@@ -1127,7 +1127,7 @@ class _NotePageState extends ConsumerState<NotePage> {
                 ),
                 const SizedBox(height: 12),
                 OutlinedButton.icon(
-                  onPressed: _insertTable,
+                  onPressed: () => Navigator.pop(c, true),
                   icon: const Icon(Icons.table_chart_outlined),
                   label: Text(tr(c, 'Insertar tabla')),
                 ),
@@ -1138,6 +1138,7 @@ class _NotePageState extends ConsumerState<NotePage> {
         ),
       ),
     );
+    if (insertTable == true && mounted) await _insertTable();
   }
 
   Future<List<List<String>>?> _tableDialog({
@@ -1187,11 +1188,12 @@ class _NotePageState extends ConsumerState<NotePage> {
           }
 
           return AlertDialog(
+            scrollable: true,
             title: Text(tr(dialogContext, 'Insertar tabla')),
             content: SizedBox(
               width: (size.width - 64).clamp(240.0, 480.0),
-              height: (size.height * .56).clamp(250.0, 460.0),
               child: Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   Row(
                     children: [
@@ -1237,56 +1239,49 @@ class _NotePageState extends ConsumerState<NotePage> {
                     ],
                   ),
                   const SizedBox(height: 10),
-                  Expanded(
-                    child: SingleChildScrollView(
-                      child: SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Table(
-                          defaultColumnWidth: FixedColumnWidth(
-                            ((size.width - 96) / columnCount).clamp(
-                              72.0,
-                              160.0,
-                            ),
-                          ),
-                          children: [
-                            for (var row = 0; row < rowCount; row++)
-                              TableRow(
-                                children: [
-                                  for (
-                                    var column = 0;
-                                    column < columnCount;
-                                    column++
-                                  )
-                                    Padding(
-                                      padding: const EdgeInsets.all(3),
-                                      child: TextFormField(
-                                        key: ValueKey(
-                                          'table-$row-$column-$rowCount-$columnCount',
-                                        ),
-                                        initialValue: cells[row][column],
-                                        maxLength: 120,
-                                        minLines: 1,
-                                        maxLines: 3,
-                                        buildCounter: (
-                                          _, {
-                                          required currentLength,
-                                          required isFocused,
-                                          maxLength,
-                                        }) => null,
-                                        onChanged: (value) =>
-                                            cells[row][column] = value,
-                                        decoration: InputDecoration(
-                                          hintText: tr(dialogContext, 'Celda'),
-                                          isDense: true,
-                                          border: const OutlineInputBorder(),
-                                        ),
-                                      ),
-                                    ),
-                                ],
-                              ),
-                          ],
-                        ),
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Table(
+                      defaultColumnWidth: FixedColumnWidth(
+                        ((size.width - 96) / columnCount).clamp(72.0, 160.0),
                       ),
+                      children: [
+                        for (var row = 0; row < rowCount; row++)
+                          TableRow(
+                            children: [
+                              for (
+                                var column = 0;
+                                column < columnCount;
+                                column++
+                              )
+                                Padding(
+                                  padding: const EdgeInsets.all(3),
+                                  child: TextFormField(
+                                    key: ValueKey(
+                                      'table-$row-$column-$rowCount-$columnCount',
+                                    ),
+                                    initialValue: cells[row][column],
+                                    maxLength: 120,
+                                    minLines: 1,
+                                    maxLines: 3,
+                                    buildCounter: (
+                                      _, {
+                                      required currentLength,
+                                      required isFocused,
+                                      maxLength,
+                                    }) => null,
+                                    onChanged: (value) =>
+                                        cells[row][column] = value,
+                                    decoration: InputDecoration(
+                                      hintText: tr(dialogContext, 'Celda'),
+                                      isDense: true,
+                                      border: const OutlineInputBorder(),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                      ],
                     ),
                   ),
                 ],
