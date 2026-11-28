@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/presentation/design.dart';
 import '../domain/entities.dart';
+import '../domain/folder_names.dart';
 import '../domain/use_cases.dart';
 import '../domain/ports.dart';
 import 'controller.dart';
@@ -1136,201 +1137,205 @@ Future<void> createNote(
     String? selectedFolder = initialFolder;
     var createFolder = selectedFolder == null;
     var titleText = '';
-    final folderName = TextEditingController();
+    var folderName = '';
     if (!context.mounted) return;
-    _NoteFormResult? result;
-    try {
-      result = await showModalBottomSheet<_NoteFormResult>(
-        context: context,
-        isScrollControlled: true,
-        useSafeArea: true,
-        showDragHandle: true,
-        builder: (dialogContext) => StatefulBuilder(
-          builder: (dialogContext, setDialogState) {
-            final bottomInset = MediaQuery.viewInsetsOf(dialogContext).bottom;
-            return Padding(
-              padding: EdgeInsets.fromLTRB(20, 4, 20, bottomInset + 16),
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  maxHeight: MediaQuery.sizeOf(dialogContext).height * .82,
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.note_add_outlined,
-                          color: Theme.of(dialogContext).colorScheme.primary,
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            tr(dialogContext, 'Nuevo apunte'),
-                            style: Theme.of(dialogContext).textTheme.titleLarge,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 14),
-                    Flexible(
-                      child: ListView(
-                        shrinkWrap: true,
-                        children: [
-                          TextFormField(
-                            initialValue: titleText,
-                            maxLength: 200,
-                            autofocus: true,
-                            onChanged: (value) => setDialogState(() {
-                              titleText = value;
-                            }),
-                            decoration: InputDecoration(
-                              labelText: tr(dialogContext, 'Título del apunte'),
-                              helperText: tr(
-                                dialogContext,
-                                'Un buen nombre ayuda a clasificar mejor a la IA.',
-                              ),
-                              helperMaxLines: 2,
-                              hintText: tr(
-                                dialogContext,
-                                'Ej. Cálculo diferencial',
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  tr(dialogContext, 'Guardar en'),
-                                  style: Theme.of(dialogContext)
-                                      .textTheme
-                                      .titleSmall,
-                                ),
-                              ),
-                              TextButton.icon(
-                                onPressed: () => setDialogState(() {
-                                  createFolder = !createFolder;
-                                  if (!createFolder) {
-                                    selectedFolder =
-                                        initialFolder ??
-                                        folders.firstOrNull?.id;
-                                    folderName.clear();
-                                  } else {
-                                    selectedFolder = null;
-                                  }
-                                }),
-                                icon: Icon(
-                                  createFolder
-                                      ? Icons.folder_open_outlined
-                                      : Icons.create_new_folder_outlined,
-                                  size: 17,
-                                ),
-                                label: Text(
-                                  tr(
-                                    dialogContext,
-                                    createFolder
-                                        ? 'Elegir carpeta'
-                                        : 'Nueva carpeta',
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          if (createFolder)
-                            TextField(
-                              controller: folderName,
-                              maxLength: 80,
-                              autofocus: titleText.trim().isNotEmpty,
-                              decoration: InputDecoration(
-                                labelText: tr(
-                                  dialogContext,
-                                  'Nombre de la carpeta',
-                                ),
-                                hintText: tr(dialogContext, 'Ej. Exámenes'),
-                                prefixIcon: const Icon(Icons.folder_outlined),
-                              ),
-                            )
-                          else
-                            DropdownButtonFormField<String>(
-                              key: ValueKey('note-folder-$selectedFolder'),
-                              initialValue: selectedFolder,
-                              isExpanded: true,
-                              decoration: InputDecoration(
-                                labelText: tr(dialogContext, 'Carpeta'),
-                              ),
-                              items: [
-                                for (final folder in folders)
-                                  DropdownMenuItem(
-                                    value: folder.id,
-                                    child: Row(
-                                      children: [
-                                        FolderGlyph(folder.color),
-                                        const SizedBox(width: 9),
-                                        Expanded(
-                                          child: Text(
-                                            folder.name,
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                              ],
-                              onChanged: (value) => setDialogState(() {
-                                selectedFolder = value;
-                              }),
-                            ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextButton(
-                            onPressed: () => Navigator.pop(dialogContext),
-                            child: Text(tr(dialogContext, 'Cancelar')),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: FilledButton.icon(
-                            onPressed:
-                                titleText.trim().isEmpty ||
-                                    (createFolder &&
-                                        folderName.text.trim().isEmpty) ||
-                                    (!createFolder && selectedFolder == null)
-                                ? null
-                                : () => Navigator.pop(
-                                    dialogContext,
-                                    _NoteFormResult(
-                                      folderId: selectedFolder ?? '',
-                                      folderName: createFolder
-                                          ? folderName.text.trim()
-                                          : null,
-                                      categoryId: null,
-                                      title: titleText.trim(),
-                                    ),
-                                  ),
-                            icon: const Icon(Icons.add, size: 17),
-                            label: Text(tr(dialogContext, 'Crear apunte')),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
+    final result = await showModalBottomSheet<_NoteFormResult>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: true,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) {
+          final bottomInset = MediaQuery.viewInsetsOf(dialogContext).bottom;
+          final duplicateFolder =
+              createFolder && FolderNames.conflicts(folderName, folders);
+          return Padding(
+            padding: EdgeInsets.fromLTRB(20, 4, 20, bottomInset + 16),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.sizeOf(dialogContext).height * .82,
               ),
-            );
-          },
-        ),
-      );
-    } finally {
-      folderName.dispose();
-    }
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.note_add_outlined,
+                        color: Theme.of(dialogContext).colorScheme.primary,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          tr(dialogContext, 'Nuevo apunte'),
+                          style: Theme.of(dialogContext).textTheme.titleLarge,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  Flexible(
+                    child: ListView(
+                      shrinkWrap: true,
+                      children: [
+                        TextFormField(
+                          initialValue: titleText,
+                          maxLength: 200,
+                          autofocus: true,
+                          onChanged: (value) => setDialogState(() {
+                            titleText = value;
+                          }),
+                          decoration: InputDecoration(
+                            labelText: tr(dialogContext, 'Título del apunte'),
+                            helperText: tr(
+                              dialogContext,
+                              'Un buen nombre ayuda a clasificar mejor a la IA.',
+                            ),
+                            helperMaxLines: 2,
+                            hintText: tr(
+                              dialogContext,
+                              'Ej. Cálculo diferencial',
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                tr(dialogContext, 'Guardar en'),
+                                style: Theme.of(dialogContext)
+                                    .textTheme
+                                    .titleSmall,
+                              ),
+                            ),
+                            TextButton.icon(
+                              onPressed: () => setDialogState(() {
+                                createFolder = !createFolder;
+                                if (!createFolder) {
+                                  selectedFolder =
+                                      initialFolder ?? folders.firstOrNull?.id;
+                                  folderName = '';
+                                } else {
+                                  selectedFolder = null;
+                                }
+                              }),
+                              icon: Icon(
+                                createFolder
+                                    ? Icons.folder_open_outlined
+                                    : Icons.create_new_folder_outlined,
+                                size: 17,
+                              ),
+                              label: Text(
+                                tr(
+                                  dialogContext,
+                                  createFolder
+                                      ? 'Elegir carpeta'
+                                      : 'Nueva carpeta',
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (createFolder)
+                          TextField(
+                            maxLength: FolderNames.maxLength,
+                            autofocus: titleText.trim().isNotEmpty,
+                            onChanged: (value) =>
+                                setDialogState(() => folderName = value),
+                            decoration: InputDecoration(
+                              labelText: tr(
+                                dialogContext,
+                                'Nombre de la carpeta',
+                              ),
+                              hintText: tr(dialogContext, 'Ej. Exámenes'),
+                              prefixIcon: const Icon(Icons.folder_outlined),
+                              errorText: duplicateFolder
+                                  ? tr(
+                                      dialogContext,
+                                      FolderNames.duplicateMessage,
+                                    )
+                                  : null,
+                              errorMaxLines: 2,
+                            ),
+                          )
+                        else
+                          DropdownButtonFormField<String>(
+                            key: ValueKey('note-folder-$selectedFolder'),
+                            initialValue: selectedFolder,
+                            isExpanded: true,
+                            decoration: InputDecoration(
+                              labelText: tr(dialogContext, 'Carpeta'),
+                            ),
+                            items: [
+                              for (final folder in folders)
+                                DropdownMenuItem(
+                                  value: folder.id,
+                                  child: Row(
+                                    children: [
+                                      FolderGlyph(folder.color),
+                                      const SizedBox(width: 9),
+                                      Expanded(
+                                        child: Text(
+                                          folder.name,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                            ],
+                            onChanged: (value) => setDialogState(() {
+                              selectedFolder = value;
+                            }),
+                          ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextButton(
+                          onPressed: () => Navigator.pop(dialogContext),
+                          child: Text(tr(dialogContext, 'Cancelar')),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: FilledButton.icon(
+                          onPressed:
+                              titleText.trim().isEmpty ||
+                                  duplicateFolder ||
+                                  (createFolder && folderName.trim().isEmpty) ||
+                                  (!createFolder && selectedFolder == null)
+                              ? null
+                              : () => Navigator.pop(
+                                  dialogContext,
+                                  _NoteFormResult(
+                                    folderId: selectedFolder ?? '',
+                                    folderName: createFolder
+                                        ? folderName.trim()
+                                        : null,
+                                    categoryId: null,
+                                    title: titleText.trim(),
+                                  ),
+                                ),
+                          icon: const Icon(Icons.add, size: 17),
+                          label: Text(tr(dialogContext, 'Crear apunte')),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
     if (result == null || !context.mounted) return;
     var destinationFolder = result.folderId;
     if (result.folderName != null) {
@@ -1543,6 +1548,7 @@ Future<void> editFolder(
 }) async {
   if (colorOnly) FocusManager.instance.primaryFocus?.unfocus();
   var name = folder?.name ?? '';
+  var duplicateName = false;
   var color = folder?.color ?? 0xFFFFFFFF;
   final original = color;
   var selectedHue = HSVColor.fromColor(Color(color)).hue;
@@ -1578,10 +1584,21 @@ Future<void> editFolder(
                   TextFormField(
                     initialValue: folder?.name ?? '',
                     autofocus: false,
-                    maxLength: 80,
-                    onChanged: (value) => set(() => name = value),
+                    maxLength: FolderNames.maxLength,
+                    onChanged: (value) => set(() {
+                      name = value;
+                      duplicateName = FolderNames.conflicts(
+                        value,
+                        ref.read(libraryProvider).value?.folders ?? const [],
+                        current: folder,
+                      );
+                    }),
                     decoration: InputDecoration(
                       labelText: tr(dialog, 'Nombre de la carpeta'),
+                      errorText: duplicateName
+                          ? tr(dialog, FolderNames.duplicateMessage)
+                          : null,
+                      errorMaxLines: 2,
                     ),
                   ),
                 if (colorOnly) ...[
@@ -1719,7 +1736,10 @@ Future<void> editFolder(
             child: Text(tr(dialog, 'Cancelar')),
           ),
           FilledButton(
-            onPressed: name.trim().isEmpty || _parseFolderHex(hex) == null
+            onPressed:
+                duplicateName ||
+                    name.trim().isEmpty ||
+                    _parseFolderHex(hex) == null
                 ? null
                 : () => Navigator.pop(
                     dialog,

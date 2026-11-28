@@ -820,6 +820,8 @@ const extraEnglish = <String, String>{
       'The AI returned an invalid structured response.',
   'La carpeta debe tener entre 1 y 80 caracteres.':
       'The folder name must contain 1 to 80 characters.',
+  'Ya existe una carpeta con ese nombre.':
+      'A folder with that name already exists.',
   'La categoría no pertenece a esta carpeta.':
       'This category does not belong to the selected folder.',
   'La conexión de IA de Google se administra desde DraftAI.':

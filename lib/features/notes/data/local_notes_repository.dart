@@ -4,6 +4,7 @@ import 'package:drift/drift.dart' show Value, OrderingTerm, OrderingMode;
 
 import '../../../core/security/secure_store.dart';
 import '../domain/entities.dart' as domain;
+import '../domain/folder_names.dart';
 import '../domain/ports.dart';
 import 'local/database.dart';
 import 'note_mapper.dart';
@@ -21,8 +22,7 @@ class LocalNotesRepository implements NotesRepository {
       .watch()
       .asyncMap((_) => load());
 
-  @override
-  Future<domain.Library> load() async {
+  Future<List<domain.Folder>> _loadFolders() async {
     final folders = <domain.Folder>[];
     for (final row in await db.select(db.folders).get()) {
       final j =
@@ -31,6 +31,12 @@ class LocalNotesRepository implements NotesRepository {
         domain.Folder(row.id, j['name'] as String, j['color'] as int),
       );
     }
+    return folders;
+  }
+
+  @override
+  Future<domain.Library> load() async {
+    final folders = await _loadFolders();
     final categories = <domain.Category>[];
     for (final row in await db.select(db.categories).get()) {
       categories.add(
@@ -92,21 +98,29 @@ class LocalNotesRepository implements NotesRepository {
 
   @override
   Future<void> saveFolder(domain.Folder f) async {
-    if (f.name.trim().isEmpty || f.name.length > 80) {
+    final name = f.name.trim();
+    if (name.isEmpty || f.name.length > FolderNames.maxLength) {
       throw const domain.AppFailure(
         'La carpeta debe tener entre 1 y 80 caracteres.',
       );
     }
-    await db
-        .into(db.folders)
-        .insertOnConflictUpdate(
-          FoldersCompanion.insert(
-            id: f.id,
-            payload: await cipher.seal(
-              jsonEncode({'name': f.name.trim(), 'color': f.color}),
+    await db.transaction(() async {
+      final folders = await _loadFolders();
+      final current = folders.where((folder) => folder.id == f.id).firstOrNull;
+      if (FolderNames.conflicts(name, folders, current: current)) {
+        throw const domain.AppFailure(FolderNames.duplicateMessage);
+      }
+      await db
+          .into(db.folders)
+          .insertOnConflictUpdate(
+            FoldersCompanion.insert(
+              id: f.id,
+              payload: await cipher.seal(
+                jsonEncode({'name': name, 'color': f.color}),
+              ),
             ),
-          ),
-        );
+          );
+    });
   }
 
   @override

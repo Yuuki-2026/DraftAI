@@ -10,6 +10,7 @@ import '../../notes/data/note_mapper.dart';
 import '../../notes/data/local/database.dart' show AppDatabase;
 import '../../notes/data/local_notes_repository.dart';
 import '../../notes/domain/entities.dart';
+import '../../notes/domain/folder_names.dart';
 import '../../notes/domain/note_document.dart';
 import '../../notes/domain/ports.dart';
 
@@ -122,9 +123,21 @@ class ProfileVaultManager implements ProfileVaultService {
     final sourceLibrary = await source.notes.load();
     final targetLibrary = await target.notes.load();
     final targetNotes = {for (final n in targetLibrary.notes) n.id: n};
+    final targetFolders = {
+      for (final folder in targetLibrary.folders) folder.id: folder,
+    };
 
     for (final folder in sourceLibrary.folders) {
-      await target.notes.saveFolder(folder);
+      final usedNames = targetFolders.values
+          .where((other) => other.id != folder.id)
+          .map((other) => other.name);
+      final copy = Folder(
+        folder.id,
+        FolderNames.available(folder.name, usedNames),
+        folder.color,
+      );
+      await target.notes.saveFolder(copy);
+      targetFolders[copy.id] = copy;
     }
     for (final category in sourceLibrary.categories) {
       await target.notes.saveCategory(category);
@@ -188,7 +201,7 @@ class ProfileVaultManager implements ProfileVaultService {
     if (!sourceLibrary.folders.every((folder) {
           final copied = verifiedFolders[folder.id];
           return copied != null &&
-              copied.name == folder.name &&
+              copied.name == targetFolders[folder.id]?.name &&
               copied.color == folder.color;
         }) ||
         !sourceLibrary.categories.every((category) {

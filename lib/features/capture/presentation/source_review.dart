@@ -11,6 +11,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/presentation/design.dart';
 import '../../../core/presentation/strings.dart';
 import '../../notes/domain/entities.dart';
+import '../../notes/domain/folder_names.dart';
 import '../../notes/domain/ports.dart';
 import '../../notes/domain/note_document.dart';
 import '../../notes/presentation/controller.dart';
@@ -308,17 +309,18 @@ class _ReviewState extends ConsumerState<SourceReviewPage> {
           final name = d.folderName.trim().isEmpty
               ? 'Mis apuntes'
               : d.folderName.trim();
+          final nameKey = FolderNames.key(name);
           folderId =
               lib.folders
-                  .where((f) => f.name.toLowerCase() == name.toLowerCase())
+                  .where((f) => FolderNames.key(f.name) == nameKey)
                   .firstOrNull
                   ?.id ??
-              folderCache[name.toLowerCase()];
+              folderCache[nameKey];
           if (folderId == null) {
             final f = Folder(ctrl.newId(), name, 0xFFFFFFFF);
             await ctrl.folder(f);
             folderId = f.id;
-            folderCache[name.toLowerCase()] = f.id;
+            folderCache[nameKey] = f.id;
           }
         }
         final targetTitle = d.noteTitle.trim().isEmpty

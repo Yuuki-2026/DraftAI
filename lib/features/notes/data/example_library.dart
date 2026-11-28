@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 import 'package:pdf/widgets.dart' as pw;
 
 import '../domain/entities.dart';
+import '../domain/folder_names.dart';
 import '../domain/ports.dart';
 import '../domain/note_document.dart';
 
@@ -163,11 +164,12 @@ class ExampleLibrary implements ExampleService {
       );
     final pdfBytes = await pdf.save();
     var count = 0;
+    final folderNames = lib.folders.map((folder) => folder.name).toList();
     for (var group = 0; group < topics.length; group++) {
       final (folderName, _, body) = topics[group];
       final folder = Folder(
         '${prefix}_folder$group',
-        folderName,
+        FolderNames.available(folderName, folderNames),
         [
           0xFFFFFFFF,
           0xFF9E9E9E,
@@ -180,6 +182,7 @@ class ExampleLibrary implements ExampleService {
         ][group],
       );
       await notes.saveFolder(folder);
+      folderNames.add(folder.name);
       for (var i = 0; i < 15; i++) {
         final now = DateTime.now().toUtc().subtract(
           Duration(days: (group * 15 + i) * 2),

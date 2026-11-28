@@ -1,12 +1,15 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sqlite3/sqlite3.dart' as sqlite;
 import 'package:draft_ai/core/security/secure_store.dart';
+import 'package:draft_ai/features/auth/data/profile_vaults.dart';
 import 'package:draft_ai/features/notes/domain/entities.dart';
+import 'package:draft_ai/features/notes/domain/folder_names.dart';
 import 'package:draft_ai/features/notes/domain/use_cases.dart';
 import 'package:draft_ai/features/notes/data/local/database.dart'
-    show AppDatabase;
+    show AppDatabase, FoldersCompanion;
 import 'package:draft_ai/features/notes/data/local_notes_repository.dart';
 
 void main() {
@@ -105,6 +108,129 @@ void main() {
       'Renombrada',
     );
   });
+
+  test('folder names are unique on creation and rename', () async {
+    final duplicate = throwsA(
+      isA<AppFailure>().having(
+        (error) => error.message,
+        'message',
+        FolderNames.duplicateMessage,
+      ),
+    );
+    await expectLater(
+      repo.saveFolder(const Folder('other', '  INGENIERÍA  ', 0)),
+      duplicate,
+    );
+    await repo.saveFolder(const Folder('other', 'Otra carpeta', 0));
+    await expectLater(
+      repo.saveFolder(const Folder('other', 'ingeniería', 0)),
+      duplicate,
+    );
+    await repo.saveFolder(const Folder('f', 'INGENIERÍA', 1));
+    final folders = (await repo.load()).folders;
+    expect(
+      folders.map((folder) => folder.name),
+      unorderedEquals(['INGENIERÍA', 'Otra carpeta']),
+    );
+    expect(folders.singleWhere((folder) => folder.id == 'f').color, 1);
+  });
+
+  test(
+    'simultaneous folder creation validates the name in the write transaction',
+    () async {
+      Future<bool> save(String id, String name) async {
+        try {
+          await repo.saveFolder(Folder(id, name, 0));
+          return true;
+        } on AppFailure catch (error) {
+          expect(error.message, FolderNames.duplicateMessage);
+          return false;
+        }
+      }
+
+      final results = await Future.wait([
+        save('a', 'Ciencias Sociales'),
+        save('b', ' CIENCIAS  SOCIALES '),
+      ]);
+      expect(results, unorderedEquals([true, false]));
+      expect((await repo.load()).folders, hasLength(2));
+    },
+  );
+
+  test('existing duplicate folders can be recolored and renamed without losing notes', () async {
+    await db
+        .into(db.folders)
+        .insert(
+          FoldersCompanion.insert(
+            id: 'legacy',
+            payload: await cipher.seal(
+              jsonEncode({'name': 'Ingeniería', 'color': 0}),
+            ),
+          ),
+        );
+    await repo.save(note().copyWith(folderId: 'legacy'));
+    await repo.saveFolder(const Folder('legacy', 'Ingeniería', 1));
+    await repo.saveFolder(const Folder('legacy', 'Ingeniería de software', 1));
+    final library = await repo.load();
+    expect(library.active.single.folderId, 'legacy');
+    expect(
+      library.folders.singleWhere((folder) => folder.id == 'legacy').name,
+      'Ingeniería de software',
+    );
+  });
+
+  test(
+    'profile transfer keeps both folders and their notes when names coincide',
+    () async {
+      final root = await Directory.systemTemp.createTemp(
+        'draftai_folder_transfer',
+      );
+      final databases = <AppDatabase>{};
+      addTearDown(() async {
+        for (final database in databases) {
+          await database.close();
+        }
+        await root.delete(recursive: true);
+      });
+      final profiles = ProfileVaultManager(
+        root: root,
+        cache: root,
+        secure: MemorySecureStore(),
+        newId: () => 'test-id',
+      );
+      await profiles.activate(guestOwnerId);
+      final guest = profiles.activeNotes;
+      databases.add(guest.db);
+      await guest.saveFolder(const Folder('f', 'Ingeniería', 7));
+      await guest.save(note(title: 'De Invitado'));
+
+      await profiles.activate('account');
+      final account = profiles.activeNotes;
+      databases.add(account.db);
+      await account.saveFolder(const Folder('account-folder', 'INGENIERÍA', 3));
+      await account.save(
+        note(
+          id: 'own',
+          title: 'De la cuenta',
+        ).copyWith(folderId: 'account-folder'),
+      );
+      await profiles.moveGuestTo('account');
+      databases.remove(guest.db);
+
+      final library = await account.load();
+      final folders = {for (final folder in library.folders) folder.id: folder};
+      expect(folders['account-folder']?.name, 'INGENIERÍA');
+      expect(folders['f']?.name, 'Ingeniería (2)');
+      expect(folders['f']?.color, 7);
+      expect(
+        library.notes.map((note) => (note.title, note.folderId)),
+        unorderedEquals([
+          ('De la cuenta', 'account-folder'),
+          ('De Invitado', 'f'),
+        ]),
+      );
+    },
+  );
   test('filter includes end date and ignores accents', () {
     final notes = [
       note(),
